@@ -322,69 +322,111 @@
 	}
 </script>
 
-<h2 class="mb-2 text-lg font-semibold">Activity Timeline (Hourly)</h2>
-<p class="text-xs text-gray-500">
-	Showing {$filteredEntries.length} logs
-	{#if $selectedRange}
-		(filtered)
-	{/if}
-</p>
-<div class="flex gap-1">
-	{#each Object.keys(rounders) as unit}
-		<button
-			class="rounded border px-3 py-1
-             {$groupUnit === unit
-				? 'border-blue-600 bg-blue-600 text-white'
-				: 'border-gray-300 bg-white text-gray-700 hover:bg-blue-100'}"
-			onclick={() => groupUnit.set(unit)}
-		>
-			{unit}
-		</button>
-	{/each}
-</div>
-<div
-	bind:this={container}
-	bind:clientWidth={width}
-	class="h-full min-h-[150px] sm:min-w-full lg:h-[350px]"
->
-	{#if xScale && yScale && $grouped && $grouped.length > 0}
-		<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
-			<g transform={`translate(${margin.left}, 0)`}>
-				{#each yScale && typeof yScale.ticks === 'function' ? yScale.ticks(5) : [] as y}
-					<line
-						x1="0"
-						x2={width - margin.left - margin.right}
-						y1={yScale(y)}
-						y2={yScale(y)}
-						stroke="#eee"
-					/>
-					<text x="-6" y={yScale(y)} text-anchor="end" alignment-baseline="middle" font-size="10"
-						>{y}</text
-					>
-				{/each}
-			</g>
-			<g transform={`translate(0, ${height - margin.bottom})`}>
-				{#each xTicks as x}
-					<line x1={xScale(x)} x2={xScale(x)} y1="0" y2="-6" stroke="#999" />
-					<text
-						transform={`rotate(-45, ${xScale(x)}, 20)`}
-						x={xScale(x)}
-						y="20"
-						text-anchor="middle"
-						font-size="10"
-					>
-						{formatTick(x)}
-					</text>
-				{/each}
-			</g>
-			{#each $grouped as d}
-				{#each getStackedLevels(d) as bar}
-					<rect x={bar.x} y={bar.y} width={barWidth} height={bar.height} fill={bar.color} />
-				{/each}
+<div class="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
+	<div class="mb-4">
+		<h2 class="mb-2 text-xl font-bold text-gray-800">📊 Activity Timeline</h2>
+		<p class="text-sm text-gray-600">
+			Showing {$filteredEntries.length} logs
+			{#if $selectedRange}
+				<span class="text-blue-600">(filtered)</span>
+			{/if}
+		</p>
+	</div>
+
+	<!-- Time Unit Selector -->
+	<div class="mb-4">
+		<div class="flex gap-1">
+			{#each Object.keys(rounders) as unit}
+				<button
+					class="rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105
+						{$groupUnit === unit
+						? 'bg-blue-600 text-white shadow-md'
+						: 'border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+					onclick={() => groupUnit.set(unit)}
+				>
+					{unit.charAt(0).toUpperCase() + unit.slice(1)}
+				</button>
 			{/each}
-			<g bind:this={brushEl}></g>
-		</svg>
-	{:else}
-		<div>No data to display</div>
-	{/if}
+		</div>
+	</div>
+
+	<!-- Chart Container -->
+	<div
+		bind:this={container}
+		bind:clientWidth={width}
+		class="relative h-[350px] w-full rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-white"
+	>
+		{#if xScale && yScale && $grouped && $grouped.length > 0}
+			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
+				<!-- Grid Lines -->
+				<g transform={`translate(${margin.left}, 0)`}>
+					{#each yScale && typeof yScale.ticks === 'function' ? yScale.ticks(5) : [] as y}
+						<line
+							x1="0"
+							x2={width - margin.left - margin.right}
+							y1={yScale(y)}
+							y2={yScale(y)}
+							stroke="#f3f4f6"
+							stroke-width="1"
+						/>
+						<text
+							x="-8"
+							y={yScale(y)}
+							text-anchor="end"
+							alignment-baseline="middle"
+							font-size="11"
+							fill="#6b7280"
+							font-family="system-ui, sans-serif"
+						>
+							{y}
+						</text>
+					{/each}
+				</g>
+
+				<!-- X-axis Ticks -->
+				<g transform={`translate(0, ${height - margin.bottom})`}>
+					{#each xTicks as x}
+						<line x1={xScale(x)} x2={xScale(x)} y1="0" y2="-4" stroke="#d1d5db" stroke-width="1" />
+						<text
+							transform={`rotate(-45, ${xScale(x)}, 20)`}
+							x={xScale(x)}
+							y="20"
+							text-anchor="middle"
+							font-size="10"
+							fill="#6b7280"
+							font-family="system-ui, sans-serif"
+						>
+							{formatTick(x)}
+						</text>
+					{/each}
+				</g>
+
+				<!-- Bars -->
+				{#each $grouped as d}
+					{#each getStackedLevels(d) as bar}
+						<rect
+							x={bar.x}
+							y={bar.y}
+							width={barWidth}
+							height={bar.height}
+							fill={bar.color}
+							rx="2"
+							ry="2"
+							class="transition-all duration-200 hover:opacity-80"
+						/>
+					{/each}
+				{/each}
+
+				<!-- Brush (invisible but functional) -->
+				<g bind:this={brushEl} class="brush-overlay"></g>
+			</svg>
+		{:else}
+			<div class="flex h-full items-center justify-center">
+				<div class="text-center">
+					<div class="mb-2 text-4xl">📊</div>
+					<div class="text-gray-500">No data to display</div>
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>
