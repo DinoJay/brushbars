@@ -1,6 +1,5 @@
 <!-- runes -->
 <script>
-	import { derived } from 'svelte/store';
 	import * as d3 from 'd3';
 	import { grouped, groupUnit, selectedRange, filteredEntries } from './logStore.js';
 	import TimeUnitSelector from './components/TimeUnitSelector.svelte';
@@ -126,7 +125,7 @@
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
 				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
 
-				<ChartBars grouped={filteredGrouped} {xScale} {yScale} {barWidth} />
+				<ChartBars grouped={$grouped} {xScale} {yScale} {barWidth} />
 
 				<ChartBrush {xScale} {yScale} {width} {height} {margin} />
 			</svg>
