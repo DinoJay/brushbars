@@ -22,6 +22,7 @@
 	// 	return containerWidth > 0 ? containerWidth : 1900;
 	// });
 	let width = $state(800);
+	let height = $state(350); // Add height definition
 
 	// Force a recalculation after mount
 	$effect(() => {
@@ -32,9 +33,13 @@
 		}
 	});
 
-	const height = 350; // Increase height to accommodate labels
-	// Reduce margins to minimal values for maximum space usage
-	const margin = { top: 15, right: 15, bottom: 60, left: 45 };
+	// Update margins to add more padding
+	const margin = {
+		top: 20,
+		right: 30,
+		bottom: 60, // Increased from default to accommodate rotated labels
+		left: 50 // Increased from default to accommodate y-axis labels
+	};
 
 	function formatTick(date) {
 		// Get the time span to determine appropriate format
@@ -311,12 +316,21 @@
 		);
 		const bars = [];
 		let yBase = yScale(0);
+		const padding = 1; // 1px padding between stacked bars
+
 		for (const [level, count] of levels) {
 			const height = Math.max(1, yScale(0) - yScale(count));
 			const y = yBase - height;
-			// console.log('xScale(d.time)', xScale(d.time));
-			bars.push({ x: xScale(d.time) - barWidth / 2, y, height, color: levelColor(level) });
-			yBase = y;
+
+			bars.push({
+				x: xScale(d.time) - barWidth / 2,
+				y,
+				height: height - padding, // Reduce height by padding
+				color: levelColor(level)
+			});
+
+			// Move base up by height plus padding
+			yBase = y - padding;
 		}
 		return bars;
 	}
@@ -358,50 +372,83 @@
 	>
 		{#if xScale && yScale && $grouped && $grouped.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
-				<!-- Grid Lines -->
+				<!-- Y-axis with enhanced styling -->
 				<g transform={`translate(${margin.left}, 0)`}>
+					<!-- Y-axis line -->
+					<line
+						x1="0"
+						x2="0"
+						y1="0"
+						y2={height - margin.top - margin.bottom}
+						stroke="#e5e7eb"
+						stroke-width="2"
+						stroke-linecap="round"
+					/>
+
+					<!-- Grid lines and tick labels -->
 					{#each yScale && typeof yScale.ticks === 'function' ? yScale.ticks(5) : [] as y}
+						<!-- Grid line -->
 						<line
 							x1="0"
 							x2={width - margin.left - margin.right}
 							y1={yScale(y)}
 							y2={yScale(y)}
-							stroke="#f3f4f6"
+							stroke="#f8fafc"
 							stroke-width="1"
+							stroke-dasharray="2,2"
 						/>
+						<!-- Y-axis tick -->
+						<line x1="-6" x2="0" y1={yScale(y)} y2={yScale(y)} stroke="#d1d5db" stroke-width="1" />
+						<!-- Y-axis label -->
 						<text
-							x="-8"
+							x="-15"
 							y={yScale(y)}
 							text-anchor="end"
 							alignment-baseline="middle"
 							font-size="11"
+							font-weight="500"
 							fill="#6b7280"
-							font-family="system-ui, sans-serif"
+							font-family="system-ui, -apple-system, sans-serif"
 						>
 							{y}
 						</text>
 					{/each}
 				</g>
 
-				<!-- X-axis Ticks -->
+				<!-- X-axis with enhanced styling -->
 				<g transform={`translate(0, ${height - margin.bottom})`}>
+					<!-- X-axis line -->
+					<line
+						x1={margin.left}
+						x2={width - margin.right}
+						y1="0"
+						y2="0"
+						stroke="#e5e7eb"
+						stroke-width="2"
+						stroke-linecap="round"
+					/>
+
+					<!-- X-axis ticks and labels -->
 					{#each xTicks as x}
-						<line x1={xScale(x)} x2={xScale(x)} y1="0" y2="-4" stroke="#d1d5db" stroke-width="1" />
+						<!-- X-axis tick -->
+						<line x1={xScale(x)} x2={xScale(x)} y1="0" y2="6" stroke="#d1d5db" stroke-width="1" />
+						<!-- X-axis label with better positioning -->
 						<text
-							transform={`rotate(-45, ${xScale(x)}, 20)`}
+							transform={`rotate(-45, ${xScale(x)}, 35)`}
 							x={xScale(x)}
-							y="20"
+							y="35"
 							text-anchor="middle"
 							font-size="10"
+							font-weight="500"
 							fill="#6b7280"
-							font-family="system-ui, sans-serif"
+							font-family="system-ui, -apple-system, sans-serif"
 						>
 							{formatTick(x)}
 						</text>
 					{/each}
 				</g>
 
-				<!-- Bars -->
+				<!-- Bars with proper padding from axes -->
 				{#each $grouped as d}
 					{#each getStackedLevels(d) as bar}
 						<rect
