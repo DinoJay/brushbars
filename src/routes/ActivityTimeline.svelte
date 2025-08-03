@@ -228,35 +228,35 @@
 
 	const barWidth = $derived.by(() => {
 		if (xScale && $grouped.length > 0) {
-			// Calculate available width for bars
-			const availableWidth = width - margin.left - margin.right;
-			
-			// Calculate spacing between bars based on number of bars
-			const spacing = availableWidth / $grouped.length;
-			
-			// Dynamic width calculation based on number of bars
-			let widthRatio;
-			if ($grouped.length <= 10) {
-				// For few bars, use 80% of spacing
-				widthRatio = 0.8;
-			} else if ($grouped.length <= 30) {
-				// For moderate bars, use 70% of spacing
-				widthRatio = 0.7;
-			} else if ($grouped.length <= 50) {
-				// For many bars, use 60% of spacing
-				widthRatio = 0.6;
-			} else {
-				// For very many bars, use 50% of spacing
-				widthRatio = 0.5;
+			// Calculate the actual spacing between consecutive data points
+			let minSpacing = Infinity;
+
+			if ($grouped.length > 1) {
+				// Find the minimum spacing between any two consecutive bars
+				for (let i = 1; i < $grouped.length; i++) {
+					const spacing = xScale($grouped[i].time) - xScale($grouped[i - 1].time);
+					if (spacing > 0 && spacing < minSpacing) {
+						minSpacing = spacing;
+					}
+				}
 			}
-			
-			const calculatedWidth = spacing * widthRatio;
-			
-			// Set dynamic min/max bounds based on number of bars
-			const minWidth = $grouped.length > 50 ? 2 : $grouped.length > 20 ? 4 : 6;
-			const maxWidth = Math.min(20, spacing * 0.95);
-			
-			return Math.max(minWidth, Math.min(maxWidth, calculatedWidth));
+
+			// If we couldn't calculate spacing, use a fallback
+			if (minSpacing === Infinity) {
+				const availableWidth = width - margin.left - margin.right;
+				minSpacing = availableWidth / $grouped.length;
+			}
+
+			// Define minimum width based on data density
+			const minimumWidth = $grouped.length > 100 ? 3 : $grouped.length > 10 ? 4 : 6;
+
+			// Use a conservative approach - bars should never exceed 80% of minimum spacing
+			const maxBarWidth = minSpacing * 0.8;
+
+			// Ensure bars meet minimum width and don't overlap
+			const calculatedWidth = Math.max(minimumWidth, Math.min(maxBarWidth, 15));
+
+			return calculatedWidth;
 		}
 		return 10;
 	});
