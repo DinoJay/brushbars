@@ -1,5 +1,5 @@
 <script>
-	import { filteredEntries } from './logStore.js';
+	import { logStore } from './logStore.svelte.ts';
 </script>
 
 <h2 class="mb-2 text-lg font-semibold">Log Table</h2>
@@ -14,7 +14,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each $filteredEntries as log}
+			{#each logStore.filteredEntries as log}
 				<tr class="border-b hover:bg-gray-50">
 					<td class="px-3 py-1">{log.timestamp}</td>
 					<td class="px-3 py-1">{log.channel}</td>

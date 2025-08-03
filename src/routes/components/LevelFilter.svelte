@@ -1,9 +1,9 @@
 <!-- runes -->
 <script>
-	import { selectedLevel } from '../logStore.js';
+	import { logStore } from '../logStore.svelte.ts';
 
 	function clearFilter() {
-		selectedLevel.set(null);
+		logStore.setSelectedLevel(null);
 	}
 
 	function getLevelColor(level) {
@@ -22,14 +22,14 @@
 	}
 </script>
 
-{#if $selectedLevel}
+{#if logStore.selectedLevel}
 	<div class="mb-4 flex items-center gap-2">
 		<span class="text-sm text-gray-600">Filtered by:</span>
 		<div
 			class="flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium text-white"
-			style="background-color: {getLevelColor($selectedLevel)}"
+			style="background-color: {getLevelColor(logStore.selectedLevel)}"
 		>
-			<span>{$selectedLevel}</span>
+			<span>{logStore.selectedLevel}</span>
 			<button
 				onclick={clearFilter}
 				class="bg-opacity-20 hover:bg-opacity-30 ml-1 rounded-full bg-white p-1 transition-all duration-200"

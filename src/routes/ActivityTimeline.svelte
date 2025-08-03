@@ -1,7 +1,7 @@
 <!-- runes -->
 <script>
 	import * as d3 from 'd3';
-	import { grouped, groupUnit, selectedRange, filteredEntries } from './logStore.js';
+	import { logStore } from './logStore.svelte.ts';
 	import TimeUnitSelector from './components/TimeUnitSelector.svelte';
 	import ChartAxis from './components/ChartAxis.svelte';
 	import ChartBars from './components/ChartBars.svelte';
@@ -22,8 +22,8 @@
 
 	// Reactive derived values
 	const xScale = $derived.by(() => {
-		if ($grouped.length > 0 && width > 0) {
-			const times = $grouped.map((e) => e.time);
+		if (logStore.grouped.length > 0 && width > 0) {
+			const times = logStore.grouped.map((e) => e.time);
 			const [minTime, maxTime] = d3.extent(times);
 
 			if (minTime && maxTime) {
@@ -43,8 +43,8 @@
 	});
 
 	const yScale = $derived.by(() => {
-		if ($grouped.length > 0) {
-			const counts = $grouped.map((d) => d.count);
+		if (logStore.grouped.length > 0) {
+			const counts = logStore.grouped.map((d) => d.count);
 			return d3
 				.scaleLinear()
 				.domain([0, d3.max(counts)])
@@ -55,14 +55,14 @@
 	});
 
 	const xTicks = $derived.by(() => {
-		if (xScale && $grouped.length > 0) {
+		if (xScale && logStore.grouped.length > 0) {
 			// Smart tick reduction based on number of bars
 			const maxTicks = Math.max(5, Math.min(15, Math.floor(width / 100)));
-			const tickCount = Math.min($grouped.length, maxTicks);
+			const tickCount = Math.min(logStore.grouped.length, maxTicks);
 
-			if ($grouped.length === 1) {
+			if (logStore.grouped.length === 1) {
 				// Generate additional ticks for single bar
-				const singleTime = $grouped[0].time;
+				const singleTime = logStore.grouped[0].time;
 				const domain = xScale.domain();
 				const [start, end] = domain;
 				const span = end.getTime() - start.getTime();
@@ -83,18 +83,7 @@
 	});
 
 	const barWidth = $derived.by(() => {
-		return calculateBarWidth($grouped, width, margin);
-	});
-
-	const filteredGrouped = $derived.by(() => {
-		if (!$selectedRange || $selectedRange.length !== 2) return $grouped;
-
-		const [start, end] = $selectedRange.map((d) => d.getTime());
-
-		return $grouped.filter((group) => {
-			const t = group.time.getTime();
-			return t >= start && t <= end;
-		});
+		return calculateBarWidth(logStore.grouped, width, margin);
 	});
 
 	function handleUnitChange(unit) {
@@ -106,8 +95,8 @@
 	<div class="mb-4">
 		<h2 class="mb-2 text-xl font-bold text-gray-800">📊 Activity Timeline</h2>
 		<p class="text-sm text-gray-600">
-			Showing {$filteredEntries.length} logs
-			{#if $selectedRange}
+			Showing {logStore.filteredEntries.length} logs
+			{#if logStore.selectedRange}
 				<span class="text-blue-600">(filtered)</span>
 			{/if}
 		</p>
@@ -121,11 +110,19 @@
 		bind:clientWidth={width}
 		class="relative h-[350px] w-full rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-white"
 	>
-		{#if xScale && yScale && $grouped && $grouped.length > 0}
+		{#if xScale && yScale && logStore.grouped && logStore.grouped.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
-				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
+				<ChartAxis
+					{xScale}
+					{yScale}
+					{xTicks}
+					{width}
+					{height}
+					{margin}
+					groupUnit={logStore.groupUnit}
+				/>
 
-				<ChartBars grouped={$grouped} {xScale} {yScale} {barWidth} />
+				<ChartBars grouped={logStore.grouped} {xScale} {yScale} {barWidth} />
 
 				<ChartBrush {xScale} {yScale} {width} {height} {margin} />
 			</svg>
