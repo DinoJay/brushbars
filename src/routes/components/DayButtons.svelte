@@ -88,6 +88,7 @@
 		try {
 			if (isToday(date)) {
 				// For today, use WebSocket data (real-time)
+				console.log(logStore.entries);
 				console.log('📡 Using WebSocket data for today');
 				// The getDayLogs function will automatically use WebSocket data
 			} else {
