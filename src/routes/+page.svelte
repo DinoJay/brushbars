@@ -14,16 +14,16 @@
 			(parsedLogs) => {
 				console.log('📊 Received historical logs:', parsedLogs.length, 'entries');
 
-				// Update the log store with the received logs
-				logStore.updateEntries(parsedLogs);
+				// Update the WebSocket entries with the received logs
+				logStore.updateWebsocketEntries(parsedLogs);
 			},
 			// onLogUpdate callback - when new logs arrive
 			(parsedLogs) => {
 				console.log('📝 Received log updates:', parsedLogs.length, 'entries');
 
-				// Add new logs to existing ones
-				const currentEntries = logStore.entries;
-				logStore.updateEntries([...currentEntries, ...parsedLogs]);
+				// Add new logs to existing WebSocket entries
+				const currentWebsocketEntries = logStore.websocketEntries;
+				logStore.updateWebsocketEntries([...currentWebsocketEntries, ...parsedLogs]);
 			}
 		);
 

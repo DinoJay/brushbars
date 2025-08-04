@@ -22,6 +22,7 @@ export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 	// Reactive state using Svelte 5 runes
 	let entries = $state(initialEntries);
+	let websocketEntries = $state<LogEntry[]>([]); // Special variable for WebSocket updates
 	let selectedRange = $state<[Date, Date] | null>(null);
 	let visibleCount = $state(100);
 	let groupUnit = $state<GroupUnit>('hour');
@@ -103,6 +104,9 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 		get entries() {
 			return entries;
 		},
+		get websocketEntries() {
+			return websocketEntries;
+		},
 		get selectedRange() {
 			return selectedRange;
 		},
@@ -139,7 +143,14 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 			selectedLevel = level;
 		},
 		updateEntries(newEntries: LogEntry[]) {
+			console.log('🔄 logStore.updateEntries called with:', newEntries.length, 'entries');
 			entries = newEntries;
+			console.log('✅ logStore.entries updated, new length:', entries.length);
+		},
+		updateWebsocketEntries(newEntries: LogEntry[]) {
+			console.log('📡 logStore.updateWebsocketEntries called with:', newEntries.length, 'entries');
+			websocketEntries = newEntries;
+			console.log('✅ logStore.websocketEntries updated, new length:', websocketEntries.length);
 		}
 	};
 }
