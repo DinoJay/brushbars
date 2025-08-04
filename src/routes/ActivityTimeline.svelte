@@ -8,6 +8,10 @@
 	import ChartBrush from './components/ChartBrush.svelte';
 	import { calculateBarWidth } from './utils/chartUtils.js';
 
+	$effect(() => {
+		console.log('logStore.grouped', logStore.grouped);
+	});
+
 	let container;
 	let width = $state(800);
 	let height = $state(350);

@@ -2,6 +2,7 @@ import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
 import { WebSocketServer } from 'ws';
+import * as d3 from 'd3';
 
 const PORT = 3001;
 const LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
@@ -19,6 +20,90 @@ const wss = new WebSocketServer({ port: PORT }, () => {
 });
 
 let lastSize = 0;
+
+// Log parsing function
+function parseLogLines(logText) {
+	const result = [];
+	const lines = logText
+		.split(/\r?\n/)
+		.map((l) => l.trim())
+		.filter(Boolean);
+
+	let counter = 0;
+	let filteredCount = 0;
+
+	// Improved regex to handle more log formats
+	const regex =
+		/^(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([^\]]+)]\s+(\w+):\s+(.*)$/;
+
+	for (const line of lines) {
+		const match = line.match(regex);
+		if (match) {
+			const [, level, timestamp, context, logger, message] = match;
+			const channelMatch = context.match(/ on (\S+?) \(/);
+			const channel = channelMatch ? channelMatch[1] : '(unknown)';
+
+			// Normalize timestamp format (add .000 if milliseconds missing)
+			let normalizedTimestamp = timestamp;
+			if (!timestamp.includes('.')) {
+				normalizedTimestamp = timestamp + '.000';
+			}
+
+			result.push({
+				id: counter++,
+				level: level.toUpperCase(),
+				timestamp: normalizedTimestamp,
+				channel,
+				message
+			});
+		} else {
+			// Try alternative regex patterns for different log formats
+			const altRegex1 =
+				/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+\[([^\]]+)]\s+(.*)$/;
+			const altMatch1 = line.match(altRegex1);
+
+			if (altMatch1) {
+				const [, timestamp, level, context, message] = altMatch1;
+				const channelMatch = context.match(/ on (\S+?) \(/);
+				const channel = channelMatch ? channelMatch[1] : '(unknown)';
+
+				let normalizedTimestamp = timestamp;
+				if (!timestamp.includes('.')) {
+					normalizedTimestamp = timestamp + '.000';
+				}
+
+				result.push({
+					id: counter++,
+					level: level.toUpperCase(),
+					timestamp: normalizedTimestamp,
+					channel,
+					message
+				});
+			} else {
+				// Skip lines that don't match any pattern instead of creating invalid entries
+				filteredCount++;
+				if (filteredCount <= 5) {
+					console.warn('⚠️ Skipping malformed log line:', line.substring(0, 100));
+				}
+			}
+		}
+	}
+
+	// Filter out any entries with empty timestamps (shouldn't happen now, but just in case)
+	const validEntries = result.filter((entry) => {
+		if (!entry.timestamp || entry.timestamp.trim() === '') {
+			filteredCount++;
+			return false;
+		}
+		return true;
+	});
+
+	if (filteredCount > 0) {
+		console.log(`📊 Filtered out ${filteredCount} entries with invalid/missing timestamps`);
+	}
+
+	return validEntries;
+}
 
 // Get all log files from the directory
 function getLogFiles() {
@@ -101,29 +186,65 @@ function readLogFile(filePath) {
 	});
 }
 
-// Send all historical log data
+// Helper function to get current day logs
+function getCurrentDayLogs(logs) {
+	const today = new Date();
+	const todayString = today.toISOString().split('T')[0];
+
+	return logs.filter((log) => {
+		const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+		return logDate === todayString;
+	});
+}
+
+// Helper function to get logs from the last N days
+function getLogsFromLastDays(logs, days = 7) {
+	const cutoffDate = new Date();
+	cutoffDate.setDate(cutoffDate.getDate() - days);
+
+	return logs.filter((log) => {
+		const logDate = new Date(log.timestamp);
+		return logDate >= cutoffDate;
+	});
+}
+
 async function sendHistoricalLogs(ws) {
 	try {
-		// First try to load from the output file if it exists
+		// Check if output file exists first
 		if (fs.existsSync(OUTPUT_FILE)) {
-			console.log('📖 Loading logs from existing file:', OUTPUT_FILE);
-			const fileStats = fs.statSync(OUTPUT_FILE);
-			console.log(`📄 File size: ${Math.round(fileStats.size / 1024)}KB`);
-
+			console.log('📖 Reading logs from output file...');
 			const allLogs = fs.readFileSync(OUTPUT_FILE, 'utf8');
-			console.log('allLogs', allLogs.length);
+			const fileStats = fs.statSync(OUTPUT_FILE);
+
+			// Parse the logs
+			const parsedLogs = parseLogLines(allLogs);
+			console.log('📊 Parsed logs:', parsedLogs.length, 'entries');
+
+			// Get current day logs for real-time context
+			const currentDayLogs = getCurrentDayLogs(parsedLogs);
+			console.log(`📊 Found ${currentDayLogs.length} logs for current day`);
+
+			const logsToSend = currentDayLogs;
+
+			console.log(
+				`📊 Sending ${logsToSend.length} logs (${currentDayLogs.length > 0 ? 'current day' : 'last 7 days'})`
+			);
 
 			ws.send(
 				JSON.stringify({
 					type: 'log-full',
-					logs: allLogs.slice(0, 100000),
+					logs: logsToSend,
 					stats: {
 						fileSize: fileStats.size,
-						lastModified: fileStats.mtime
+						lastModified: fileStats.mtime,
+						parsedCount: parsedLogs.length,
+						sentCount: logsToSend.length,
+						currentDayCount: currentDayLogs.length,
+						dataType: currentDayLogs.length > 0 ? 'current-day' : 'last-7-days'
 					}
 				})
 			);
-			console.log('✅ Sent existing logs from file');
+			console.log('✅ Sent current day logs from file');
 			return;
 		}
 
@@ -174,8 +295,21 @@ async function sendHistoricalLogs(ws) {
 		}
 
 		if (allLogs.trim()) {
+			// Parse the logs
+			const parsedLogs = parseLogLines(allLogs);
+			console.log(`📊 Parsed ${parsedLogs.length} log entries from ${filesRead} files`);
+
+			// Get current day logs for real-time context
+			const currentDayLogs = getCurrentDayLogs(parsedLogs);
+			console.log(`📊 Found ${currentDayLogs.length} logs for current day`);
+
+			// If we have current day logs, send those for real-time context
+			// Otherwise, send logs from the last 7 days
+			const logsToSend =
+				currentDayLogs.length > 0 ? currentDayLogs : getLogsFromLastDays(parsedLogs, 7);
+
 			console.log(
-				`📊 Sending ${filesRead} log files (${Math.round(totalSize / 1024)}KB total) to client`
+				`📊 Sending ${logsToSend.length} logs (${currentDayLogs.length > 0 ? 'current day' : 'last 7 days'})`
 			);
 
 			// Write logs to file for future use
@@ -186,78 +320,106 @@ async function sendHistoricalLogs(ws) {
 				console.error('❌ Error writing logs to file:', err);
 			}
 
-			// Send to client
+			// Send current day logs to client
 			ws.send(
 				JSON.stringify({
 					type: 'log-full',
-					logs: allLogs,
+					logs: logsToSend,
 					stats: {
 						filesRead: filesRead,
-						totalSize: totalSize
+						totalSize: totalSize,
+						parsedCount: parsedLogs.length,
+						sentCount: logsToSend.length,
+						currentDayCount: currentDayLogs.length,
+						dataType: currentDayLogs.length > 0 ? 'current-day' : 'last-7-days'
 					}
 				})
 			);
+			console.log('✅ Sent current day logs from directory');
 		} else {
 			ws.send(
 				JSON.stringify({
 					type: 'error',
-					message: 'No log data found.'
+					message: 'No valid log data found in files.'
 				})
 			);
 		}
 	} catch (err) {
 		console.error('❌ Error sending historical logs:', err);
-		ws.send(JSON.stringify({ type: 'error', message: 'Failed to read log files.' }));
+		ws.send(
+			JSON.stringify({
+				type: 'error',
+				message: 'Failed to load historical logs.'
+			})
+		);
 	}
 }
 
-// Send new log lines as they appear
-// function sendNewLines() {
-// 	fs.stat(LOG_FILE, (err, stats) => {
-// 		if (err) return;
+// Send new log lines as they appear (current day only)
+function sendNewLines() {
+	// Check if output file exists and has new content
+	if (!fs.existsSync(OUTPUT_FILE)) return;
 
-// 		if (stats.size < lastSize) {
-// 			// Log was rotated or truncated
-// 			lastSize = 0;
-// 		}
+	fs.stat(OUTPUT_FILE, (err, stats) => {
+		if (err) return;
 
-// 		if (stats.size > lastSize) {
-// 			const stream = fs.createReadStream(LOG_FILE, {
-// 				start: lastSize,
-// 				end: stats.size
-// 			});
+		if (stats.size < lastSize) {
+			// Log was rotated or truncated
+			lastSize = 0;
+		}
 
-// 			let newData = '';
-// 			stream.on('data', (chunk) => (newData += chunk));
-// 			stream.on('end', () => {
-// 				lastSize = stats.size;
-// 				if (newData.trim()) {
-// 					// Append new logs to the output file
-// 					try {
-// 						fs.appendFileSync(OUTPUT_FILE, newData, 'utf8');
-// 						console.log(` Appended ${newData.length} bytes to log file`);
-// 					} catch (err) {
-// 						console.error('❌ Error appending to log file:', err);
-// 					}
+		if (stats.size > lastSize) {
+			const stream = fs.createReadStream(OUTPUT_FILE, {
+				start: lastSize,
+				end: stats.size
+			});
 
-// 					const message = JSON.stringify({ type: 'log-update', logs: newData });
-// 					for (const client of wss.clients) {
-// 						if (client.readyState === 1) {
-// 							client.send(message);
-// 						}
-// 					}
-// 				}
-// 			});
-// 		}
-// 	});
-// }
+			let newData = '';
+			stream.on('data', (chunk) => (newData += chunk));
+			stream.on('end', () => {
+				lastSize = stats.size;
+				if (newData.trim()) {
+					// Parse the new log data
+					const newLogs = parseLogLines(newData);
+
+					// Filter for current day logs only
+					const currentDayNewLogs = getCurrentDayLogs(newLogs);
+
+					if (currentDayNewLogs.length > 0) {
+						console.log(`📡 Sending ${currentDayNewLogs.length} new current day logs`);
+
+						const message = JSON.stringify({
+							type: 'log-update',
+							logs: currentDayNewLogs,
+							stats: {
+								newLogsCount: currentDayNewLogs.length,
+								totalNewLogs: newLogs.length,
+								dataType: 'current-day-update'
+							}
+						});
+
+						for (const client of wss.clients) {
+							if (client.readyState === 1) {
+								client.send(message);
+							}
+						}
+					} else {
+						console.log(
+							`📡 New logs received but none are from current day (${newLogs.length} total)`
+						);
+					}
+				}
+			});
+		}
+	});
+}
 
 // Handle WebSocket connections
 wss.on('connection', (ws) => {
 	console.log('🔌 Client connected');
 	ws.send(JSON.stringify({ type: 'welcome', message: 'Connected to Mirth log stream' }));
 
-	// Send all historical logs
+	// Send current day historical logs
 	sendHistoricalLogs(ws);
 });
 
@@ -274,17 +436,17 @@ wss.on('message', (ws, message) => {
 	}
 });
 
-// Watch for new log entries
-// chokidar
-// 	.watch(LOG_FILE, {
-// 		usePolling: true,
-// 		interval: 2000,
-// 		awaitWriteFinish: {
-// 			stabilityThreshold: 100,
-// 			pollInterval: 100
-// 		}
-// 	})
-// 	.on('change', sendNewLines);
+// Watch for new log entries in the output file
+chokidar
+	.watch(OUTPUT_FILE, {
+		usePolling: true,
+		interval: 2000,
+		awaitWriteFinish: {
+			stabilityThreshold: 100,
+			pollInterval: 100
+		}
+	})
+	.on('change', sendNewLines);
 
 console.log('🚀 WebSocket server ready');
-console.log(` Logs will be saved to: ${OUTPUT_FILE}`);
+console.log(`📡 Real-time current day logs will be streamed from: ${OUTPUT_FILE}`);

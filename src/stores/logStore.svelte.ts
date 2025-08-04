@@ -42,7 +42,7 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 
 	// Timeline grouped data
 	let grouped = $derived.by(() => {
-		const bucketFn = d3.timeHour;
+		const bucketFn = d3.timeMinute;
 		const floor = bucketFn.floor;
 
 		const map = new Map<number, GroupedLog>();

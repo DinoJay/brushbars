@@ -4,6 +4,7 @@
 	import { logStore } from '../stores/logStore.svelte';
 	import LogTable from './LogTable.svelte';
 	import LogFilters from './components/LogFilters.svelte';
+	import DayButtons from './components/DayButtons.svelte';
 
 	$effect(() => {
 		// Initialize WebSocket connection
@@ -35,6 +36,11 @@
 
 <main class="min-h-screen bg-gray-50 p-6 font-sans">
 	<h1 class="mb-4 text-2xl font-bold">📋 Mirth Log Dashboard</h1>
+
+	<!-- Day Selection -->
+	<div class="mb-6 rounded bg-white p-4 shadow">
+		<DayButtons />
+	</div>
 
 	<!-- Filters -->
 	<LogFilters />

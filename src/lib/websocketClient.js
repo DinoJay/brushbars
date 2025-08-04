@@ -2,50 +2,6 @@
 let counter = 0;
 
 // Log parsing function
-export function parseLogLines(logText) {
-	const result = [];
-	const lines = logText
-		.split(/\r?\n/)
-		.map((l) => l.trim())
-		.filter(Boolean);
-
-	let current = null;
-
-	const regex =
-		/^(INFO|ERROR|WARN|DEBUG)\s+(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\[([^\]]+)]\s+(\w+):\s+(.*)$/;
-
-	for (const line of lines) {
-		const match = line.match(regex);
-		if (match) {
-			const [, level, timestamp, context, logger, message] = match;
-			const channelMatch = context.match(/ on (\S+?) \(/);
-			const channel = channelMatch ? channelMatch[1] : '(unknown)';
-
-			current = {
-				id: counter++,
-				level,
-				timestamp,
-				channel,
-				message
-			};
-			result.push(current);
-		} else {
-			if (current) {
-				current.message += '\n' + line;
-			} else {
-				result.push({
-					id: counter++,
-					level: '',
-					timestamp: '',
-					channel: '',
-					message: line
-				});
-			}
-		}
-	}
-
-	return result;
-}
 
 // WebSocket client
 let socket = null;
@@ -71,13 +27,13 @@ export function initLogSocket(onLogFull, onLogUpdate) {
 		console.log('data', data);
 
 		if (data.type === 'log-full') {
-			const parsed = parseLogLines(data.logs);
+			const parsed = data.logs;
 			console.log('parsed', parsed);
 			onLogFull(parsed);
 		}
 
 		if (data.type === 'log-update') {
-			const parsed = parseLogLines(data.logs);
+			const parsed = data.logs;
 			onLogUpdate(parsed);
 		}
 	};
