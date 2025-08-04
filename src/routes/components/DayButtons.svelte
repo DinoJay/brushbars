@@ -98,6 +98,7 @@
 
 				if (data.success) {
 					apiDayLogs = data.logs;
+					logStore.updateEntries(apiDayLogs);
 					console.log(`📊 Loaded ${data.count} logs for ${date}:`, data.stats);
 				} else {
 					error = data.error || 'Failed to fetch logs for this day';
@@ -238,52 +239,7 @@
 					{/if}
 				</div>
 
-				<div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-gray-200">
-							<thead class="bg-gray-50">
-								<tr>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-										>Time</th
-									>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-										>Level</th
-									>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-										>Channel</th
-									>
-									<th
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-										>Message</th
-									>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-gray-200 bg-white">
-								{#each getDayLogs() as log}
-									<tr class="hover:bg-gray-50">
-										<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
-											{new Date(log.timestamp).toLocaleTimeString()}
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap">
-											<span class="rounded-full px-2 py-1 text-xs {getLevelColor(log.level)}">
-												{log.level}
-											</span>
-										</td>
-										<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
-											{log.channel}
-										</td>
-										<td class="max-w-md truncate px-6 py-4 text-sm text-gray-900">
-											{log.message}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</div>
+				<div class="overflow-hidden rounded-lg border border-gray-200 bg-white"></div>
 			</div>
 		{/if}
 	{:else if !loading}
