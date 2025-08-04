@@ -1,7 +1,7 @@
 <!-- runes -->
 <script>
 	import * as d3 from 'd3';
-	import { logStore } from './logStore.svelte.ts';
+	import { logStore } from '../stores/logStore.svelte';
 	import TimeUnitSelector from './components/TimeUnitSelector.svelte';
 	import ChartAxis from './components/ChartAxis.svelte';
 	import ChartBars from './components/ChartBars.svelte';
@@ -92,18 +92,6 @@
 </script>
 
 <div class="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
-	<div class="mb-4">
-		<h2 class="mb-2 text-xl font-bold text-gray-800">📊 Activity Timeline</h2>
-		<p class="text-sm text-gray-600">
-			Showing {logStore.filteredEntries.length} logs
-			{#if logStore.selectedRange}
-				<span class="text-blue-600">(filtered)</span>
-			{/if}
-		</p>
-	</div>
-
-	<TimeUnitSelector onUnitChange={handleUnitChange} />
-
 	<!-- Chart Container -->
 	<div
 		bind:this={container}

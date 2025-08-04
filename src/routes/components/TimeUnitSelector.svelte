@@ -1,6 +1,6 @@
 <!-- runes -->
 <script>
-	import { logStore } from '../logStore.svelte.ts';
+	import { logStore } from '../../stores/logStore.svelte';
 
 	const { onUnitChange = () => {} } = $props();
 </script>
