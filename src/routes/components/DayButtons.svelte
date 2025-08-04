@@ -88,9 +88,16 @@
 		try {
 			if (isToday(date)) {
 				// For today, use WebSocket data (real-time)
-				console.log(logStore.entries);
 				console.log('📡 Using WebSocket data for today');
-				// The getDayLogs function will automatically use WebSocket data
+				// Filter current day logs from WebSocket data
+				const currentLogs = logStore.websocketEntries;
+				const currentDayLogs = currentLogs.filter((log) => {
+					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+					return logDate === date;
+				});
+				console.log(`📊 Found ${currentDayLogs.length} logs for today from WebSocket`);
+				// Update the main logStore to show in timeline and table
+				logStore.updateEntries(currentDayLogs);
 			} else {
 				// For historical days, use API
 				console.log(`📡 Using API data for ${date}`);

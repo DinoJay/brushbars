@@ -11,14 +11,14 @@
 
 		initLogSocket(
 			// onLogFull callback - when all historical logs are received
-			(parsedLogs) => {
+			(parsedLogs: any[]) => {
 				console.log('📊 Received historical logs:', parsedLogs.length, 'entries');
 
 				// Update the WebSocket entries with the received logs
 				logStore.updateWebsocketEntries(parsedLogs);
 			},
 			// onLogUpdate callback - when new logs arrive
-			(parsedLogs) => {
+			(parsedLogs: any[]) => {
 				console.log('📝 Received log updates:', parsedLogs.length, 'entries');
 
 				// Add new logs to existing WebSocket entries
