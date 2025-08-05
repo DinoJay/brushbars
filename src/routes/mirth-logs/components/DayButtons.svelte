@@ -29,7 +29,7 @@
 	let days = $state<DayData[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let selectedDay = $state<string | null>(null);
+	// Use store's selectedDay instead of local state
 	let dayLogsLoading = $state(false);
 	let apiDayLogs = $state<any[]>([]);
 
@@ -87,12 +87,12 @@
 
 	// Get the appropriate logs for the selected day
 	function getDayLogs() {
-		if (selectedDay && isToday(selectedDay)) {
+		if (logStore.selectedDay && isToday(logStore.selectedDay)) {
 			// For current day, use WebSocket data
 			const currentLogs = logStore.websocketEntries;
 			return currentLogs.filter((log) => {
 				const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-				return logDate === selectedDay;
+				return logDate === logStore.selectedDay;
 			});
 		}
 		// For historical days, use API data
@@ -124,30 +124,24 @@
 	// Fetch logs for a specific day
 	async function fetchDayLogs(date: string) {
 		dayLogsLoading = true;
-		selectedDay = date;
+		logStore.setSelectedDay(date);
 		apiDayLogs = []; // Clear API logs when fetching a new day
 
 		try {
 			if (isToday(date)) {
 				// For today, use WebSocket data (real-time)
 				console.log('📡 Using WebSocket data for today');
-				// Filter current day logs from WebSocket data
-				const currentLogs = logStore.websocketEntries;
-				const currentDayLogs = currentLogs.filter((log) => {
-					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-					return logDate === date;
-				});
-				console.log(`📊 Found ${currentDayLogs.length} logs for today from WebSocket`);
-				// Update main entries to show current day logs in timeline
-				logStore.updateEntries(currentDayLogs);
+				// The store will automatically filter WebSocket data for the selected day
+				// No need to manually update entries - let the reactive system handle it
 			} else {
 				// For historical days, use API
 				console.log(`📡 Using API data for ${date}`);
 				const response = await fetch(`/mirth-logs/api/logs/${date}`);
 				const data = await response.json();
-				logStore.updateEntries(data.logs);
 
 				if (data.success) {
+					// Update the store's entries with the fetched data
+					logStore.updateEntries(data.logs);
 					apiDayLogs = data.logs;
 					console.log(`📊 Loaded ${data.count} logs for ${date}:`, data.stats);
 				} else {
@@ -184,26 +178,28 @@
 		return '';
 	}
 
-	// Effect to monitor WebSocket entries and update main entries when current day is selected
+	// Effect to monitor WebSocket entries - the store will automatically handle filtering
 	$effect(() => {
 		console.log('📡 WebSocket entries updated in DayButtons:', logStore.websocketEntries.length);
-
-		// If current day is selected, update main entries with latest WebSocket data
-		if (selectedDay && isToday(selectedDay)) {
-			const currentDayLogs = logStore.websocketEntries.filter((log) => {
-				const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-				return logDate === selectedDay;
-			});
-			// logStore.updateEntries(currentDayLogs);
-			console.log(
-				'🔄 Updated main entries with current day WebSocket data:',
-				currentDayLogs.length
-			);
-		}
+		console.log('📅 Current selected day:', logStore.selectedDay);
 	});
 
-	onMount(() => {
-		fetchDays();
+	onMount(async () => {
+		await fetchDays();
+
+		// After fetching days, automatically select today
+		const today = getCurrentDate();
+		console.log('🔄 Auto-selecting today:', today);
+		logStore.setSelectedDay(today);
+
+		// Find today in the available days and fetch its data if it exists
+		const todayDay = days.find((day) => day.date === today);
+		if (todayDay) {
+			console.log("📊 Auto-fetching today's logs");
+			await fetchDayLogs(today);
+		} else {
+			console.log('⚠️ Today not found in available days, will wait for WebSocket data');
+		}
 	});
 </script>
 
@@ -239,8 +235,8 @@
 			{#each reactiveDays.reverse() as day}
 				<button
 					onclick={() => fetchDayLogs(day.date)}
-					disabled={dayLogsLoading && selectedDay === day.date}
-					class=" w-64 flex-shrink-0 rounded-lg border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-lg disabled:opacity-50 {selectedDay ===
+					disabled={dayLogsLoading && logStore.selectedDay === day.date}
+					class=" w-64 flex-shrink-0 rounded-lg border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-lg disabled:opacity-50 {logStore.selectedDay ===
 					day.date
 						? 'border-blue-500 bg-blue-50 shadow-md'
 						: 'hover:bg-gray-50'}"
@@ -256,7 +252,7 @@
 								</span>
 							{/if}
 						</div>
-						{#if dayLogsLoading && selectedDay === day.date}
+						{#if dayLogsLoading && logStore.selectedDay === day.date}
 							<div class="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-500"></div>
 						{/if}
 					</div>

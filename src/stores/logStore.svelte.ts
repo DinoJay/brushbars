@@ -1,5 +1,4 @@
 import * as d3 from 'd3';
-import { exampleLogs } from '../routes/mirth-logs/exampleLogs.js';
 
 export interface LogEntry {
 	id: number;
@@ -19,7 +18,7 @@ export interface GroupedLog {
 export type GroupUnit = 'hour' | 'day' | 'month';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
-export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
+export function createLogStore(initialEntries: LogEntry[] = []) {
 	// Reactive state using Svelte 5 runes
 	let entries = $state(initialEntries);
 	let websocketEntries = $state<LogEntry[]>([]); // Special variable for WebSocket updates
@@ -27,6 +26,7 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 	let visibleCount = $state(100);
 	let groupUnit = $state<GroupUnit>('hour');
 	let selectedLevel = $state<LogLevel | null>(null);
+	let selectedDay = $state<string | null>(new Date().toISOString().split('T')[0]); // Initialize with today
 
 	// D3 time functions
 	const rounders = {
@@ -41,14 +41,32 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 
 	// Level-filtered entries
 
-	// Timeline grouped data
+	// Day-filtered entries (filtered by selectedDay)
+	let dayFilteredEntries = $derived.by(() => {
+		// First, combine entries and websocket entries
+		const allEntries = [...entries, ...websocketEntries];
+
+		// If no day is selected, return all entries
+		if (!selectedDay) {
+			return allEntries;
+		}
+
+		// Filter entries by the selected day
+		return allEntries.filter((log) => {
+			const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+			return logDate === selectedDay;
+		});
+	});
+
+	// Timeline grouped data (from day-filtered entries)
 	let grouped = $derived.by(() => {
 		const bucketFn = d3.timeMinute;
 		const floor = bucketFn.floor;
 
 		const map = new Map<number, GroupedLog>();
 
-		for (const log of entries) {
+		// Use dayFilteredEntries instead of all entries
+		for (const log of dayFilteredEntries) {
 			const bucketTime = floor(new Date(log.timestamp));
 			const key = bucketTime.getTime();
 
@@ -72,22 +90,24 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 		return Array.from(map.values()).sort((a, b) => a.time.getTime() - b.time.getTime());
 	});
 
-	// Brush-filtered entries (filtered by selectedRange)
+	// Final filtered entries (day + brush filtered)
 	let filteredEntries = $derived.by(() => {
-		if (!selectedRange || selectedRange.length !== 2) {
-			return entries;
+		// If there's a brush selection, filter the grouped data first, then get all logs from those groups
+		if (selectedRange && selectedRange.length === 2) {
+			const [start, end] = selectedRange.map((d) => d.getTime());
+
+			// Filter grouped data by time range
+			const filteredGroups = grouped.filter((group) => {
+				const groupTime = group.time.getTime();
+				return groupTime >= start && groupTime <= end;
+			});
+
+			// Get all logs from the filtered groups
+			return filteredGroups.flatMap((group) => group.logs);
 		}
 
-		const [start, end] = selectedRange.map((d) => d.getTime());
-
-		// Filter grouped data first, then get all logs from those groups
-		const filteredGroups = grouped.filter((group) => {
-			const groupTime = group.time.getTime();
-			return groupTime >= start && groupTime <= end;
-		});
-
-		// Get all logs from the filtered groups
-		return filteredGroups.flatMap((group) => group.logs);
+		// If no brush selection, return day-filtered entries
+		return dayFilteredEntries;
 	});
 
 	// Get day ranges for the data
@@ -119,6 +139,9 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 		get selectedLevel() {
 			return selectedLevel;
 		},
+		get selectedDay() {
+			return selectedDay;
+		},
 		get rounders() {
 			return rounders;
 		},
@@ -142,6 +165,9 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 		setSelectedLevel(level: LogLevel | null) {
 			selectedLevel = level;
 		},
+		setSelectedDay(day: string | null) {
+			selectedDay = day;
+		},
 		updateEntries(newEntries: LogEntry[]) {
 			console.log('🔄 logStore.updateEntries called with:', newEntries.length, 'entries');
 			entries = newEntries;
@@ -151,6 +177,9 @@ export function createLogStore(initialEntries: LogEntry[] = exampleLogs) {
 			console.log('📡 logStore.updateWebsocketEntries called with:', newEntries.length, 'entries');
 			websocketEntries = newEntries;
 			console.log('✅ logStore.websocketEntries updated, new length:', websocketEntries.length);
+		},
+		getCurrentDate() {
+			return new Date().toISOString().split('T')[0];
 		}
 	};
 }
