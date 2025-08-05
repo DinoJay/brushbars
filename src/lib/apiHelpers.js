@@ -90,19 +90,41 @@ export function parseLogLines(logText) {
 }
 
 // Load logs from all-logs.txt file
+// Loads all logs from all files in the mirth logs directory
 export function loadLogsFromFile() {
 	try {
-		if (!fs.existsSync(ALL_LOGS_PATH)) {
-			console.warn('⚠️ all-logs.txt file not found at:', ALL_LOGS_PATH);
+		// Define the Mirth logs directory (adjust as needed)
+		const MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
+
+		if (!fs.existsSync(MIRTH_LOGS_DIR)) {
+			console.warn('⚠️ Mirth logs directory not found at:', MIRTH_LOGS_DIR);
 			return [];
 		}
 
-		const logText = fs.readFileSync(ALL_LOGS_PATH, 'utf8');
-		const logs = parseLogLines(logText);
-		console.log(`📊 Loaded ${logs.length} logs from all-logs.txt`);
+		const files = fs.readdirSync(MIRTH_LOGS_DIR);
+		// .filter((file) => /^mirth\.log\d*$/i.test(file) || file.endsWith('.log'));
+
+		if (files.length === 0) {
+			console.warn('⚠️ No log files found in:', MIRTH_LOGS_DIR);
+			return [];
+		}
+
+		let allLogText = '';
+		for (const file of files) {
+			const filePath = path.join(MIRTH_LOGS_DIR, file);
+			try {
+				const logText = fs.readFileSync(filePath, 'utf8');
+				allLogText += logText + '\n';
+			} catch (err) {
+				console.warn(`⚠️ Failed to read log file: ${filePath}`, err);
+			}
+		}
+
+		const logs = parseLogLines(allLogText);
+		console.log(`📊 Loaded ${logs.length} logs from ${files.length} files in mirth-logs`);
 		return logs;
 	} catch (error) {
-		console.error('❌ Error loading logs from file:', error);
+		console.error('❌ Error loading logs from mirth log files:', error);
 		return [];
 	}
 }

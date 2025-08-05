@@ -1,7 +1,7 @@
 <!-- runes -->
 <script>
 	import { levelColor } from '../utils/chartUtils.js';
-	import { logStore } from '../../stores/logStore.svelte';
+	import { logStore } from '../../../stores/logStore.svelte';
 
 	const { grouped, xScale, yScale, barWidth } = $props();
 

@@ -1,7 +1,7 @@
 <!-- runes -->
 <script>
 	import * as d3 from 'd3';
-	import { logStore } from '../../stores/logStore.svelte';
+	import { logStore } from '../../../stores/logStore.svelte';
 
 	const { xScale, yScale, width, height, margin } = $props();
 

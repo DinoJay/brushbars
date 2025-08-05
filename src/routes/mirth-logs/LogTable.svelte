@@ -1,5 +1,5 @@
 <script>
-	import { logStore } from '../stores/logStore.svelte';
+	import { logStore } from '../../stores/logStore.svelte';
 
 	// Track expanded rows
 	let expandedRows = $state(new Set());

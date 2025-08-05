@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { exampleLogs } from '../routes/exampleLogs.js';
+import { exampleLogs } from '../routes/mirth-logs/exampleLogs.js';
 
 export interface LogEntry {
 	id: number;

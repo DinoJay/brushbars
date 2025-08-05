@@ -9,7 +9,6 @@ const LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
 const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
 
 // Output file for all logs
-const OUTPUT_FILE = path.join(process.cwd(), 'all-logs.txt');
 
 // Performance settings
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB max per file
@@ -210,45 +209,7 @@ function getLogsFromLastDays(logs, days = 7) {
 
 async function sendHistoricalLogs(ws) {
 	try {
-		// Check if output file exists first
-		if (fs.existsSync(OUTPUT_FILE)) {
-			console.log('📖 Reading logs from output file...');
-			const allLogs = fs.readFileSync(OUTPUT_FILE, 'utf8');
-			const fileStats = fs.statSync(OUTPUT_FILE);
-
-			// Parse the logs
-			const parsedLogs = parseLogLines(allLogs);
-			console.log('📊 Parsed logs:', parsedLogs.length, 'entries');
-
-			// Get current day logs for real-time context
-			const currentDayLogs = getCurrentDayLogs(parsedLogs);
-			console.log(`📊 Found ${currentDayLogs.length} logs for current day`);
-
-			const logsToSend = currentDayLogs;
-
-			console.log(
-				`📊 Sending ${logsToSend.length} logs (${currentDayLogs.length > 0 ? 'current day' : 'last 7 days'})`
-			);
-
-			ws.send(
-				JSON.stringify({
-					type: 'log-full',
-					logs: logsToSend,
-					stats: {
-						fileSize: fileStats.size,
-						lastModified: fileStats.mtime,
-						parsedCount: parsedLogs.length,
-						sentCount: logsToSend.length,
-						currentDayCount: currentDayLogs.length,
-						dataType: currentDayLogs.length > 0 ? 'current-day' : 'last-7-days'
-					}
-				})
-			);
-			console.log('✅ Sent current day logs from file');
-			return;
-		}
-
-		// If no output file exists, read from log directory
+		// Always read from log directory to get all current day logs (including rotated files)
 		const logFiles = getLogFiles();
 
 		if (logFiles.length === 0) {
@@ -261,7 +222,7 @@ async function sendHistoricalLogs(ws) {
 			return;
 		}
 
-		console.log(`📖 Starting to read ${logFiles.length} log files...`);
+		console.log(`📖 Starting to read ${logFiles.length} log files for current day logs...`);
 
 		let allLogs = '';
 		let filesRead = 0;
@@ -303,22 +264,12 @@ async function sendHistoricalLogs(ws) {
 			const currentDayLogs = getCurrentDayLogs(parsedLogs);
 			console.log(`📊 Found ${currentDayLogs.length} logs for current day`);
 
-			// If we have current day logs, send those for real-time context
-			// Otherwise, send logs from the last 7 days
-			const logsToSend =
-				currentDayLogs.length > 0 ? currentDayLogs : getLogsFromLastDays(parsedLogs, 7);
+			// Send current day logs (including morning from rotated files)
+			const logsToSend = currentDayLogs;
 
 			console.log(
-				`📊 Sending ${logsToSend.length} logs (${currentDayLogs.length > 0 ? 'current day' : 'last 7 days'})`
+				`📊 Sending ${logsToSend.length} logs (current day including morning from rotated files)`
 			);
-
-			// Write logs to file for future use
-			try {
-				fs.writeFileSync(OUTPUT_FILE, allLogs, 'utf8');
-				console.log(`💾 Logs written to: ${OUTPUT_FILE}`);
-			} catch (err) {
-				console.error('❌ Error writing logs to file:', err);
-			}
 
 			// Send current day logs to client
 			ws.send(
@@ -331,11 +282,11 @@ async function sendHistoricalLogs(ws) {
 						parsedCount: parsedLogs.length,
 						sentCount: logsToSend.length,
 						currentDayCount: currentDayLogs.length,
-						dataType: currentDayLogs.length > 0 ? 'current-day' : 'last-7-days'
+						dataType: 'current-day-complete'
 					}
 				})
 			);
-			console.log('✅ Sent current day logs from directory');
+			console.log('✅ Sent complete current day logs (including morning from rotated files)');
 		} else {
 			ws.send(
 				JSON.stringify({
@@ -358,9 +309,9 @@ async function sendHistoricalLogs(ws) {
 // Send new log lines as they appear (current day only)
 function sendNewLines() {
 	// Check if output file exists and has new content
-	if (!fs.existsSync(OUTPUT_FILE)) return;
+	if (!fs.existsSync(LOG_FILE)) return;
 
-	fs.stat(OUTPUT_FILE, (err, stats) => {
+	fs.stat(LOG_FILE, (err, stats) => {
 		if (err) return;
 
 		if (stats.size < lastSize) {
@@ -369,13 +320,16 @@ function sendNewLines() {
 		}
 
 		if (stats.size > lastSize) {
-			const stream = fs.createReadStream(OUTPUT_FILE, {
+			const stream = fs.createReadStream(LOG_FILE, {
 				start: lastSize,
 				end: stats.size
 			});
 
 			let newData = '';
-			stream.on('data', (chunk) => (newData += chunk));
+			stream.on('data', (chunk) => {
+				// console.log('new data', chunk);
+				newData += chunk;
+			});
 			stream.on('end', () => {
 				lastSize = stats.size;
 				if (newData.trim()) {
@@ -438,7 +392,7 @@ wss.on('message', (ws, message) => {
 
 // Watch for new log entries in the output file
 chokidar
-	.watch(OUTPUT_FILE, {
+	.watch(LOG_FILE, {
 		usePolling: true,
 		interval: 2000,
 		awaitWriteFinish: {
@@ -449,4 +403,4 @@ chokidar
 	.on('change', sendNewLines);
 
 console.log('🚀 WebSocket server ready');
-console.log(`📡 Real-time current day logs will be streamed from: ${OUTPUT_FILE}`);
+console.log(`📡 Real-time current day logs will be streamed from: ${LOG_FILE}`);

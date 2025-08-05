@@ -1,8 +1,7 @@
 <!-- runes -->
 <script>
 	import * as d3 from 'd3';
-	import { logStore } from '../stores/logStore.svelte';
-	import TimeUnitSelector from './components/TimeUnitSelector.svelte';
+	import { logStore } from '../../stores/logStore.svelte';
 	import ChartAxis from './components/ChartAxis.svelte';
 	import ChartBars from './components/ChartBars.svelte';
 	import ChartBrush from './components/ChartBrush.svelte';
