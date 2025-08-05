@@ -35,7 +35,7 @@
 </script>
 
 <main class="min-h-screen bg-gray-50 p-6 font-sans">
-	<h1 class="mb-4 text-2xl font-bold">📋 Mirth Log Dashboard</h1>
+	<h1 class="mb-4 text-2xl font-bold">📋 📡 Mirth Log Dashboard</h1>
 
 	<!-- Day Selection -->
 	<div class="mb-6 rounded bg-white p-4 shadow">

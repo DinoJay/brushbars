@@ -5,7 +5,7 @@
 
 	const { grouped, xScale, yScale, barWidth } = $props();
 
-	function getStackedLevels(d) {
+	function getStackedLevels(d, index) {
 		const priority = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 		const levels = Object.entries(d.levels).sort(
 			(a, b) => (priority[a[0]] ?? 99) - (priority[b[0]] ?? 99)
@@ -27,7 +27,8 @@
 				height: height - padding, // Reduce height by padding
 				color: levelColor(level),
 				opacity,
-				level // Add level to the bar object for click handling
+				level, // Add level to the bar object for click handling
+				width: Math.max(1, barWidth - 1) // Ensure minimum width and add small gap
 			});
 
 			// Move base up by height plus padding
@@ -52,7 +53,7 @@
 		<rect
 			x={bar.x}
 			y={bar.y}
-			width={barWidth}
+			width={bar.width}
 			height={bar.height}
 			fill={bar.color}
 			opacity={bar.opacity}

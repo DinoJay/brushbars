@@ -5,8 +5,13 @@ import { WebSocketServer } from 'ws';
 import * as d3 from 'd3';
 
 const PORT = 3001;
-const LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
+let LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
 const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
+
+const isLocal = true;
+if (isLocal) {
+	LOG_DIR = path.join(process.cwd(), 'exampleData');
+}
 
 // Output file for all logs
 
@@ -110,6 +115,7 @@ function getLogFiles() {
 		console.log('🔍 Scanning log directory:', LOG_DIR);
 
 		const allFiles = fs.readdirSync(LOG_DIR);
+		console.log('allFiles', allFiles);
 		console.log(' Files found:', allFiles);
 
 		// Filter for log files only

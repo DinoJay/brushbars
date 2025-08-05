@@ -92,9 +92,14 @@ export function parseLogLines(logText) {
 // Load logs from all-logs.txt file
 // Loads all logs from all files in the mirth logs directory
 export function loadLogsFromFile() {
+	let MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
+
+	const isLocal = true;
+	if (isLocal) {
+		MIRTH_LOGS_DIR = path.join(process.cwd(), 'src', 'lib', 'exampleData');
+	}
 	try {
 		// Define the Mirth logs directory (adjust as needed)
-		const MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
 
 		if (!fs.existsSync(MIRTH_LOGS_DIR)) {
 			console.warn('⚠️ Mirth logs directory not found at:', MIRTH_LOGS_DIR);

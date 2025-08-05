@@ -26,6 +26,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	let visibleCount = $state(100);
 	let groupUnit = $state<GroupUnit>('hour');
 	let selectedLevel = $state<LogLevel | null>(null);
+	let selectedChannel = $state<string | null>(null);
 	let selectedDay = $state<string | null>(new Date().toISOString().split('T')[0]); // Initialize with today
 
 	// D3 time functions
@@ -48,14 +49,23 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 		// If no day is selected, return all entries
 		if (!selectedDay) {
+			console.log('🔍 Store Debug - No day selected, returning all entries:', allEntries.length);
 			return allEntries;
 		}
 
 		// Filter entries by the selected day
-		return allEntries.filter((log) => {
+		const filtered = allEntries.filter((log) => {
 			const logDate = new Date(log.timestamp).toISOString().split('T')[0];
 			return logDate === selectedDay;
 		});
+
+		console.log('🔍 Store Debug - Selected Day:', selectedDay);
+		console.log('🔍 Store Debug - Total Entries:', allEntries.length);
+		console.log('🔍 Store Debug - Historical Entries:', entries.length);
+		console.log('🔍 Store Debug - WebSocket Entries:', websocketEntries.length);
+		console.log('🔍 Store Debug - Filtered Entries:', filtered.length);
+
+		return filtered;
 	});
 
 	// Timeline grouped data (from day-filtered entries)
@@ -90,9 +100,21 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return Array.from(map.values()).sort((a, b) => a.time.getTime() - b.time.getTime());
 	});
 
-	// Final filtered entries (day + brush filtered)
+	// Final filtered entries (day + brush + level + channel filtered)
 	let filteredEntries = $derived.by(() => {
-		// If there's a brush selection, filter the grouped data first, then get all logs from those groups
+		let filtered = dayFilteredEntries;
+
+		// Apply level filter
+		if (selectedLevel) {
+			filtered = filtered.filter((log) => log.level === selectedLevel);
+		}
+
+		// Apply channel filter
+		if (selectedChannel) {
+			filtered = filtered.filter((log) => log.channel === selectedChannel);
+		}
+
+		// If there's a brush selection, filter by time range
 		if (selectedRange && selectedRange.length === 2) {
 			const [start, end] = selectedRange.map((d) => d.getTime());
 
@@ -102,12 +124,22 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 				return groupTime >= start && groupTime <= end;
 			});
 
-			// Get all logs from the filtered groups
-			return filteredGroups.flatMap((group) => group.logs);
+			// Get all logs from the filtered groups and apply level/channel filters
+			const timeFilteredLogs = filteredGroups.flatMap((group) => group.logs);
+
+			// Apply level and channel filters to time-filtered logs
+			if (selectedLevel) {
+				filtered = timeFilteredLogs.filter((log) => log.level === selectedLevel);
+			} else {
+				filtered = timeFilteredLogs;
+			}
+
+			if (selectedChannel) {
+				filtered = filtered.filter((log) => log.channel === selectedChannel);
+			}
 		}
 
-		// If no brush selection, return day-filtered entries
-		return dayFilteredEntries;
+		return filtered;
 	});
 
 	// Get day ranges for the data
@@ -139,6 +171,9 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get selectedLevel() {
 			return selectedLevel;
 		},
+		get selectedChannel() {
+			return selectedChannel;
+		},
 		get selectedDay() {
 			return selectedDay;
 		},
@@ -150,6 +185,9 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		},
 		get filteredEntries() {
 			return filteredEntries;
+		},
+		get dayFilteredEntries() {
+			return dayFilteredEntries;
 		},
 
 		// Setters for state updates
@@ -164,6 +202,9 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		},
 		setSelectedLevel(level: LogLevel | null) {
 			selectedLevel = level;
+		},
+		setSelectedChannel(channel: string | null) {
+			selectedChannel = channel;
 		},
 		setSelectedDay(day: string | null) {
 			selectedDay = day;

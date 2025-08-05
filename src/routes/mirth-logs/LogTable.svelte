@@ -4,6 +4,11 @@
 	// Track expanded rows
 	let expandedRows = $state(new Set());
 
+	// Lazy loading state
+	let visibleCount = $state(50); // Start with 50 entries
+	let isLoading = $state(false);
+	let tableContainer = $state(null);
+
 	// Level styling
 	const levelStyles = {
 		ERROR: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: '🔴' },
@@ -11,6 +16,16 @@
 		INFO: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: '' },
 		DEBUG: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: '⚪' }
 	};
+
+	// Computed visible entries
+	const visibleEntries = $derived.by(() => {
+		return logStore.filteredEntries.slice(0, visibleCount);
+	});
+
+	// Check if there are more entries to load
+	const hasMoreEntries = $derived.by(() => {
+		return visibleCount < logStore.filteredEntries.length;
+	});
 
 	function formatTime(timestamp) {
 		const date = new Date(timestamp);
@@ -34,6 +49,38 @@
 	function isExpanded(logId) {
 		return expandedRows.has(logId);
 	}
+
+	// Load more entries
+	async function loadMore() {
+		if (isLoading || !hasMoreEntries) return;
+
+		isLoading = true;
+
+		// Simulate loading delay for better UX
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Load 50 more entries
+		visibleCount = Math.min(visibleCount + 50, logStore.filteredEntries.length);
+		isLoading = false;
+	}
+
+	// Reset visible count when filtered entries change
+	$effect(() => {
+		if (logStore.filteredEntries.length > 0) {
+			visibleCount = Math.min(50, logStore.filteredEntries.length);
+		}
+	});
+
+	// Handle scroll to load more
+	function handleScroll(event) {
+		const { scrollTop, scrollHeight, clientHeight } = event.target;
+		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+		// Load more when user scrolls to 80% of the table
+		if (scrollPercentage > 0.8 && hasMoreEntries && !isLoading) {
+			loadMore();
+		}
+	}
 </script>
 
 <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -42,7 +89,7 @@
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-900">Log Entries</h3>
 			<div class="flex items-center space-x-4 text-sm text-gray-500">
-				<span>{logStore.filteredEntries.length} entries</span>
+				<span>Showing {visibleEntries.length} of {logStore.filteredEntries.length} entries</span>
 				{#if logStore.selectedRange}
 					<span
 						class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
@@ -54,40 +101,45 @@
 		</div>
 	</div>
 
-	<!-- Table -->
+	<!-- Table with max height and scroll -->
 	<div class="overflow-hidden">
 		{#if logStore.filteredEntries.length > 0}
-			<div class="overflow-x-auto">
+			<div
+				bind:this={tableContainer}
+				onscroll={handleScroll}
+				class="overflow-x-auto overflow-y-auto"
+				style="max-height: 600px;"
+			>
 				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50">
+					<thead class="sticky top-0 z-10 bg-gray-50">
 						<tr>
 							<th
-								class="w-12 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="w-12 bg-gray-50 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 							></th>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="bg-gray-50 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 								>Time</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="bg-gray-50 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 								>Level</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="bg-gray-50 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 								>Channel</th
 							>
 							<th
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="bg-gray-50 px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 								>Message</th
 							>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100 bg-white">
-						{#each logStore.filteredEntries as log, index}
+						{#each visibleEntries as log, index}
 							<tr class="transition-colors duration-150 hover:bg-gray-50">
 								<td class="px-6 py-4 whitespace-nowrap">
 									<button
-										on:click={() => toggleRow(log.id)}
+										onclick={() => toggleRow(log.id)}
 										class="inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors hover:bg-gray-200"
 										title={isExpanded(log.id) ? 'Collapse' : 'Expand'}
 									>
@@ -136,6 +188,34 @@
 								</tr>
 							{/if}
 						{/each}
+
+						<!-- Loading indicator -->
+						{#if isLoading}
+							<tr>
+								<td colspan="5" class="px-6 py-4 text-center">
+									<div class="flex items-center justify-center space-x-2 text-gray-500">
+										<div
+											class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+										></div>
+										<span class="text-sm">Loading more entries...</span>
+									</div>
+								</td>
+							</tr>
+						{/if}
+
+						<!-- Load more button -->
+						{#if hasMoreEntries && !isLoading}
+							<tr>
+								<td colspan="5" class="px-6 py-4 text-center">
+									<button
+										onclick={loadMore}
+										class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+									>
+										Load More ({logStore.filteredEntries.length - visibleEntries.length} remaining)
+									</button>
+								</td>
+							</tr>
+						{/if}
 					</tbody>
 				</table>
 			</div>
