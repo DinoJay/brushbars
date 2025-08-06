@@ -137,6 +137,37 @@ export function groupCloseBars(grouped, timeThreshold = 5 * 60 * 1000) {
 	return groupedBars;
 }
 
+// New function to calculate proper bar positions with spacing
+export function calculateBarPositions(grouped, xScale, barWidth, minGap = 4) {
+	if (!grouped || grouped.length === 0) return [];
+
+	const positions = [];
+	let lastBarEnd = -Infinity;
+
+	for (let i = 0; i < grouped.length; i++) {
+		const bar = grouped[i];
+		const centerX = xScale(bar.time);
+
+		// Calculate the ideal position (centered on time)
+		const idealX = centerX - barWidth / 2;
+
+		// Ensure minimum gap from previous bar
+		const minX = lastBarEnd + minGap;
+		const actualX = Math.max(idealX, minX);
+
+		positions.push({
+			bar,
+			x: actualX,
+			centerX: actualX + barWidth / 2,
+			width: barWidth
+		});
+
+		lastBarEnd = actualX + barWidth;
+	}
+
+	return positions;
+}
+
 function mergeBarGroup(bars) {
 	// Use the middle time of the group
 	const times = bars.map((b) => b.time.getTime());

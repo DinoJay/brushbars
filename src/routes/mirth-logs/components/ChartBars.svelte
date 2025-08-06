@@ -1,13 +1,18 @@
 <!-- runes -->
 <script>
-	import { levelColor } from '../utils/chartUtils.js';
+	import { levelColor, calculateBarPositions } from '../utils/chartUtils.js';
 	import { logStore } from '../../../stores/logStore.svelte';
 
 	const { grouped, xScale, yScale, barWidth } = $props();
 
-	function getStackedLevels(d, index) {
+	// Calculate bar positions with proper spacing
+	const barPositions = $derived.by(() => {
+		return calculateBarPositions(grouped, xScale, barWidth, 8); // Increased gap from 4 to 8 pixels
+	});
+
+	function getStackedLevels(barData, barPosition) {
 		const priority = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-		const levels = Object.entries(d.levels).sort(
+		const levels = Object.entries(barData.levels).sort(
 			(a, b) => (priority[a[0]] ?? 99) - (priority[b[0]] ?? 99)
 		);
 		const bars = [];
@@ -22,13 +27,13 @@
 			const opacity = !logStore.selectedLevel || logStore.selectedLevel === level ? 1 : 0.3;
 
 			bars.push({
-				x: xScale(d.time) - barWidth / 2,
+				x: barPosition.x,
 				y,
 				height: height - padding, // Reduce height by padding
 				color: levelColor(level),
 				opacity,
 				level, // Add level to the bar object for click handling
-				width: Math.max(1, barWidth - 1) // Ensure minimum width and add small gap
+				width: barPosition.width // Use the positioned width
 			});
 
 			// Move base up by height plus padding
@@ -48,8 +53,8 @@
 	}
 </script>
 
-{#each grouped as d}
-	{#each getStackedLevels(d) as bar}
+{#each barPositions as barPosition}
+	{#each getStackedLevels(barPosition.bar, barPosition) as bar}
 		<rect
 			x={bar.x}
 			y={bar.y}

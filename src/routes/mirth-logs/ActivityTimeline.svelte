@@ -19,7 +19,7 @@
 
 	// Group bars that are close together
 	const groupedBars = $derived.by(() => {
-		return groupCloseBars(logStore.grouped, 10 * 60 * 1000); // Group bars within 10 minutes
+		return groupCloseBars(logStore.grouped, 2 * 60 * 1000); // Group bars within 2 minutes (reduced from 10)
 	});
 
 	// Reactive derived values
