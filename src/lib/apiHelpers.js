@@ -4,6 +4,14 @@ import * as d3 from 'd3';
 import https from 'https';
 import { stringify } from 'querystring';
 
+// Import example data for fallback
+import {
+	exampleChannels,
+	generateChannelMessages,
+	generateChannelStats,
+	generateAllChannelData
+} from './exampleData/mirthChannelsData.js';
+
 // Path to the all-logs.txt file
 export const ALL_LOGS_PATH = path.join(process.cwd(), 'server', 'all-logs.txt');
 
@@ -419,8 +427,8 @@ export async function getMirthChannels() {
 				response.includes('<error>') ||
 				(response.includes('Request failed') && response.includes('<servlet>'))
 			) {
-				console.log('⚠️ Server error response detected');
-				return [];
+				console.log('⚠️ Server error response detected, using example data');
+				return exampleChannels;
 			}
 
 			// Try to extract channel information from XML
@@ -455,8 +463,8 @@ export async function getMirthChannels() {
 					};
 				});
 			} else {
-				console.log('⚠️ No channel tags found in XML response');
-				return [];
+				console.log('⚠️ No channel tags found in XML response, using example data');
+				return exampleChannels;
 			}
 		} else {
 			// Handle JSON response
@@ -474,8 +482,8 @@ export async function getMirthChannels() {
 			} else if (response.data && Array.isArray(response.data)) {
 				channels = response.data;
 			} else {
-				console.log('⚠️ Unexpected response structure, returning empty array');
-				return [];
+				console.log('⚠️ Unexpected response structure, using example data');
+				return exampleChannels;
 			}
 
 			console.log(`✅ Successfully fetched ${channels.length} channels using /api/channels`);
@@ -489,8 +497,8 @@ export async function getMirthChannels() {
 			}));
 		}
 	} catch (error) {
-		console.error('❌ Failed to fetch Mirth channels:', error);
-		return [];
+		console.error('❌ Failed to fetch Mirth channels, using example data:', error);
+		return exampleChannels;
 	}
 }
 
@@ -499,6 +507,7 @@ export async function getChannelMessages(channelId, options = {}) {
 	const { startDate, endDate, limit = 100, offset = 0, includeContent = false } = options;
 
 	try {
+		// Try to get real data first
 		let endpoint = `/api/channels/${channelId}/messages?limit=${limit}&offset=${offset}`;
 
 		if (startDate) {
@@ -512,7 +521,6 @@ export async function getChannelMessages(channelId, options = {}) {
 		}
 
 		const messages = await mirthApiRequest(endpoint);
-
 		return messages.map((message) => ({
 			id: message.id,
 			channelId: message.channelId,
@@ -534,8 +542,28 @@ export async function getChannelMessages(channelId, options = {}) {
 			sequenceId: message.sequenceId
 		}));
 	} catch (error) {
-		console.error(`❌ Failed to fetch messages for channel ${channelId}:`, error);
-		return [];
+		console.error(
+			`❌ Failed to fetch messages for channel ${channelId}, using example data:`,
+			error
+		);
+
+		// Use example data as fallback
+		const allMessages = generateChannelMessages(channelId, 30);
+
+		// Apply filtering
+		let filteredMessages = allMessages;
+
+		if (startDate) {
+			filteredMessages = filteredMessages.filter((m) => m.receivedDate >= startDate);
+		}
+		if (endDate) {
+			filteredMessages = filteredMessages.filter((m) => m.receivedDate <= endDate);
+		}
+
+		// Apply pagination
+		const paginatedMessages = filteredMessages.slice(offset, offset + limit);
+
+		return paginatedMessages;
 	}
 }
 
@@ -555,7 +583,37 @@ export async function getChannelMessageStats(channelId, startDate, endDate) {
 			endDate: stats.endDate
 		};
 	} catch (error) {
-		console.error(`❌ Failed to fetch message stats for channel ${channelId}:`, error);
-		return null;
+		console.error(
+			`❌ Failed to fetch message stats for channel ${channelId}, using example data:`,
+			error
+		);
+
+		// Use example data as fallback
+		const allStats = generateChannelStats(channelId, 30);
+
+		// Filter by date range if provided
+		let filteredStats = allStats;
+		if (startDate && endDate) {
+			filteredStats = allStats.filter((s) => s.date >= startDate && s.date <= endDate);
+		}
+
+		// Aggregate the stats
+		const aggregated = filteredStats.reduce(
+			(acc, stat) => {
+				acc.total += stat.total;
+				acc.processed += stat.processed;
+				acc.failed += stat.failed;
+				acc.pending += stat.pending;
+				acc.queued += stat.queued;
+				return acc;
+			},
+			{ total: 0, processed: 0, failed: 0, pending: 0, queued: 0 }
+		);
+
+		return {
+			...aggregated,
+			startDate: startDate || filteredStats[filteredStats.length - 1]?.date,
+			endDate: endDate || filteredStats[0]?.date
+		};
 	}
 }
