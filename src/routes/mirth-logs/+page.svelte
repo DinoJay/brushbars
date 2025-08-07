@@ -1,10 +1,22 @@
 <script lang="ts">
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient';
-	import MirthActivityTimeline from './MirthActivityTimeline.svelte';
 	import { logStore } from '../../stores/logStore.svelte';
-	import LogTable from './LogTable.svelte';
-	import LogFilters from './components/LogFilters.svelte';
-	import DayButtons from './components/DayButtons.svelte';
+	import Tabs from './components/Tabs.svelte';
+	import LogsView from './components/LogsView.svelte';
+	import Messages from './components/Messages.svelte';
+
+	// Tab state
+	let activeTab = $state('logs');
+
+	// Tab configuration
+	const tabs = [
+		{ id: 'logs', label: 'Logs', icon: '📋' },
+		{ id: 'messages', label: 'Messages', icon: '📨' }
+	];
+
+	function handleTabChange(tabId) {
+		activeTab = tabId;
+	}
 
 	$effect(() => {
 		// Initialize WebSocket connection
@@ -35,20 +47,19 @@
 </script>
 
 <main class="min-h-screen bg-gray-50 p-6 font-sans">
-	<h1 class="mb-4 text-2xl font-bold">📋 📡 Mirth Log Dashboard</h1>
+	<h1 class="mb-4 text-2xl font-bold">📋 📡 Mirth Dashboard</h1>
 
-	<!-- Day Selection -->
+	<!-- Tabs -->
 	<div class="mb-6 rounded bg-white p-4 shadow">
-		<DayButtons />
+		<Tabs {tabs} {activeTab} onTabChange={handleTabChange} />
 	</div>
 
-	<!-- Filters -->
-	<LogFilters />
-
-	<div class="mb-6 rounded bg-white p-4 shadow">
-		<MirthActivityTimeline />
-	</div>
-	<div class="rounded bg-white p-4 shadow">
-		<LogTable />
-	</div>
+	<!-- Tab Content -->
+	{#if activeTab === 'logs'}
+		<LogsView />
+	{:else if activeTab === 'messages'}
+		<div class="rounded bg-white p-4 shadow">
+			<Messages />
+		</div>
+	{/if}
 </main>
