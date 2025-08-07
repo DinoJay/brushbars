@@ -1,9 +1,8 @@
 <!-- runes -->
 <script>
 	import * as d3 from 'd3';
-	import { logStore } from '../../../stores/logStore.svelte';
 
-	const { xScale, yScale, width, height, margin } = $props();
+	const { xScale, yScale, width, height, margin, onRangeChange = null } = $props();
 
 	let brushEl;
 	let brushInstance = null;
@@ -23,13 +22,18 @@
 			])
 			.on('end', (event) => {
 				if (!event.selection || !xScale) {
-					logStore.setSelectedRange(null);
+					if (onRangeChange) {
+						onRangeChange(null);
+					}
 					return;
 				}
 				const [x0, x1] = event.selection;
 				console.log('x0', x0, 'x1', x1);
-				console.log('selected', [xScale.invert(x0), xScale.invert(x1)]);
-				logStore.setSelectedRange([xScale.invert(x0), xScale.invert(x1)]);
+				const selectedRange = [xScale.invert(x0), xScale.invert(x1)];
+				console.log('selected', selectedRange);
+				if (onRangeChange) {
+					onRangeChange(selectedRange);
+				}
 			});
 
 		d3.select(brushEl).call(brushInstance).call(brushInstance.move, null);

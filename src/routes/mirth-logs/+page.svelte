@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient';
-	import ActivityTimeline from './ActivityTimeline.svelte';
+	import MirthActivityTimeline from './MirthActivityTimeline.svelte';
 	import { logStore } from '../../stores/logStore.svelte';
 	import LogTable from './LogTable.svelte';
 	import LogFilters from './components/LogFilters.svelte';
@@ -46,7 +46,7 @@
 	<LogFilters />
 
 	<div class="mb-6 rounded bg-white p-4 shadow">
-		<ActivityTimeline />
+		<MirthActivityTimeline />
 	</div>
 	<div class="rounded bg-white p-4 shadow">
 		<LogTable />

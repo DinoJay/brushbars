@@ -138,11 +138,12 @@ export function groupCloseBars(grouped, timeThreshold = 5 * 60 * 1000) {
 }
 
 // New function to calculate proper bar positions with spacing
-export function calculateBarPositions(grouped, xScale, barWidth, minGap = 4) {
+export function calculateBarPositions(grouped, xScale, barWidth, minGap = 1) {
 	if (!grouped || grouped.length === 0) return [];
 
 	const positions = [];
 	let lastBarEnd = -Infinity;
+	const chartWidth = xScale.range()[1] - xScale.range()[0];
 
 	for (let i = 0; i < grouped.length; i++) {
 		const bar = grouped[i];
@@ -153,7 +154,15 @@ export function calculateBarPositions(grouped, xScale, barWidth, minGap = 4) {
 
 		// Ensure minimum gap from previous bar
 		const minX = lastBarEnd + minGap;
-		const actualX = Math.max(idealX, minX);
+		let actualX = Math.max(idealX, minX);
+
+		// Ensure bar doesn't extend beyond chart boundaries
+		if (actualX + barWidth > chartWidth) {
+			actualX = chartWidth - barWidth;
+		}
+		if (actualX < 0) {
+			actualX = 0;
+		}
 
 		positions.push({
 			bar,
@@ -177,16 +186,25 @@ function mergeBarGroup(bars) {
 	const totalCount = bars.reduce((sum, bar) => sum + bar.count, 0);
 	const mergedLevels = {};
 
+	// Merge all logs from all bars
+	const mergedLogs = [];
+
 	bars.forEach((bar) => {
 		Object.entries(bar.levels).forEach(([level, count]) => {
 			mergedLevels[level] = (mergedLevels[level] || 0) + count;
 		});
+
+		// Add all logs from this bar
+		if (bar.logs) {
+			mergedLogs.push(...bar.logs);
+		}
 	});
 
 	return {
 		time: middleTime,
 		count: totalCount,
 		levels: mergedLevels,
+		logs: mergedLogs,
 		groupedBars: bars.length // Track how many bars were merged
 	};
 }

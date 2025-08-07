@@ -7,39 +7,52 @@
 
 	// Calculate bar positions with proper spacing
 	const barPositions = $derived.by(() => {
-		return calculateBarPositions(grouped, xScale, barWidth, 8); // Increased gap from 4 to 8 pixels
+		return calculateBarPositions(grouped, xScale, barWidth, 1); // Reduced gap to 1 pixel for minimal impact on brushing
 	});
 
+	// Get stacked levels for a bar with proper positioning
 	function getStackedLevels(barData, barPosition) {
-		const priority = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-		const levels = Object.entries(barData.levels).sort(
-			(a, b) => (priority[a[0]] ?? 99) - (priority[b[0]] ?? 99)
-		);
-		const bars = [];
-		let yBase = yScale(0);
-		const padding = 1; // 1px padding between stacked bars
+		if (!barData || !barData.logs) {
+			return [];
+		}
 
-		for (const [level, count] of levels) {
-			const height = Math.max(1, yScale(0) - yScale(count));
+		const levels = {};
+		barData.logs.forEach((entry) => {
+			const level = entry.level;
+			levels[level] = (levels[level] || 0) + 1;
+		});
+
+		const stackedLevels = [];
+		let yBase = yScale(0); // Start from the bottom of the chart
+		const totalCount = barData.count; // Use the total count for proper scaling
+
+		console.log('🔍 Bar debug - barData.count:', totalCount);
+		console.log('🔍 Bar debug - yScale(0):', yScale(0));
+		console.log('🔍 Bar debug - yScale(totalCount):', yScale(totalCount));
+
+		Object.entries(levels).forEach(([level, count]) => {
+			// Calculate the height based on the proportion of this level to total
+			const levelProportion = count / totalCount;
+			const totalHeight = yScale(0) - yScale(totalCount);
+			const height = totalHeight * levelProportion;
 			const y = yBase - height;
 
-			// Apply opacity based on selected level filter
-			const opacity = !logStore.selectedLevel || logStore.selectedLevel === level ? 1 : 0.3;
+			console.log('🔍 Bar debug - level:', level, 'count:', count, 'height:', height, 'y:', y);
 
-			bars.push({
+			stackedLevels.push({
+				level,
+				count,
+				y: y,
+				height: height,
 				x: barPosition.x,
-				y,
-				height: height - padding, // Reduce height by padding
-				color: levelColor(level),
-				opacity,
-				level, // Add level to the bar object for click handling
-				width: barPosition.width // Use the positioned width
+				width: barPosition.width
 			});
 
-			// Move base up by height plus padding
-			yBase = y - padding;
-		}
-		return bars;
+			// Move base up by height for next level
+			yBase = y;
+		});
+
+		return stackedLevels;
 	}
 
 	function handleBarClick(level) {
@@ -60,8 +73,8 @@
 			y={bar.y}
 			width={bar.width}
 			height={bar.height}
-			fill={bar.color}
-			opacity={bar.opacity}
+			fill={levelColor(bar.level)}
+			opacity={1}
 			rx="2"
 			ry="2"
 			class="cursor-pointer transition-all duration-200 hover:opacity-80"

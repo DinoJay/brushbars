@@ -1,25 +1,28 @@
 <!-- runes -->
-<script>
+<script lang="ts">
 	import * as d3 from 'd3';
-	import { logStore } from '../../stores/logStore.svelte';
 	import ChartAxis from './components/ChartAxis.svelte';
 	import ChartBars from './components/ChartBars.svelte';
 	import ChartBrush from './components/ChartBrush.svelte';
 	import { calculateBarWidth, groupCloseBars } from './utils/chartUtils.js';
 
-	$effect(() => {
-		console.log('logStore.grouped', logStore.grouped);
-	});
+	// Props for reusability
+	const {
+		data = [],
+		groupUnit = 'hour',
+		onRangeChange = null,
+		height = 350,
+		timeThreshold = 2 * 60 * 1000 // 2 minutes default
+	} = $props();
 
 	// Chart dimensions and margins
 	let container = $state(null);
 	let width = $state(0);
-	const height = 350;
 	const margin = { top: 20, right: 20, bottom: 40, left: 60 };
 
 	// Group bars that are close together
 	const groupedBars = $derived.by(() => {
-		return groupCloseBars(logStore.grouped, 2 * 60 * 1000); // Group bars within 2 minutes (reduced from 10)
+		return groupCloseBars(data, timeThreshold);
 	});
 
 	// Reactive derived values
@@ -48,10 +51,19 @@
 	const yScale = $derived.by(() => {
 		if (groupedBars.length > 0) {
 			const counts = groupedBars.map((d) => d.count);
+			const maxCount = d3.max(counts) || 0;
+
+			console.log('🔍 Y-axis debug - counts:', counts);
+			console.log('🔍 Y-axis debug - maxCount:', maxCount);
+
+			// Use a simple, reliable approach
+			const yMax = Math.max(maxCount, 1);
+
+			console.log('🔍 Y-axis debug - final yMax:', yMax);
+
 			return d3
 				.scaleLinear()
-				.domain([0, d3.max(counts)])
-				.nice()
+				.domain([0, yMax])
 				.range([height - margin.bottom, margin.top]);
 		}
 		return null;
@@ -103,19 +115,11 @@
 	>
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
-				<ChartAxis
-					{xScale}
-					{yScale}
-					{xTicks}
-					{width}
-					{height}
-					{margin}
-					groupUnit={logStore.groupUnit}
-				/>
+				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
 
 				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} />
 
-				<ChartBrush {xScale} {yScale} {width} {height} {margin} />
+				<ChartBrush {xScale} {yScale} {width} {height} {margin} {onRangeChange} />
 			</svg>
 		{:else}
 			<div class="flex h-full items-center justify-center">
