@@ -153,11 +153,10 @@
 		}
 	}
 
-	// // initial
-	// $effect(() => {
-	// 	if (currentTab === 'logs') fetchLogDays();
-	// 	else fetchMessageDays();
-	// });
+	// initial load - load dev logs since that's the default tab
+	$effect(() => {
+		fetchLogDays();
+	});
 </script>
 
 <main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-6 font-sans">
