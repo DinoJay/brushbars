@@ -1,7 +1,6 @@
 <!-- runes -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { logStore } from '../../../stores/logStore.svelte';
+	import type { TimelineEntry } from '$lib/types';
 
 	interface DayData {
 		date: string;
@@ -18,61 +17,28 @@
 		};
 	}
 
-	interface ApiResponse {
-		success: boolean;
+	// All loading/error passed from parent; no internal fetching here
+
+	// Props: today's live entries are only used to recompute today's stats
+	const {
+		todaysLiveEntries = [] as TimelineEntry[],
+		selectedDay = null,
+		onSelectDay = null,
+		days = [],
+		loading = false,
+		error = null
+	} = $props<{
+		todaysLiveEntries?: TimelineEntry[];
+		selectedDay?: string | null;
+		onSelectDay?: (date: string) => void;
 		days?: DayData[];
-		error?: string;
-		totalDays?: number;
-		totalLogs?: number;
-	}
+		loading?: boolean;
+		error?: string | null;
+	}>();
 
-	let days = $state<DayData[]>([]);
-	let loading = $state(false);
-	let error = $state<string | null>(null);
-	// Use store's selectedDay instead of local state
-	let dayLogsLoading = $state(false);
-	let apiDayLogs = $state<any[]>([]);
-
-	// Reactive derived value that automatically updates current day stats when WebSocket data changes
+	// Reactive derived value that automatically updates stats based on filtered entries
 	let reactiveDays = $derived.by(() => {
-		const currentDate = getCurrentDate();
-
-		return days.map((day) => {
-			if (isToday(day.date)) {
-				// For current day, calculate real-time stats from WebSocket data
-				const currentLogs = logStore.websocketEntries;
-				const currentDayLogs = currentLogs.filter((log) => {
-					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-					return logDate === day.date;
-				});
-
-				// Calculate real-time stats
-				const realTimeStats = {
-					total: currentDayLogs.length,
-					INFO: 0,
-					ERROR: 0,
-					WARN: 0,
-					DEBUG: 0,
-					WARNING: 0,
-					FATAL: 0,
-					TRACE: 0
-				};
-
-				currentDayLogs.forEach((log) => {
-					const level = log.level.toUpperCase();
-					if (level in realTimeStats) {
-						(realTimeStats as any)[level]++;
-					}
-				});
-
-				return {
-					...day,
-					stats: realTimeStats
-				};
-			}
-			// For historical days, return original stats
-			return day;
-		});
+		return days;
 	});
 
 	// Get current date in YYYY-MM-DD format
@@ -85,95 +51,12 @@
 		return date === getCurrentDate();
 	}
 
-	// Get the appropriate logs for the selected day
-	function getDayLogs() {
-		if (logStore.selectedDay && isToday(logStore.selectedDay)) {
-			// For current day, use WebSocket data
-			const currentLogs = logStore.websocketEntries;
-			return currentLogs.filter((log) => {
-				const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-				return logDate === logStore.selectedDay;
-			});
-		}
-		// For historical days, use API data
-		return apiDayLogs;
-	}
-
-	// Fetch available days
-	async function fetchDays() {
-		loading = true;
-		error = null;
-
-		try {
-			const response = await fetch('/mirth-logs/api/days');
-			const data: ApiResponse = await response.json();
-
-			if (data.success && data.days) {
-				days = data.days;
-			} else {
-				error = data.error || 'Failed to fetch days';
-			}
-		} catch (err) {
-			error = 'Network error while fetching days';
-			console.error('Error fetching days:', err);
-		} finally {
-			loading = false;
-		}
-	}
-
-	// Fetch logs for a specific day
-	async function fetchDayLogs(date: string) {
-		dayLogsLoading = true;
-		logStore.setSelectedDay(date);
-		apiDayLogs = []; // Clear API logs when fetching a new day
-
-		try {
-			if (isToday(date)) {
-				// For today, use WebSocket data (real-time)
-				console.log('📡 Using WebSocket data for today');
-				// The store will automatically filter WebSocket data for the selected day
-				// No need to manually update entries - let the reactive system handle it
-			} else {
-				// For historical days, use API
-				console.log(`📡 Using API data for ${date}`);
-				const response = await fetch(`/mirth-logs/api/logs/${date}`);
-				const data = await response.json();
-
-				if (data.success) {
-					// Update the store's entries with the fetched data
-					logStore.updateEntries(data.logs);
-					apiDayLogs = data.logs;
-					console.log(`📊 Loaded ${data.count} logs for ${date}:`, data.stats);
-				} else {
-					error = data.error || 'Failed to fetch logs for this day';
-				}
-			}
-		} catch (err) {
-			error = 'Network error while fetching day logs';
-			console.error('Error fetching day logs:', err);
-		} finally {
-			dayLogsLoading = false;
-		}
-	}
-
 	// Get color for log level
-	function getLevelColor(level: string): string {
-		const colors = {
-			INFO: 'bg-blue-100 text-blue-800',
-			ERROR: 'bg-red-100 text-red-800',
-			WARN: 'bg-yellow-100 text-yellow-800',
-			WARNING: 'bg-yellow-100 text-yellow-800',
-			DEBUG: 'bg-green-100 text-green-800',
-			FATAL: 'bg-red-100 text-red-800',
-			TRACE: 'bg-gray-100 text-gray-800'
-		};
-		return colors[level as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-	}
 
-	// Get badge for current day indicator
-	function getCurrentDayBadge(date: string): string {
+	// Get badge for current day indicator (pure)
+	function getCurrentDayBadge(date: string, isSelected: boolean = false): string {
 		if (isToday(date)) {
-			if (logStore.selectedDay === date) {
+			if (isSelected) {
 				return 'bg-blue-100 text-blue-800 border border-blue-300';
 			}
 			return 'bg-green-100 text-green-800 border border-green-300';
@@ -181,29 +64,7 @@
 		return '';
 	}
 
-	// Effect to monitor WebSocket entries - the store will automatically handle filtering
-	$effect(() => {
-		console.log('📡 WebSocket entries updated in DayButtons:', logStore.websocketEntries.length);
-		console.log('📅 Current selected day:', logStore.selectedDay);
-	});
-
-	onMount(async () => {
-		await fetchDays();
-
-		// After fetching days, automatically select today
-		const today = getCurrentDate();
-		console.log('🔄 Auto-selecting today:', today);
-		logStore.setSelectedDay(today);
-
-		// Find today in the available days and fetch its data if it exists
-		const todayDay = days.find((day) => day.date === today);
-		if (todayDay) {
-			console.log("📊 Auto-fetching today's logs");
-			await fetchDayLogs(today);
-		} else {
-			console.log('⚠️ Today not found in available days, will wait for WebSocket data');
-		}
-	});
+	// No store effects or auto-fetch here; parent drives data
 </script>
 
 <div class="space-y-6">
@@ -235,19 +96,19 @@
 	{:else if days.length > 0}
 		<!-- Days Grid -->
 		<div class="flex gap-4 overflow-x-auto pb-2">
-			{#each reactiveDays.reverse() as day}
+			{#each reactiveDays as day}
 				<button
-					onclick={() => fetchDayLogs(day.date)}
-					disabled={dayLogsLoading && logStore.selectedDay === day.date}
-					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {logStore.selectedDay ===
+					onclick={() => onSelectDay?.(day.date)}
+					data-selected={selectedDay === day.date}
+					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {selectedDay ===
 					day.date
-						? 'border-blue-400 bg-blue-50 shadow-lg ring-2 ring-blue-200'
+						? 'border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-500'
 						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50 hover:shadow-lg'}"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<h3
-								class="text-lg font-semibold {logStore.selectedDay === day.date
+								class="text-lg font-semibold {selectedDay === day.date
 									? 'text-blue-900'
 									: 'text-gray-900'}"
 							>
@@ -255,19 +116,19 @@
 							</h3>
 							{#if isToday(day.date)}
 								<span
-									class="rounded-full px-3 py-1 text-xs font-medium {getCurrentDayBadge(day.date)}"
+									class="rounded-full px-3 py-1 text-xs font-medium {getCurrentDayBadge(
+										day.date,
+										selectedDay === day.date
+									)}"
 								>
 									📡 Live
 								</span>
 							{/if}
 						</div>
-						{#if dayLogsLoading && logStore.selectedDay === day.date}
-							<div class="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-500"></div>
-						{/if}
 					</div>
 
 					<div
-						class="mb-4 text-base font-medium {logStore.selectedDay === day.date
+						class="mb-4 text-base font-medium {selectedDay === day.date
 							? 'text-blue-800'
 							: 'text-gray-700'}"
 					>
@@ -282,18 +143,18 @@
 						{#each Object.entries(day.stats) as [level, count]}
 							{#if level !== 'total' && count > 0}
 								<div
-									class="flex items-center justify-between rounded-md px-3 py-2 {logStore.selectedDay ===
+									class="flex items-center justify-between rounded-md px-3 py-2 {selectedDay ===
 									day.date
 										? 'bg-blue-100'
 										: 'bg-gray-50'}"
 								>
 									<span
-										class="text-sm font-medium {logStore.selectedDay === day.date
+										class="text-sm font-medium {selectedDay === day.date
 											? 'text-blue-900'
 											: 'text-gray-700'}">{level}</span
 									>
 									<span
-										class="rounded-full px-2 py-1 text-xs font-semibold shadow-sm {logStore.selectedDay ===
+										class="rounded-full px-2 py-1 text-xs font-semibold shadow-sm {selectedDay ===
 										day.date
 											? 'bg-blue-200 text-blue-900'
 											: 'bg-white text-gray-900'}"

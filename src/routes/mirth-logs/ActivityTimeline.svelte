@@ -106,13 +106,9 @@
 	}
 </script>
 
-<div class="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
+<div class="bg-white p-6">
 	<!-- Chart Container -->
-	<div
-		bind:this={container}
-		bind:clientWidth={width}
-		class="relative h-[350px] w-full rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-white"
-	>
+	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
 				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />

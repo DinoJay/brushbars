@@ -13,7 +13,12 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"lint:svelte5": "eslint . --ext .svelte,.js,.ts",
-		"validate:svelte5": "npm run lint:svelte5 && npm run check"
+		"validate:svelte5": "npm run lint:svelte5 && npm run check",
+		"start:web": "node build",
+		"install:ws": "npm --prefix server install",
+		"start:ws": "npm --prefix server start",
+		"start:prod": "concurrently -k -n WEB,WS -c green,cyan \"npm run start:web\" \"npm run start:ws\"",
+		"prod": "npm run build && npm run install:ws && npm run start:prod"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -22,6 +27,7 @@
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.0.0",
+		"concurrently": "^8.2.2",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.0.0",
@@ -38,6 +44,7 @@
 	},
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.2.13",
-		"d3": "^7.9.0"
+		"d3": "^7.9.0",
+		"tailwind-merge": "^3.3.1"
 	}
 }

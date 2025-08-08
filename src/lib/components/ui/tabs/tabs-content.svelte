@@ -1,0 +1,13 @@
+<script lang="ts">
+	import { cn } from '$lib/utils.js';
+	import { getContext } from 'svelte';
+    let { class: className = '', value, children = undefined } = $props<{ value: string }>();
+
+	type Ctx = { current: string | null };
+	const ctx = getContext<Ctx | undefined>('bb-tabs');
+	const hidden = $derived((ctx?.current ?? null) !== value);
+</script>
+
+<div data-slot="tabs-content" class={cn(hidden && 'hidden', className)} role="tabpanel">
+	{@render children?.()}
+</div>

@@ -8,26 +8,59 @@ export interface LogEntry {
 	message: string;
 }
 
-export interface GroupedLog {
-	time: Date;
-	count: number;
-	levels: Record<string, number>;
-	logs: LogEntry[];
+export interface DayData {
+	date: string;
+	formattedDate: string;
+	stats: {
+		total: number;
+		INFO: number;
+		ERROR: number;
+		WARN: number;
+		DEBUG: number;
+		WARNING?: number;
+		FATAL?: number;
+		TRACE?: number;
+	};
+	logs?: LogEntry[]; // Individual logs for this day
 }
 
 export type GroupUnit = 'hour' | 'day' | 'month';
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 export function createLogStore(initialEntries: LogEntry[] = []) {
+	// Helper function to safely parse dates
+	function safeParseDate(timestamp: string): Date | null {
+		try {
+			const date = new Date(timestamp);
+			return isNaN(date.getTime()) ? null : date;
+		} catch {
+			return null;
+		}
+	}
+
+	// Helper function to safely get date string
+	function safeGetDateString(timestamp: string): string | null {
+		const date = safeParseDate(timestamp);
+		return date ? date.toISOString().split('T')[0] : null;
+	}
+
 	// Reactive state using Svelte 5 runes
 	let entries = $state(initialEntries);
-	let websocketEntries = $state<LogEntry[]>([]); // Special variable for WebSocket updates
+	let liveDevLogEntries = $state<LogEntry[]>([]); // Live dev logs streamed via WebSocket
+	let messageLogEntries = $state<LogEntry[]>([]); // Channel messages loaded via API
+	let allLogsFromDays = $state<LogEntry[]>([]); // All logs from the days API
 	let selectedRange = $state<[Date, Date] | null>(null);
 	let visibleCount = $state(100);
 	let groupUnit = $state<GroupUnit>('hour');
 	let selectedLevel = $state<LogLevel | null>(null);
 	let selectedChannel = $state<string | null>(null);
 	let selectedDay = $state<string | null>(new Date().toISOString().split('T')[0]); // Initialize with today
+
+	// Days state for both logs and messages
+	let logDays = $state<DayData[]>([]);
+	let messageDays = $state<DayData[]>([]);
+	let loadingDays = $state(false);
+	let errorDays = $state<string | null>(null);
 
 	// D3 time functions
 	const rounders = {
@@ -42,67 +75,30 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// Level-filtered entries
 
-	// Day-filtered entries (filtered by selectedDay)
-	let dayFilteredEntries = $derived.by(() => {
-		// First, combine entries and websocket entries
-		const allEntries = [...entries, ...websocketEntries];
+	// All dev log entries (with all filters including day)
+	let allDevLogEntries = $derived.by(() => {
+		// Combine logs from days API with live WebSocket entries
+		const allEntries = [...allLogsFromDays, ...liveDevLogEntries];
+		let filtered = allEntries;
 
-		// If no day is selected, return all entries
-		if (!selectedDay) {
-			console.log('🔍 Store Debug - No day selected, returning all entries:', allEntries.length);
-			return allEntries;
+		// Apply day filter
+		if (selectedDay) {
+			filtered = filtered.filter((log) => {
+				const logDate = safeGetDateString(log.timestamp);
+				return logDate === selectedDay;
+			});
 		}
 
-		// Filter entries by the selected day
-		const filtered = allEntries.filter((log) => {
-			const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-			return logDate === selectedDay;
-		});
-
-		console.log('🔍 Store Debug - Selected Day:', selectedDay);
-		console.log('🔍 Store Debug - Total Entries:', allEntries.length);
-		console.log('🔍 Store Debug - Historical Entries:', entries.length);
-		console.log('🔍 Store Debug - WebSocket Entries:', websocketEntries.length);
-		console.log('🔍 Store Debug - Filtered Entries:', filtered.length);
-
-		return filtered;
-	});
-
-	// Timeline grouped data (from day-filtered entries)
-	let grouped = $derived.by(() => {
-		const bucketFn = d3.timeMinute;
-		const floor = bucketFn.floor;
-
-		const map = new Map<number, GroupedLog>();
-
-		// Use dayFilteredEntries instead of all entries
-		for (const log of dayFilteredEntries) {
-			const bucketTime = floor(new Date(log.timestamp));
-			const key = bucketTime.getTime();
-
-			if (!map.has(key)) {
-				map.set(key, {
-					time: bucketTime,
-					count: 0,
-					levels: {},
-					logs: []
-				});
-			}
-
-			const group = map.get(key)!;
-			const level = log.level || 'UNKNOWN';
-
-			group.count++;
-			group.levels[level] = (group.levels[level] || 0) + 1;
-			group.logs.push(log);
+		// Apply time range (brush) filter
+		if (selectedRange && selectedRange.length === 2) {
+			const [start, end] = selectedRange;
+			const startMs = start.getTime();
+			const endMs = end.getTime();
+			filtered = filtered.filter((log) => {
+				const ts = new Date(log.timestamp).getTime();
+				return ts >= startMs && ts <= endMs;
+			});
 		}
-
-		return Array.from(map.values()).sort((a, b) => a.time.getTime() - b.time.getTime());
-	});
-
-	// Final filtered entries (day + brush + level + channel filtered)
-	let filteredEntries = $derived.by(() => {
-		let filtered = dayFilteredEntries;
 
 		// Apply level filter
 		if (selectedLevel) {
@@ -114,29 +110,44 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			filtered = filtered.filter((log) => log.channel === selectedChannel);
 		}
 
-		// If there's a brush selection, filter by time range
-		if (selectedRange && selectedRange.length === 2) {
-			const [start, end] = selectedRange.map((d) => d.getTime());
+		return filtered;
+	});
 
-			// Filter grouped data by time range
-			const filteredGroups = grouped.filter((group) => {
-				const groupTime = group.time.getTime();
-				return groupTime >= start && groupTime <= end;
+	// All message entries (with all filters including day)
+	let allMessageEntries = $derived.by(() => {
+		// Combine message entries with live WebSocket entries
+		const allEntries = [...messageLogEntries, ...liveDevLogEntries];
+		let filtered = allEntries;
+
+		// Apply day filter
+		if (selectedDay) {
+			filtered = filtered.filter((log) => {
+				const logDate = safeGetDateString(log.timestamp);
+				return logDate === selectedDay;
 			});
+		}
 
-			// Get all logs from the filtered groups and apply level/channel filters
-			const timeFilteredLogs = filteredGroups.flatMap((group) => group.logs);
+		// Apply time range (brush) filter
+		if (selectedRange && selectedRange.length === 2) {
+			const [start, end] = selectedRange;
+			const startMs = start.getTime();
+			const endMs = end.getTime();
+			filtered = filtered.filter((log) => {
+				const date = safeParseDate(log.timestamp);
+				if (!date) return false;
+				const ts = date.getTime();
+				return ts >= startMs && ts <= endMs;
+			});
+		}
 
-			// Apply level and channel filters to time-filtered logs
-			if (selectedLevel) {
-				filtered = timeFilteredLogs.filter((log) => log.level === selectedLevel);
-			} else {
-				filtered = timeFilteredLogs;
-			}
+		// Apply level filter
+		if (selectedLevel) {
+			filtered = filtered.filter((log) => log.level === selectedLevel);
+		}
 
-			if (selectedChannel) {
-				filtered = filtered.filter((log) => log.channel === selectedChannel);
-			}
+		// Apply channel filter
+		if (selectedChannel) {
+			filtered = filtered.filter((log) => log.channel === selectedChannel);
 		}
 
 		return filtered;
@@ -153,21 +164,6 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	// Return public API
 	return {
 		// Getters for reactive values
-		get entries() {
-			return entries;
-		},
-		get websocketEntries() {
-			return websocketEntries;
-		},
-		get selectedRange() {
-			return selectedRange;
-		},
-		get visibleCount() {
-			return visibleCount;
-		},
-		get groupUnit() {
-			return groupUnit;
-		},
 		get selectedLevel() {
 			return selectedLevel;
 		},
@@ -177,29 +173,33 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get selectedDay() {
 			return selectedDay;
 		},
-		get rounders() {
-			return rounders;
+		get selectedRange() {
+			return selectedRange;
 		},
-		get grouped() {
-			return grouped;
+		get allDevLogEntries() {
+			return allDevLogEntries;
 		},
-		get filteredEntries() {
-			return filteredEntries;
+		get allMessageEntries() {
+			return allMessageEntries;
 		},
-		get dayFilteredEntries() {
-			return dayFilteredEntries;
+		get liveDevLogEntries() {
+			return liveDevLogEntries;
+		},
+
+		get logDays() {
+			return logDays;
+		},
+		get messageDays() {
+			return messageDays;
+		},
+		get loadingDays() {
+			return loadingDays;
+		},
+		get errorDays() {
+			return errorDays;
 		},
 
 		// Setters for state updates
-		setSelectedRange(range: [Date, Date] | null) {
-			selectedRange = range;
-		},
-		setVisibleCount(count: number) {
-			visibleCount = count;
-		},
-		setGroupUnit(unit: GroupUnit) {
-			groupUnit = unit;
-		},
 		setSelectedLevel(level: LogLevel | null) {
 			selectedLevel = level;
 		},
@@ -209,18 +209,39 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		setSelectedDay(day: string | null) {
 			selectedDay = day;
 		},
-		updateEntries(newEntries: LogEntry[]) {
-			console.log('🔄 logStore.updateEntries called with:', newEntries.length, 'entries');
-			entries = newEntries;
-			console.log('✅ logStore.entries updated, new length:', entries.length);
+		setSelectedRange(range: [Date, Date] | null) {
+			selectedRange = range;
 		},
-		updateWebsocketEntries(newEntries: LogEntry[]) {
-			console.log('📡 logStore.updateWebsocketEntries called with:', newEntries.length, 'entries');
-			websocketEntries = newEntries;
-			console.log('✅ logStore.websocketEntries updated, new length:', websocketEntries.length);
+		updateMessageLogEntries(newEntries: LogEntry[]) {
+			console.log('🔄 logStore.updateMessageLogEntries called with:', newEntries.length, 'entries');
+			messageLogEntries = newEntries;
+			console.log('✅ logStore.messageLogEntries updated, new length:', messageLogEntries.length);
 		},
-		getCurrentDate() {
-			return new Date().toISOString().split('T')[0];
+		updateLiveDevLogEntries(newEntries: LogEntry[]) {
+			console.log('📡 logStore.updateLiveDevLogEntries called with:', newEntries.length, 'entries');
+			liveDevLogEntries = newEntries;
+			console.log('✅ logStore.liveDevLogEntries updated, new length:', liveDevLogEntries.length);
+		},
+		updateLogDays(newDays: DayData[]) {
+			console.log('📅 logStore.updateLogDays called with:', newDays.length, 'days');
+			logDays = newDays;
+			console.log('✅ logStore.logDays updated, new length:', logDays.length);
+		},
+		updateMessageDays(newDays: DayData[]) {
+			console.log('📅 logStore.updateMessageDays called with:', newDays.length, 'days');
+			messageDays = newDays;
+			console.log('✅ logStore.messageDays updated, new length:', messageDays.length);
+		},
+		updateLogsFromDays(newLogs: LogEntry[]) {
+			console.log('📊 logStore.updateLogsFromDays called with:', newLogs.length, 'logs');
+			allLogsFromDays = newLogs;
+			console.log('✅ logStore.allLogsFromDays updated, new length:', allLogsFromDays.length);
+		},
+		setLoadingDays(loading: boolean) {
+			loadingDays = loading;
+		},
+		setErrorDays(error: string | null) {
+			errorDays = error;
 		}
 	};
 }

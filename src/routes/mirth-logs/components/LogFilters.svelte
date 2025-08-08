@@ -1,7 +1,15 @@
 <!-- runes -->
 <script lang="ts">
-	import { logStore } from '../../../stores/logStore.svelte';
 	import type { LogLevel } from '../../../stores/logStore.svelte';
+	import type { TimelineEntry } from '$lib/types';
+
+	// Use only provided entries; no store fallback
+	const { entries, onFiltersChange = null } = $props<{
+		entries: TimelineEntry[];
+		onFiltersChange?: (level: LogLevel | null, channel: string | null) => void;
+	}>();
+
+	const effectiveEntries = $derived(entries);
 
 	let selectedLevel = $state<LogLevel | null>(null);
 	let selectedChannel = $state<string | null>(null);
@@ -9,66 +17,52 @@
 	// Available levels and channels (from selected day data only)
 	let availableLevels = $derived.by(() => {
 		const levels = new Set<string>();
-		// Use dayFilteredEntries which contains only data for the selected day
-		logStore.dayFilteredEntries.forEach((entry: any) => {
+		effectiveEntries.forEach((entry: any) => {
 			if (entry.level) levels.add(entry.level);
 		});
-		console.log('🔍 Filter Debug - Selected Day:', logStore.selectedDay);
-		console.log(
-			'🔍 Filter Debug - Day Filtered Entries Count:',
-			logStore.dayFilteredEntries.length
-		);
-		console.log('🔍 Filter Debug - Available Levels:', Array.from(levels));
 		return Array.from(levels).sort();
 	});
 
 	let availableChannels = $derived.by(() => {
 		const channels = new Set<string>();
-		// Use dayFilteredEntries which contains only data for the selected day
-		logStore.dayFilteredEntries.forEach((entry: any) => {
+		effectiveEntries.forEach((entry: any) => {
 			if (entry.channel) channels.add(entry.channel);
 		});
-		console.log('🔍 Filter Debug - Available Channels:', Array.from(channels));
 		return Array.from(channels).sort();
 	});
 
 	// Count entries for each level (from selected day data only)
 	let levelCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
-		// Use dayFilteredEntries which contains only data for the selected day
-		logStore.dayFilteredEntries.forEach((entry: any) => {
+		effectiveEntries.forEach((entry: any) => {
 			counts[entry.level] = (counts[entry.level] || 0) + 1;
 		});
-		console.log('🔍 Filter Debug - Level Counts:', counts);
 		return counts;
 	});
 
 	// Count entries for each channel (from selected day data only)
 	let channelCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
-		// Use dayFilteredEntries which contains only data for the selected day
-		logStore.dayFilteredEntries.forEach((entry: any) => {
+		effectiveEntries.forEach((entry: any) => {
 			counts[entry.channel] = (counts[entry.channel] || 0) + 1;
 		});
-		console.log('🔍 Filter Debug - Channel Counts:', counts);
 		return counts;
 	});
 
 	// Total count for display (from selected day data only)
 	let totalCount = $derived.by(() => {
-		const count = logStore.dayFilteredEntries.length;
-		console.log('🔍 Filter Debug - Total Count:', count);
+		const count = effectiveEntries.length;
 		return count;
 	});
 
 	function setLevel(level: LogLevel | null) {
 		selectedLevel = level;
-		logStore.setSelectedLevel(level);
+		if (onFiltersChange) onFiltersChange(selectedLevel, selectedChannel);
 	}
 
 	function setChannel(channel: string | null) {
 		selectedChannel = channel;
-		logStore.setSelectedChannel(channel);
+		if (onFiltersChange) onFiltersChange(selectedLevel, selectedChannel);
 	}
 
 	function clearFilters() {

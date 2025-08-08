@@ -26,18 +26,12 @@
 		let yBase = yScale(0); // Start from the bottom of the chart
 		const totalCount = barData.count; // Use the total count for proper scaling
 
-		console.log('🔍 Bar debug - barData.count:', totalCount);
-		console.log('🔍 Bar debug - yScale(0):', yScale(0));
-		console.log('🔍 Bar debug - yScale(totalCount):', yScale(totalCount));
-
 		Object.entries(levels).forEach(([level, count]) => {
 			// Calculate the height based on the proportion of this level to total
 			const levelProportion = count / totalCount;
 			const totalHeight = yScale(0) - yScale(totalCount);
 			const height = totalHeight * levelProportion;
 			const y = yBase - height;
-
-			console.log('🔍 Bar debug - level:', level, 'count:', count, 'height:', height, 'y:', y);
 
 			stackedLevels.push({
 				level,

@@ -8,7 +8,7 @@ const PORT = 3001;
 let LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
 const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
 
-const isLocal = true;
+const isLocal = false;
 if (isLocal) {
 	LOG_DIR = path.join(process.cwd(), 'exampleData');
 }
