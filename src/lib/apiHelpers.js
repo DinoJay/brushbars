@@ -15,6 +15,30 @@ import {
 // Path to the all-logs.txt file
 export const ALL_LOGS_PATH = path.join(process.cwd(), 'server', 'all-logs.txt');
 
+// Generate example logs for testing when Mirth logs are not available
+function generateExampleLogs() {
+	const now = new Date();
+	const logs = [];
+
+	for (let i = 0; i < 100; i++) {
+		const timestamp = new Date(now.getTime() - i * 60000); // Each log 1 minute apart
+		const levels = ['INFO', 'ERROR', 'WARN', 'DEBUG'];
+		const level = levels[Math.floor(Math.random() * levels.length)];
+		const channels = ['Channel1', 'Channel2', 'Channel3', 'Channel4'];
+		const channel = channels[Math.floor(Math.random() * channels.length)];
+
+		logs.push({
+			id: i,
+			level,
+			timestamp: timestamp.toISOString().replace('T', ' ').replace('Z', ''),
+			channel,
+			message: `Example log message ${i} from ${channel}`
+		});
+	}
+
+	return logs;
+}
+
 // Log parsing function (shared across all API endpoints)
 export function parseLogLines(logText) {
 	const result = [];
@@ -102,30 +126,37 @@ export function parseLogLines(logText) {
 // Load logs from all-logs.txt file
 // Loads all logs from all files in the mirth logs directory
 export function loadLogsFromFile() {
-	let MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
+	const startTime = Date.now();
 
-	const isLocal = true;
-	if (isLocal) {
-		MIRTH_LOGS_DIR = path.join(process.cwd(), 'src', 'lib', 'exampleData');
-	}
+	// Define the Mirth logs directory - always use production logs
+	const MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
+
 	try {
-		// Define the Mirth logs directory (adjust as needed)
-
 		if (!fs.existsSync(MIRTH_LOGS_DIR)) {
 			console.warn('⚠️ Mirth logs directory not found at:', MIRTH_LOGS_DIR);
-			return [];
+			console.log('🔄 Using fallback example data...');
+			// Return some example data for testing
+			return generateExampleLogs();
 		}
 
 		const files = fs.readdirSync(MIRTH_LOGS_DIR);
-		// .filter((file) => /^mirth\.log\d*$/i.test(file) || file.endsWith('.log'));
+		console.log('🔍 All files in directory:', files);
 
-		if (files.length === 0) {
+		const logFiles = files.filter(
+			(file) =>
+				/^mirth\.log/i.test(file) ||
+				file.endsWith('.log') ||
+				(file.includes('mirth') && file.includes('log'))
+		);
+		console.log('🔍 Log files found:', logFiles);
+
+		if (logFiles.length === 0) {
 			console.warn('⚠️ No log files found in:', MIRTH_LOGS_DIR);
 			return [];
 		}
 
 		let allLogText = '';
-		for (const file of files) {
+		for (const file of logFiles) {
 			const filePath = path.join(MIRTH_LOGS_DIR, file);
 			try {
 				const logText = fs.readFileSync(filePath, 'utf8');
@@ -136,17 +167,33 @@ export function loadLogsFromFile() {
 		}
 
 		const logs = parseLogLines(allLogText);
-		console.log(`📊 Loaded ${logs.length} logs from ${files.length} files in mirth-logs`);
+		const endTime = Date.now();
+		console.log(
+			`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${MIRTH_LOGS_DIR}`
+		);
 		return logs;
 	} catch (error) {
-		console.error('❌ Error loading logs from mirth log files:', error);
+		console.error('❌ Error loading logs from Mirth log files:', error);
 		return [];
 	}
 }
 
 // Helper function to group logs by day
 export function groupLogsByDay(logs) {
+	const startTime = Date.now();
 	const dayMap = new Map();
+
+	// Pre-allocate stats object to avoid repeated object creation
+	const createStats = () => ({
+		total: 0,
+		INFO: 0,
+		ERROR: 0,
+		WARN: 0,
+		DEBUG: 0,
+		WARNING: 0,
+		FATAL: 0,
+		TRACE: 0
+	});
 
 	for (const log of logs) {
 		const logDate = new Date(log.timestamp);
@@ -157,16 +204,7 @@ export function groupLogsByDay(logs) {
 			dayMap.set(dayString, {
 				date: dayString,
 				logs: [],
-				stats: {
-					total: 0,
-					INFO: 0,
-					ERROR: 0,
-					WARN: 0,
-					DEBUG: 0,
-					WARNING: 0,
-					FATAL: 0,
-					TRACE: 0
-				}
+				stats: createStats()
 			});
 		}
 
@@ -176,7 +214,14 @@ export function groupLogsByDay(logs) {
 		dayData.stats[log.level] = (dayData.stats[log.level] || 0) + 1;
 	}
 
-	return Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+	const result = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+	const endTime = Date.now();
+	console.log(
+		`📊 Grouped ${logs.length} logs into ${result.length} days in ${endTime - startTime}ms`
+	);
+
+	return result;
 }
 
 // Mirth Connect API configuration
@@ -504,7 +549,7 @@ export async function getMirthChannels() {
 
 // Get messages for a specific channel
 export async function getChannelMessages(channelId, options = {}) {
-	const { startDate, endDate, limit = 100, offset = 0, includeContent = false } = options;
+	const { startDate, endDate, limit = 1000, offset = 0, includeContent = false } = options;
 
 	try {
 		// Try to get real data first

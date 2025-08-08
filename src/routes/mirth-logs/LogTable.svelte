@@ -1,5 +1,11 @@
-<script>
-	import { logStore } from '../../stores/logStore.svelte';
+<script lang="ts">
+	import type { TimelineEntry } from '$lib/types';
+
+	// Use only provided entries; no store fallback
+	const { entries, selectedRange } = $props<{
+		entries: TimelineEntry[];
+		selectedRange: [Date, Date] | null;
+	}>();
 
 	// Track expanded rows
 	let expandedRows = $state(new Set());
@@ -18,16 +24,13 @@
 	};
 
 	// Computed visible entries
-	const visibleEntries = $derived.by(() => {
-		return logStore.filteredEntries.slice(0, visibleCount);
-	});
+	const effectiveEntries = $derived(entries);
+	const visibleEntries = $derived.by(() => effectiveEntries.slice(0, visibleCount));
 
 	// Check if there are more entries to load
-	const hasMoreEntries = $derived.by(() => {
-		return visibleCount < logStore.filteredEntries.length;
-	});
+	const hasMoreEntries = $derived.by(() => visibleCount < effectiveEntries.length);
 
-	function formatTime(timestamp) {
+	function formatTime(timestamp: string | Date) {
 		const date = new Date(timestamp);
 		return date.toLocaleTimeString('en-US', {
 			hour12: false,
@@ -37,7 +40,7 @@
 		});
 	}
 
-	function toggleRow(logId) {
+	function toggleRow(logId: string | number) {
 		if (expandedRows.has(logId)) {
 			expandedRows.delete(logId);
 		} else {
@@ -46,7 +49,7 @@
 		expandedRows = new Set(expandedRows); // Trigger reactivity
 	}
 
-	function isExpanded(logId) {
+	function isExpanded(logId: string | number) {
 		return expandedRows.has(logId);
 	}
 
@@ -60,19 +63,19 @@
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		// Load 50 more entries
-		visibleCount = Math.min(visibleCount + 50, logStore.filteredEntries.length);
+		visibleCount = Math.min(visibleCount + 50, entries.length);
 		isLoading = false;
 	}
 
 	// Reset visible count when filtered entries change
 	$effect(() => {
-		if (logStore.filteredEntries.length > 0) {
-			visibleCount = Math.min(50, logStore.filteredEntries.length);
+		if (effectiveEntries.length > 0) {
+			visibleCount = Math.min(50, effectiveEntries.length);
 		}
 	});
 
 	// Handle scroll to load more
-	function handleScroll(event) {
+	function handleScroll(event: any) {
 		const { scrollTop, scrollHeight, clientHeight } = event.target;
 		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
 
@@ -89,8 +92,8 @@
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-900">Log Entries</h3>
 			<div class="flex items-center space-x-4 text-sm text-gray-500">
-				<span>Showing {visibleEntries.length} of {logStore.filteredEntries.length} entries</span>
-				{#if logStore.selectedRange}
+				<span>Showing {visibleEntries.length} of {effectiveEntries.length} entries</span>
+				{#if selectedRange}
 					<span
 						class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
 					>
@@ -103,7 +106,7 @@
 
 	<!-- Table with max height and scroll -->
 	<div class="overflow-hidden">
-		{#if logStore.filteredEntries.length > 0}
+		{#if effectiveEntries.length > 0}
 			<div
 				bind:this={tableContainer}
 				onscroll={handleScroll}
@@ -156,8 +159,10 @@
 								<td class="px-6 py-4 whitespace-nowrap">
 									<span
 										class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium {levelStyles[
-											log.level
-										]?.bg} {levelStyles[log.level]?.text} {levelStyles[log.level]?.border}"
+											log.level as keyof typeof levelStyles
+										]?.bg} {levelStyles[log.level as keyof typeof levelStyles]?.text} {levelStyles[
+											log.level as keyof typeof levelStyles
+										]?.border}"
 									>
 										{levelStyles[log.level]?.icon}
 										{log.level}
@@ -211,7 +216,7 @@
 										onclick={loadMore}
 										class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 									>
-										Load More ({logStore.filteredEntries.length - visibleEntries.length} remaining)
+										Load More ({effectiveEntries.length - visibleEntries.length} remaining)
 									</button>
 								</td>
 							</tr>
@@ -223,13 +228,7 @@
 			<div class="py-12 text-center">
 				<div class="mb-4 text-6xl text-gray-400">📋</div>
 				<h3 class="mb-2 text-lg font-medium text-gray-900">No logs found</h3>
-				<p class="text-gray-500">
-					{#if logStore.selectedRange}
-						Try adjusting the time range selection
-					{:else}
-						No log data available
-					{/if}
-				</p>
+				<p class="text-gray-500">No log data available</p>
 			</div>
 		{/if}
 	</div>
