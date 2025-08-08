@@ -96,7 +96,7 @@
 	{:else if days.length > 0}
 		<!-- Days Grid -->
 		<div class="flex gap-4 overflow-x-auto pb-2">
-			{#each reactiveDays as day}
+			{#each [...reactiveDays].reverse() as day}
 				<button
 					onclick={() => onSelectDay?.(day.date)}
 					data-selected={selectedDay === day.date}
@@ -112,7 +112,7 @@
 									? 'text-blue-900'
 									: 'text-gray-900'}"
 							>
-								{day.formattedDate}
+								{day.date}
 							</h3>
 							{#if isToday(day.date)}
 								<span

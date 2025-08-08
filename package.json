@@ -5,6 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:athome": "ATHOME=true vite dev",
+		"dev:athome:ws": "ATHOME=true npm --prefix server run dev",
+		"dev:athome:full": "npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev:athome\" \"npm run dev:athome:ws\"",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -18,7 +21,8 @@
 		"install:ws": "npm --prefix server install",
 		"start:ws": "npm --prefix server start",
 		"start:prod": "concurrently -k -n WEB,WS -c green,cyan \"npm run start:web\" \"npm run start:ws\"",
-		"prod": "npm run build && npm run install:ws && npm run start:prod"
+		"prod": "npm run build && npm run install:ws && npm run start:prod",
+		"prod:athome": "ATHOME=true npm run build && ATHOME=true npm run start:web"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",

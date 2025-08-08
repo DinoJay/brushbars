@@ -1,17 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { loadLogsFromFile, groupLogsByDay } from '$lib/apiHelpers.js';
-import fs from 'fs';
-import path from 'path';
+// Removed file writes to avoid HMR loops and unnecessary disk IO
 
-// File path for storing all logs data
-const ALL_LOGS_FILE = path.join(
-	process.cwd(),
-	'src',
-	'routes',
-	'mirth-logs',
-	'api',
-	'all-logs-data.json'
-);
+// No file path constants needed anymore
 
 export async function GET() {
 	const startTime = Date.now();
@@ -30,20 +21,7 @@ export async function GET() {
 		);
 	}
 
-	// Write all logs to file for individual day APIs to use
-	try {
-		const logsData = {
-			timestamp: Date.now(),
-			totalLogs: logs.length,
-			logs: logs
-		};
-		fs.writeFileSync(ALL_LOGS_FILE, JSON.stringify(logsData, null, 2));
-		console.log(`💾 Wrote ${logs.length} logs to ${ALL_LOGS_FILE}`);
-	} catch (error) {
-		console.warn('⚠️ Failed to write logs to file:', error.message);
-		console.warn('⚠️ File path:', ALL_LOGS_FILE);
-		console.warn('⚠️ Error details:', error);
-	}
+	// Removed writing logs to disk - serve days directly
 
 	// Group logs by day
 	const availableDays = groupLogsByDay(logs);

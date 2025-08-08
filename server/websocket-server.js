@@ -5,13 +5,18 @@ import { WebSocketServer } from 'ws';
 import * as d3 from 'd3';
 
 const PORT = 3001;
-let LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
-const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
 
-const isLocal = false;
-if (isLocal) {
-	LOG_DIR = path.join(process.cwd(), 'exampleData');
+// Default to production Mirth logs directory
+let LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
+
+// When running "at home", use the checked-in example data
+const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
+if (IS_ATHOME) {
+	LOG_DIR = path.join(process.cwd(), 'server', 'exampleData');
+	console.log('🏠 ATHOME mode: using exampleData at', LOG_DIR);
 }
+
+const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
 
 // Output file for all logs
 

@@ -43,56 +43,6 @@ export async function GET({ url }) {
 				);
 			}
 		}
-
-		// Get messages for the specific channel
-		const messages = await getChannelMessages(targetChannelId, {
-			startDate,
-			endDate,
-			limit,
-			offset,
-			includeContent
-		});
-
-		// Get message statistics if date range is provided
-		let stats = null;
-		if (startDate && endDate) {
-			stats = await getChannelMessageStats(targetChannelId, startDate, endDate);
-		}
-
-		// Apply pagination
-		const paginatedMessages = messages.slice(offset, offset + limit);
-
-		// Get channel details
-		const channels = await getMirthChannels();
-		const channelDetails = channels.find((ch) => ch.id === targetChannelId);
-
-		return json({
-			success: true,
-			type: 'messages',
-			channel: channelDetails,
-			messages: paginatedMessages,
-			pagination: {
-				total: messages.length,
-				limit,
-				offset,
-				hasMore: offset + limit < messages.length
-			},
-			filters: {
-				channelId: targetChannelId,
-				channelName,
-				startDate,
-				endDate,
-				includeContent
-			},
-			statistics: stats,
-			summary: {
-				totalMessages: messages.length,
-				messageStatuses: [...new Set(messages.map((m) => m.status))],
-				connectorTypes: [...new Set(messages.map((m) => m.connectorType).filter(Boolean))],
-				processedCount: messages.filter((m) => m.processed).length,
-				failedCount: messages.filter((m) => m.status === 'ERROR').length
-			}
-		});
 	} catch (error) {
 		console.error('❌ Error fetching channel messages:', error);
 

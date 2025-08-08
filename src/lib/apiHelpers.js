@@ -8,12 +8,15 @@ import { stringify } from 'querystring';
 import {
 	exampleChannels,
 	generateChannelMessages,
-	generateChannelStats,
-	generateAllChannelData
+	generateChannelStats
 } from './exampleData/mirthChannelsData.js';
 
 // Path to the all-logs.txt file
 export const ALL_LOGS_PATH = path.join(process.cwd(), 'server', 'all-logs.txt');
+const EXAMPLE_LOGS_DIR = path.join(process.cwd(), 'src', 'lib', 'exampleData');
+
+// Environment flag: only use example data when running "at home"
+const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 
 // Generate example logs for testing when Mirth logs are not available
 function generateExampleLogs() {
@@ -132,46 +135,66 @@ export function loadLogsFromFile() {
 	const MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
 
 	try {
-		if (!fs.existsSync(MIRTH_LOGS_DIR)) {
-			console.warn('⚠️ Mirth logs directory not found at:', MIRTH_LOGS_DIR);
-			console.log('🔄 Using fallback example data...');
-			// Return some example data for testing
+		// If at home, force example logs from repo and skip real dir
+		if (IS_ATHOME) {
+			if (fs.existsSync(EXAMPLE_LOGS_DIR)) {
+				const files = fs.readdirSync(EXAMPLE_LOGS_DIR);
+				const logFiles = files.filter((file) => /^mirth\.log(\.|$)/i.test(file));
+				if (logFiles.length > 0) {
+					let allLogText = '';
+					for (const file of logFiles) {
+						const filePath = path.join(EXAMPLE_LOGS_DIR, file);
+						try {
+							const logText = fs.readFileSync(filePath, 'utf8');
+							allLogText += logText + '\n';
+						} catch (err) {
+							console.warn(`⚠️ Failed to read example log file: ${filePath}`, err);
+						}
+					}
+					const logs = parseLogLines(allLogText);
+					const endTime = Date.now();
+					console.log(
+						`📊 Loaded ${logs.length} example logs in ${endTime - startTime}ms from ${logFiles.length} files in ${EXAMPLE_LOGS_DIR}`
+					);
+					return logs;
+				}
+			}
+			console.warn(
+				'⚠️ ATHOME is true but no example logs found. Falling back to generated example logs.'
+			);
 			return generateExampleLogs();
 		}
 
-		const files = fs.readdirSync(MIRTH_LOGS_DIR);
-		console.log('🔍 All files in directory:', files);
-
-		const logFiles = files.filter(
-			(file) =>
-				/^mirth\.log/i.test(file) ||
-				file.endsWith('.log') ||
-				(file.includes('mirth') && file.includes('log'))
-		);
-		console.log('🔍 Log files found:', logFiles);
-
-		if (logFiles.length === 0) {
-			console.warn('⚠️ No log files found in:', MIRTH_LOGS_DIR);
-			return [];
-		}
-
-		let allLogText = '';
-		for (const file of logFiles) {
-			const filePath = path.join(MIRTH_LOGS_DIR, file);
-			try {
-				const logText = fs.readFileSync(filePath, 'utf8');
-				allLogText += logText + '\n';
-			} catch (err) {
-				console.warn(`⚠️ Failed to read log file: ${filePath}`, err);
+		// Not at home: prefer real logs; do not fallback to example
+		if (fs.existsSync(MIRTH_LOGS_DIR)) {
+			const files = fs.readdirSync(MIRTH_LOGS_DIR);
+			const logFiles = files.filter(
+				(file) =>
+					/^mirth\.log/i.test(file) ||
+					file.endsWith('.log') ||
+					(file.includes('mirth') && file.includes('log'))
+			);
+			if (logFiles.length > 0) {
+				let allLogText = '';
+				for (const file of logFiles) {
+					const filePath = path.join(MIRTH_LOGS_DIR, file);
+					try {
+						const logText = fs.readFileSync(filePath, 'utf8');
+						allLogText += logText + '\n';
+					} catch (err) {
+						console.warn(`⚠️ Failed to read log file: ${filePath}`, err);
+					}
+				}
+				const logs = parseLogLines(allLogText);
+				const endTime = Date.now();
+				console.log(
+					`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${MIRTH_LOGS_DIR}`
+				);
+				return logs;
 			}
 		}
-
-		const logs = parseLogLines(allLogText);
-		const endTime = Date.now();
-		console.log(
-			`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${MIRTH_LOGS_DIR}`
-		);
-		return logs;
+		console.warn('⚠️ No real log files found. Returning empty logs (not in ATHOME mode).');
+		return [];
 	} catch (error) {
 		console.error('❌ Error loading logs from Mirth log files:', error);
 		return [];
@@ -343,120 +366,14 @@ async function mirthApiRequest(endpoint, options = {}) {
 }
 
 // Test function to diagnose Mirth connection issues
-export async function testMirthConnection() {
-	console.log('🔍 Testing Mirth Connect connection...');
-	console.log(`📍 URL: ${MIRTH_CONFIG.baseUrl}`);
-	console.log(`👤 Username: ${MIRTH_CONFIG.username}`);
-
-	try {
-		// Test 1: Basic connectivity
-		console.log('\n1️⃣ Testing basic connectivity...');
-		const connectivityTest = await fetch(`${MIRTH_CONFIG.baseUrl}`, {
-			method: 'GET',
-			timeout: 5000
-		});
-		console.log(`   Status: ${connectivityTest.status} ${connectivityTest.statusText}`);
-
-		// Test 2: Different API context paths
-		console.log('\n2️⃣ Testing different API context paths...');
-		const apiPaths = ['/api', '/rest', '/mirth/api', '/mirth/rest'];
-
-		for (const path of apiPaths) {
-			try {
-				const apiTest = await fetch(`${MIRTH_CONFIG.baseUrl}${path}/channels`, {
-					method: 'GET',
-					timeout: 5000
-				});
-				console.log(`   ${path}/channels: ${apiTest.status} ${apiTest.statusText}`);
-
-				if (apiTest.ok) {
-					console.log(`   ✅ Found working API path: ${path}`);
-					// Update the config to use this path
-					MIRTH_CONFIG.apiPath = path;
-					break;
-				}
-			} catch (error) {
-				console.log(`   ${path}/channels: Error - ${error.message}`);
-			}
-		}
-
-		// Test 3: Different login endpoints
-		console.log('\n3️⃣ Testing different login endpoints...');
-		const loginPaths = ['/api/users/_login', '/rest/users/_login', '/mirth/api/users/_login'];
-
-		for (const path of loginPaths) {
-			try {
-				const loginTest = await fetch(`${MIRTH_CONFIG.baseUrl}${path}`, {
-					method: 'GET',
-					timeout: 5000
-				});
-				console.log(`   ${path}: ${loginTest.status} ${loginTest.statusText}`);
-			} catch (error) {
-				console.log(`   ${path}: Error - ${error.message}`);
-			}
-		}
-
-		// Test 4: Basic auth with different paths
-		console.log('\n4️⃣ Testing Basic Auth with different paths...');
-		const authPaths = ['/api/channels', '/rest/channels', '/mirth/api/channels'];
-
-		for (const path of authPaths) {
-			try {
-				const basicAuthTest = await fetch(`${MIRTH_CONFIG.baseUrl}${path}`, {
-					method: 'GET',
-					headers: {
-						Authorization: `Basic ${Buffer.from(`${MIRTH_CONFIG.username}:${MIRTH_CONFIG.password}`).toString('base64')}`
-					},
-					timeout: 5000
-				});
-				console.log(`   ${path}: ${basicAuthTest.status} ${basicAuthTest.statusText}`);
-
-				if (basicAuthTest.ok) {
-					const data = await basicAuthTest.json();
-					console.log(`   ✅ Success! Found ${data.length} channels using ${path}`);
-					return { success: true, channels: data, workingPath: path };
-				}
-			} catch (error) {
-				console.log(`   ${path}: Error - ${error.message}`);
-			}
-		}
-
-		// Test 5: Check if it's a different port
-		console.log('\n5️⃣ Testing different ports...');
-		const ports = ['8080', '8443', '9443'];
-		const baseHost = MIRTH_CONFIG.baseUrl.replace(/https?:\/\/[^:]+:\d+/, '');
-
-		for (const port of ports) {
-			try {
-				const portTest = await fetch(`https://brberdev:${port}/api/channels`, {
-					method: 'GET',
-					headers: {
-						Authorization: `Basic ${Buffer.from(`${MIRTH_CONFIG.username}:${MIRTH_CONFIG.password}`).toString('base64')}`
-					},
-					timeout: 5000
-				});
-				console.log(`   Port ${port}: ${portTest.status} ${portTest.statusText}`);
-
-				if (portTest.ok) {
-					const data = await portTest.json();
-					console.log(`   ✅ Success! Found ${data.length} channels on port ${port}`);
-					return { success: true, channels: data, workingPort: port };
-				}
-			} catch (error) {
-				console.log(`   Port ${port}: Error - ${error.message}`);
-			}
-		}
-
-		return { success: false, message: 'All API tests failed - REST API may not be enabled' };
-	} catch (error) {
-		console.error('❌ Connection test failed:', error.message);
-		return { success: false, error: error.message };
-	}
-}
-
 // Get all channels from Mirth Connect
 export async function getMirthChannels() {
 	try {
+		if (IS_ATHOME) {
+			console.log('🏠 ATHOME: returning example channels');
+			return exampleChannels;
+		}
+
 		console.log('🔐 Fetching channels from Mirth Connect...');
 
 		// Try the simple /api/channels endpoint without parameters
@@ -542,8 +459,9 @@ export async function getMirthChannels() {
 			}));
 		}
 	} catch (error) {
-		console.error('❌ Failed to fetch Mirth channels, using example data:', error);
-		return exampleChannels;
+		console.error('❌ Failed to fetch Mirth channels:', error);
+		// Not ATHOME: propagate empty to let API layer return error
+		throw error;
 	}
 }
 
@@ -552,6 +470,14 @@ export async function getChannelMessages(channelId, options = {}) {
 	const { startDate, endDate, limit = 1000, offset = 0, includeContent = false } = options;
 
 	try {
+		if (IS_ATHOME) {
+			const allMessages = generateChannelMessages(channelId, 30);
+			let filteredMessages = allMessages;
+			if (startDate) filteredMessages = filteredMessages.filter((m) => m.receivedDate >= startDate);
+			if (endDate) filteredMessages = filteredMessages.filter((m) => m.receivedDate <= endDate);
+			return filteredMessages.slice(offset, offset + limit);
+		}
+
 		// Try to get real data first
 		let endpoint = `/api/channels/${channelId}/messages?limit=${limit}&offset=${offset}`;
 
@@ -587,34 +513,38 @@ export async function getChannelMessages(channelId, options = {}) {
 			sequenceId: message.sequenceId
 		}));
 	} catch (error) {
-		console.error(
-			`❌ Failed to fetch messages for channel ${channelId}, using example data:`,
-			error
-		);
-
-		// Use example data as fallback
-		const allMessages = generateChannelMessages(channelId, 30);
-
-		// Apply filtering
-		let filteredMessages = allMessages;
-
-		if (startDate) {
-			filteredMessages = filteredMessages.filter((m) => m.receivedDate >= startDate);
-		}
-		if (endDate) {
-			filteredMessages = filteredMessages.filter((m) => m.receivedDate <= endDate);
-		}
-
-		// Apply pagination
-		const paginatedMessages = filteredMessages.slice(offset, offset + limit);
-
-		return paginatedMessages;
+		console.error(`❌ Failed to fetch messages for channel ${channelId}:`, error);
+		throw error;
 	}
 }
 
 // Get message statistics for a channel
 export async function getChannelMessageStats(channelId, startDate, endDate) {
 	try {
+		if (IS_ATHOME) {
+			const allStats = generateChannelStats(channelId, 30);
+			let filteredStats = allStats;
+			if (startDate && endDate) {
+				filteredStats = allStats.filter((s) => s.date >= startDate && s.date <= endDate);
+			}
+			const aggregated = filteredStats.reduce(
+				(acc, stat) => {
+					acc.total += stat.total;
+					acc.processed += stat.processed;
+					acc.failed += stat.failed;
+					acc.pending += stat.pending;
+					acc.queued += stat.queued;
+					return acc;
+				},
+				{ total: 0, processed: 0, failed: 0, pending: 0, queued: 0 }
+			);
+			return {
+				...aggregated,
+				startDate: startDate || filteredStats[filteredStats.length - 1]?.date,
+				endDate: endDate || filteredStats[0]?.date
+			};
+		}
+
 		const endpoint = `/api/channels/${channelId}/messages/statistics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
 		const stats = await mirthApiRequest(endpoint);
 
@@ -628,37 +558,7 @@ export async function getChannelMessageStats(channelId, startDate, endDate) {
 			endDate: stats.endDate
 		};
 	} catch (error) {
-		console.error(
-			`❌ Failed to fetch message stats for channel ${channelId}, using example data:`,
-			error
-		);
-
-		// Use example data as fallback
-		const allStats = generateChannelStats(channelId, 30);
-
-		// Filter by date range if provided
-		let filteredStats = allStats;
-		if (startDate && endDate) {
-			filteredStats = allStats.filter((s) => s.date >= startDate && s.date <= endDate);
-		}
-
-		// Aggregate the stats
-		const aggregated = filteredStats.reduce(
-			(acc, stat) => {
-				acc.total += stat.total;
-				acc.processed += stat.processed;
-				acc.failed += stat.failed;
-				acc.pending += stat.pending;
-				acc.queued += stat.queued;
-				return acc;
-			},
-			{ total: 0, processed: 0, failed: 0, pending: 0, queued: 0 }
-		);
-
-		return {
-			...aggregated,
-			startDate: startDate || filteredStats[filteredStats.length - 1]?.date,
-			endDate: endDate || filteredStats[0]?.date
-		};
+		console.error(`❌ Failed to fetch message stats for channel ${channelId}:`, error);
+		throw error;
 	}
 }

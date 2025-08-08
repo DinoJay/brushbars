@@ -7,10 +7,10 @@ function toIsoDate(date) {
 	return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
 }
 
+// Aggregate per-day message counts across all channels
 export async function GET({ url }) {
 	const startTime = Date.now();
 	const searchParams = url.searchParams;
-	const channelId = searchParams.get('channelId');
 	const daysParam = parseInt(searchParams.get('days') || '30', 10);
 	const days = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 30;
 
@@ -20,128 +20,121 @@ export async function GET({ url }) {
 		const start = new Date();
 		start.setDate(end.getDate() - (days - 1));
 
-		// Helper to bucket messages by day
-		function bucketMessagesByDay(messages, buckets) {
-			for (const m of messages) {
-				const ts = m.receivedDate || m.timestamp || m.time || m.date || new Date();
-				const d = toIsoDate(new Date(ts));
-				if (!buckets.has(d)) {
-					buckets.set(d, { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 });
-				}
-				const b = buckets.get(d);
-				b.total += 1;
-				const lvl = (m.status || m.level || 'INFO').toUpperCase();
-				if (b[lvl] !== undefined) b[lvl] += 1;
-			}
-		}
-
-		if (channelId) {
-			const dateBuckets = new Map();
-			const messages = await getChannelMessages(channelId, {
-				startDate: start.toISOString(),
-				endDate: end.toISOString(),
-				limit: 200000
-			});
-			bucketMessagesByDay(messages, dateBuckets);
-			const daysList = [];
-			for (let i = 0; i < days; i++) {
-				const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-				const key = toIsoDate(day);
-				const stats = dateBuckets.get(key) || { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 };
-				daysList.push({ date: key, formattedDate: d3.timeFormat('%a, %b %d')(day), stats });
-			}
-			return json({
-				success: true,
-				mode: 'single-channel',
-				channelId,
-				days: daysList,
-				totalDays: daysList.length,
-				range: { start: start.toISOString(), end: end.toISOString() }
-			});
-		}
-
-		// Per-channel breakdown for all available channels
+		// Get all channels (respects ATHOME inside helpers)
 		const channels = await getMirthChannels();
-		const allMessages = []; // Collect all messages for timeline and table
+
+		// Build a map of day -> stats and messages
+		const dayMap = new Map();
+		const ensureDay = (dayString) => {
+			if (!dayMap.has(dayString)) {
+				const date = new Date(dayString);
+				dayMap.set(dayString, {
+					date: dayString,
+					formattedDate: d3.timeFormat('%a, %b %d')(date),
+					stats: { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 },
+					messages: []
+				});
+			}
+			return dayMap.get(dayString);
+		};
 
 		// Process channels in parallel for better performance
-		// This is already the optimal parallelization - all channel message requests happen simultaneously
 		const channelPromises = channels.map(async (ch) => {
 			try {
-				const dateBuckets = new Map();
-				const messages = await getChannelMessages(ch.id, {
+				const msgs = await getChannelMessages(ch.id, {
 					startDate: start.toISOString(),
 					endDate: end.toISOString(),
-					limit: 50000 // Reduced limit for faster loading
+					limit: 50000
 				});
 
-				// Standardize message structure to match log structure
-				const standardizedMessages = messages.map((m) => ({
-					id: m.id || m.messageId || Math.random().toString(36).substr(2, 9),
-					timestamp: m.receivedDate || m.timestamp || m.time || m.date || new Date().toISOString(),
-					level: (m.status || m.level || 'INFO').toUpperCase(),
-					channel: ch.name,
-					message: m.content || m.raw || m.error || `Message from ${ch.name}`,
-					// Keep original fields for reference
-					originalData: m
-				}));
-				allMessages.push(...standardizedMessages);
+				// Process messages for this channel
+				const channelResults = [];
+				for (const m of msgs) {
+					// Normalize received date to YYYY-MM-DD
+					const d = new Date(m.receivedDate || m.timestamp || m.time || m.date || Date.now());
+					const dayString = toIsoDate(d);
 
-				bucketMessagesByDay(messages, dateBuckets);
-				const daysList = [];
-				for (let i = 0; i < days; i++) {
-					const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-					const key = toIsoDate(day);
-					const stats = dateBuckets.get(key) || { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 };
-					daysList.push({ date: key, formattedDate: d3.timeFormat('%a, %b %d')(day), stats });
+					// Determine level from message status
+					const level = (m.status || m.level || 'INFO').toUpperCase();
+
+					// Transform message to TimelineEntry format
+					const transformedMessage = {
+						id: m.id || m.correlationId || `${ch.id}_${Date.now()}_${Math.random()}`,
+						timestamp:
+							m.receivedDate || m.timestamp || m.time || m.date || new Date().toISOString(),
+						level: level,
+						channel: ch.name,
+						message: m.content || m.raw || m.transformed || 'No message content',
+						// Preserve original message data
+						originalMessage: {
+							...m,
+							channelName: ch.name,
+							channelId: ch.id
+						}
+					};
+
+					channelResults.push({
+						dayString,
+						level,
+						transformedMessage
+					});
 				}
-				const totals = daysList.reduce(
-					(acc, d) => ({
-						total: acc.total + d.stats.total,
-						INFO: acc.INFO + d.stats.INFO,
-						ERROR: acc.ERROR + d.stats.ERROR,
-						WARN: acc.WARN + d.stats.WARN,
-						DEBUG: acc.DEBUG + d.stats.DEBUG
-					}),
-					{ total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 }
-				);
-				return {
-					channel: { id: ch.id, name: ch.name, description: ch.description, enabled: ch.enabled },
-					days: daysList,
-					totals
-				};
-			} catch (e) {
-				return {
-					channel: { id: ch.id, name: ch.name },
-					days: [],
-					totals: { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 },
-					error: 'fetch_failed'
-				};
+
+				return channelResults;
+			} catch (err) {
+				// Continue other channels even if one fails
+				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, err?.message);
+				return [];
 			}
 		});
 
-		// Wait for all channel requests to complete
-		const perChannel = await Promise.all(channelPromises);
+		// Wait for all channels to complete
+		const allChannelResults = await Promise.all(channelPromises);
 
-		const endTime = Date.now();
+		// Aggregate results from all channels
+		for (const channelResult of allChannelResults.flat()) {
+			const target = ensureDay(channelResult.dayString);
+			target.stats.total += 1;
+
+			if (target.stats[channelResult.level] !== undefined) {
+				target.stats[channelResult.level] += 1;
+			} else {
+				target.stats.INFO += 1; // Default to INFO for unknown levels
+			}
+
+			target.messages.push(channelResult.transformedMessage);
+		}
+
+		// Convert map to sorted array and sort messages within each day
+		const daysList = Array.from(dayMap.values())
+			.map((day) => ({
+				...day,
+				messages: day.messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+				// .slice(0, 100) // Limit to 100 most recent messages per day
+			}))
+			.sort((a, b) => a.date.localeCompare(b.date));
+		const duration = Date.now() - startTime;
+
+		const totalMessages = daysList.reduce((sum, day) => sum + day.messages.length, 0);
+
 		console.log(
-			`🚀 Messages API completed in ${endTime - startTime}ms for ${perChannel.length} channels, ${allMessages.length} messages`
+			`🚀 Message days API completed in ${duration}ms for ${channels.length} channels, ${daysList.length} days, ${totalMessages} messages`
 		);
 
 		return json({
 			success: true,
-			mode: 'all-channels',
-			channels: perChannel,
-			messages: allMessages, // Include all messages for timeline and table
-			totalChannels: perChannel.length,
+			days: daysList,
+			totalDays: daysList.length,
+			totalChannels: channels.length,
+			totalMessages,
 			range: { start: start.toISOString(), end: end.toISOString() },
 			daysWindow: days,
-			performance: { duration: endTime - startTime }
+			performance: { duration }
 		});
 	} catch (error) {
-		console.error('❌ Error fetching available message days:', error);
+		console.error('❌ Error fetching message days:', error);
 		return json(
-			{ success: false, error: 'Failed to fetch available message days', details: error.message },
+			{ success: false, error: 'Failed to aggregate message days', details: error?.message },
 			{ status: 500 }
 		);
 	}

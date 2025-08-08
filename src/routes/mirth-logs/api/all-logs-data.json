@@ -1,5 +1,706 @@
 {
-	"timestamp": 0,
-	"totalLogs": 0,
-	"logs": []
+  "timestamp": 1754675826560,
+  "totalLogs": 100,
+  "logs": [
+    {
+      "id": 0,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:57:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 0 from Channel4"
+    },
+    {
+      "id": 1,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:56:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 1 from Channel4"
+    },
+    {
+      "id": 2,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:55:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 2 from Channel3"
+    },
+    {
+      "id": 3,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:54:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 3 from Channel2"
+    },
+    {
+      "id": 4,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:53:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 4 from Channel2"
+    },
+    {
+      "id": 5,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:52:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 5 from Channel3"
+    },
+    {
+      "id": 6,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:51:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 6 from Channel3"
+    },
+    {
+      "id": 7,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:50:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 7 from Channel1"
+    },
+    {
+      "id": 8,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:49:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 8 from Channel2"
+    },
+    {
+      "id": 9,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:48:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 9 from Channel4"
+    },
+    {
+      "id": 10,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:47:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 10 from Channel4"
+    },
+    {
+      "id": 11,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:46:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 11 from Channel4"
+    },
+    {
+      "id": 12,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:45:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 12 from Channel2"
+    },
+    {
+      "id": 13,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:44:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 13 from Channel2"
+    },
+    {
+      "id": 14,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:43:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 14 from Channel3"
+    },
+    {
+      "id": 15,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:42:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 15 from Channel4"
+    },
+    {
+      "id": 16,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:41:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 16 from Channel4"
+    },
+    {
+      "id": 17,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:40:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 17 from Channel4"
+    },
+    {
+      "id": 18,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:39:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 18 from Channel2"
+    },
+    {
+      "id": 19,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:38:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 19 from Channel3"
+    },
+    {
+      "id": 20,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:37:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 20 from Channel3"
+    },
+    {
+      "id": 21,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:36:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 21 from Channel3"
+    },
+    {
+      "id": 22,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:35:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 22 from Channel3"
+    },
+    {
+      "id": 23,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:34:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 23 from Channel1"
+    },
+    {
+      "id": 24,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:33:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 24 from Channel2"
+    },
+    {
+      "id": 25,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:32:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 25 from Channel4"
+    },
+    {
+      "id": 26,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:31:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 26 from Channel3"
+    },
+    {
+      "id": 27,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:30:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 27 from Channel1"
+    },
+    {
+      "id": 28,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:29:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 28 from Channel3"
+    },
+    {
+      "id": 29,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:28:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 29 from Channel4"
+    },
+    {
+      "id": 30,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:27:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 30 from Channel4"
+    },
+    {
+      "id": 31,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:26:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 31 from Channel1"
+    },
+    {
+      "id": 32,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:25:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 32 from Channel1"
+    },
+    {
+      "id": 33,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:24:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 33 from Channel3"
+    },
+    {
+      "id": 34,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:23:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 34 from Channel3"
+    },
+    {
+      "id": 35,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:22:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 35 from Channel1"
+    },
+    {
+      "id": 36,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:21:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 36 from Channel2"
+    },
+    {
+      "id": 37,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:20:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 37 from Channel4"
+    },
+    {
+      "id": 38,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:19:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 38 from Channel3"
+    },
+    {
+      "id": 39,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:18:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 39 from Channel2"
+    },
+    {
+      "id": 40,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:17:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 40 from Channel4"
+    },
+    {
+      "id": 41,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:16:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 41 from Channel4"
+    },
+    {
+      "id": 42,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:15:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 42 from Channel1"
+    },
+    {
+      "id": 43,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:14:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 43 from Channel3"
+    },
+    {
+      "id": 44,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:13:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 44 from Channel3"
+    },
+    {
+      "id": 45,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:12:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 45 from Channel1"
+    },
+    {
+      "id": 46,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:11:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 46 from Channel4"
+    },
+    {
+      "id": 47,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:10:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 47 from Channel4"
+    },
+    {
+      "id": 48,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:09:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 48 from Channel2"
+    },
+    {
+      "id": 49,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:08:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 49 from Channel1"
+    },
+    {
+      "id": 50,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:07:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 50 from Channel1"
+    },
+    {
+      "id": 51,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:06:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 51 from Channel4"
+    },
+    {
+      "id": 52,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:05:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 52 from Channel4"
+    },
+    {
+      "id": 53,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:04:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 53 from Channel1"
+    },
+    {
+      "id": 54,
+      "level": "WARN",
+      "timestamp": "2025-08-08 17:03:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 54 from Channel3"
+    },
+    {
+      "id": 55,
+      "level": "INFO",
+      "timestamp": "2025-08-08 17:02:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 55 from Channel4"
+    },
+    {
+      "id": 56,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 17:01:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 56 from Channel3"
+    },
+    {
+      "id": 57,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 17:00:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 57 from Channel4"
+    },
+    {
+      "id": 58,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:59:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 58 from Channel1"
+    },
+    {
+      "id": 59,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:58:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 59 from Channel4"
+    },
+    {
+      "id": 60,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:57:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 60 from Channel3"
+    },
+    {
+      "id": 61,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:56:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 61 from Channel4"
+    },
+    {
+      "id": 62,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:55:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 62 from Channel4"
+    },
+    {
+      "id": 63,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:54:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 63 from Channel2"
+    },
+    {
+      "id": 64,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:53:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 64 from Channel4"
+    },
+    {
+      "id": 65,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:52:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 65 from Channel3"
+    },
+    {
+      "id": 66,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:51:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 66 from Channel2"
+    },
+    {
+      "id": 67,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:50:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 67 from Channel1"
+    },
+    {
+      "id": 68,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:49:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 68 from Channel2"
+    },
+    {
+      "id": 69,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:48:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 69 from Channel2"
+    },
+    {
+      "id": 70,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:47:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 70 from Channel3"
+    },
+    {
+      "id": 71,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:46:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 71 from Channel1"
+    },
+    {
+      "id": 72,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:45:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 72 from Channel1"
+    },
+    {
+      "id": 73,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:44:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 73 from Channel4"
+    },
+    {
+      "id": 74,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:43:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 74 from Channel2"
+    },
+    {
+      "id": 75,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:42:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 75 from Channel2"
+    },
+    {
+      "id": 76,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:41:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 76 from Channel2"
+    },
+    {
+      "id": 77,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:40:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 77 from Channel2"
+    },
+    {
+      "id": 78,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:39:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 78 from Channel3"
+    },
+    {
+      "id": 79,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:38:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 79 from Channel4"
+    },
+    {
+      "id": 80,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:37:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 80 from Channel4"
+    },
+    {
+      "id": 81,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:36:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 81 from Channel3"
+    },
+    {
+      "id": 82,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:35:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 82 from Channel1"
+    },
+    {
+      "id": 83,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:34:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 83 from Channel3"
+    },
+    {
+      "id": 84,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:33:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 84 from Channel1"
+    },
+    {
+      "id": 85,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:32:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 85 from Channel1"
+    },
+    {
+      "id": 86,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:31:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 86 from Channel4"
+    },
+    {
+      "id": 87,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:30:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 87 from Channel1"
+    },
+    {
+      "id": 88,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:29:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 88 from Channel4"
+    },
+    {
+      "id": 89,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:28:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 89 from Channel4"
+    },
+    {
+      "id": 90,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:27:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 90 from Channel1"
+    },
+    {
+      "id": 91,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:26:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 91 from Channel1"
+    },
+    {
+      "id": 92,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:25:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 92 from Channel1"
+    },
+    {
+      "id": 93,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:24:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 93 from Channel3"
+    },
+    {
+      "id": 94,
+      "level": "WARN",
+      "timestamp": "2025-08-08 16:23:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 94 from Channel4"
+    },
+    {
+      "id": 95,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:22:06.560",
+      "channel": "Channel2",
+      "message": "Example log message 95 from Channel2"
+    },
+    {
+      "id": 96,
+      "level": "INFO",
+      "timestamp": "2025-08-08 16:21:06.560",
+      "channel": "Channel3",
+      "message": "Example log message 96 from Channel3"
+    },
+    {
+      "id": 97,
+      "level": "DEBUG",
+      "timestamp": "2025-08-08 16:20:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 97 from Channel4"
+    },
+    {
+      "id": 98,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:19:06.560",
+      "channel": "Channel1",
+      "message": "Example log message 98 from Channel1"
+    },
+    {
+      "id": 99,
+      "level": "ERROR",
+      "timestamp": "2025-08-08 16:18:06.560",
+      "channel": "Channel4",
+      "message": "Example log message 99 from Channel4"
+    }
+  ]
 }

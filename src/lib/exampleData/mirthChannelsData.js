@@ -189,12 +189,31 @@ export function generateChannelMessages(channelId, days = 30) {
 		for (let i = 0; i < finalDayCount; i++) {
 			const success = Math.random() < pattern.successRate;
 			const timestamp = new Date(date);
-			timestamp.setHours(
-				6 + Math.floor(Math.random() * 14), // 6 AM to 8 PM
-				Math.floor(Math.random() * 60),
-				Math.floor(Math.random() * 60),
-				Math.floor(Math.random() * 1000)
-			);
+
+			// Create more realistic time distribution
+			// Business hours: 6 AM to 8 PM with peak activity during 9 AM - 5 PM
+			const hour = (() => {
+				const rand = Math.random();
+				if (rand < 0.6) {
+					// 60% of messages during peak hours (9 AM - 5 PM)
+					return 9 + Math.floor(Math.random() * 8);
+				} else if (rand < 0.8) {
+					// 20% of messages during early/late business hours (6-9 AM, 5-8 PM)
+					return rand < 0.5
+						? 6 + Math.floor(Math.random() * 3)
+						: 17 + Math.floor(Math.random() * 3);
+				} else {
+					// 20% of messages during off-hours (8 PM - 6 AM)
+					return rand < 0.5 ? 20 + Math.floor(Math.random() * 4) : Math.floor(Math.random() * 6);
+				}
+			})();
+
+			// Vary minutes and seconds more realistically
+			const minute = Math.floor(Math.random() * 60);
+			const second = Math.floor(Math.random() * 60);
+			const millisecond = Math.floor(Math.random() * 1000);
+
+			timestamp.setHours(hour, minute, second, millisecond);
 
 			const message = {
 				id: `${channelId}_${messageId++}`,

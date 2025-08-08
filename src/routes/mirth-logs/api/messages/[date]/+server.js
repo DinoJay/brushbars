@@ -1,17 +1,5 @@
 import { json } from '@sveltejs/kit';
-import fs from 'fs';
-import path from 'path';
-
-// File path for storing all messages data
-const ALL_MESSAGES_FILE = path.join(
-	process.cwd(),
-	'src',
-	'routes',
-	'mirth-logs',
-	'api',
-	'messages',
-	'all-messages-data.json'
-);
+import { getMirthChannels, getChannelMessages } from '$lib/apiHelpers.js';
 
 // Helper function to safely get date string
 function safeGetDateString(timestamp) {
@@ -31,50 +19,82 @@ export async function GET({ params }) {
 		return json({ success: false, error: 'Date parameter is required' }, { status: 400 });
 	}
 
-	// Check if the all-messages-data.json file exists
-	if (!fs.existsSync(ALL_MESSAGES_FILE)) {
-		return json(
-			{
-				success: false,
-				error:
-					'No messages data file found. Please load the messages days API first to generate the data file.',
-				filePath: ALL_MESSAGES_FILE
-			},
-			{ status: 404 }
-		);
-	}
-
 	try {
-		// Read all messages from file
-		const fileContent = fs.readFileSync(ALL_MESSAGES_FILE, 'utf8');
-		const messagesData = JSON.parse(fileContent);
+		// Get all channels (respects ATHOME inside helpers)
+		const channels = await getMirthChannels();
 
-		// Filter messages for the specific date
-		const dayMessages = messagesData.messages.filter((message) => {
-			const messageDate = safeGetDateString(message.timestamp);
-			return messageDate === date;
+		// Calculate date range for the specific date
+		const targetDate = new Date(date);
+		const startDate = new Date(targetDate);
+		startDate.setHours(0, 0, 0, 0);
+		const endDate = new Date(targetDate);
+		endDate.setHours(23, 59, 59, 999);
+
+		// Process channels in parallel for better performance
+		const channelPromises = channels.map(async (ch) => {
+			try {
+				const msgs = await getChannelMessages(ch.id, {
+					startDate: startDate.toISOString(),
+					endDate: endDate.toISOString(),
+					limit: 50000,
+					includeContent: true
+				});
+
+				// Filter messages for the exact date and standardize format
+				const dayMessages = msgs
+					.filter((m) => {
+						const messageDate = safeGetDateString(
+							m.receivedDate || m.timestamp || m.time || m.date
+						);
+						return messageDate === date;
+					})
+					.map((m) => ({
+						id: m.id || m.messageId || Math.random().toString(36).substr(2, 9),
+						timestamp:
+							m.receivedDate || m.timestamp || m.time || m.date || new Date().toISOString(),
+						level: (m.status || m.level || 'INFO').toUpperCase(),
+						channel: ch.name,
+						message: m.content || m.raw || m.error || `Message from ${ch.name}`,
+						// Keep original fields for reference
+						originalData: m
+					}));
+
+				return dayMessages;
+			} catch (err) {
+				// Continue other channels even if one fails
+				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, err?.message);
+				return [];
+			}
 		});
+
+		// Wait for all channel requests to complete
+		const channelResults = await Promise.all(channelPromises);
+		const allMessages = channelResults.flat();
+
+		// Sort messages by timestamp (newest first)
+		allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
 		const endTime = Date.now();
 		console.log(
-			`📦 Served ${dayMessages.length} messages for ${date} from file in ${endTime - startTime}ms`
+			`📦 Served ${allMessages.length} messages for ${date} from API in ${endTime - startTime}ms`
 		);
 
 		return json({
 			success: true,
 			date,
-			messages: dayMessages,
-			totalMessages: dayMessages.length,
-			dataSource: 'file',
-			performance: { duration: endTime - startTime, dataSource: 'file' }
+			messages: allMessages,
+			totalMessages: allMessages.length,
+			totalChannels: channels.length,
+			dataSource: 'api',
+			performance: { duration: endTime - startTime, dataSource: 'api' }
 		});
 	} catch (error) {
-		console.error('❌ Error reading messages from file:', error);
+		console.error('❌ Error fetching messages from API:', error);
 		return json(
 			{
 				success: false,
-				error: 'Failed to read messages from file',
-				details: error.message
+				error: 'Failed to fetch messages from API',
+				details: error?.message
 			},
 			{ status: 500 }
 		);
