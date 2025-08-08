@@ -1,8 +1,10 @@
 import { json } from '@sveltejs/kit';
 import * as d3 from 'd3';
 import { getMirthChannels, getChannelMessages } from '$lib/apiHelpers.js';
+import { warmCache } from '$lib/server/messageCache.js';
 
 // Build an ISO date (YYYY-MM-DD) from a Date
+/** @param {Date} date */
 function toIsoDate(date) {
 	return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
 }
@@ -25,7 +27,7 @@ export async function GET({ url }) {
 
 		// Build a map of day -> stats and messages
 		const dayMap = new Map();
-		const ensureDay = (dayString) => {
+		const ensureDay = (/** @type {string} */ dayString) => {
 			if (!dayMap.has(dayString)) {
 				const date = new Date(dayString);
 				dayMap.set(dayString, {
@@ -39,7 +41,7 @@ export async function GET({ url }) {
 		};
 
 		// Process channels in parallel for better performance
-		const channelPromises = channels.map(async (ch) => {
+		const channelPromises = channels.map(async (/** @type {any} */ ch) => {
 			try {
 				const msgs = await getChannelMessages(ch.id, {
 					startDate: start.toISOString(),
@@ -83,7 +85,8 @@ export async function GET({ url }) {
 				return channelResults;
 			} catch (err) {
 				// Continue other channels even if one fails
-				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, err?.message);
+				const emsg = /** @type {any} */ (err)?.message;
+				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, emsg);
 				return [];
 			}
 		});
@@ -109,10 +112,17 @@ export async function GET({ url }) {
 		const daysList = Array.from(dayMap.values())
 			.map((day) => ({
 				...day,
-				messages: day.messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-				// .slice(0, 100) // Limit to 100 most recent messages per day
+				messages: day.messages.sort(
+					(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
+						new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+				)
 			}))
-			.sort((a, b) => a.date.localeCompare(b.date));
+			.sort((/** @type {{ date: string }} */ a, /** @type {{ date: string }} */ b) =>
+				a.date.localeCompare(b.date)
+			);
+
+		// Warm the in-memory cache for all days with their messages
+		warmCache(daysList.map((d) => ({ date: d.date, messages: d.messages })));
 		const duration = Date.now() - startTime;
 
 		const totalMessages = daysList.reduce((sum, day) => sum + day.messages.length, 0);
@@ -121,10 +131,17 @@ export async function GET({ url }) {
 			`🚀 Message days API completed in ${duration}ms for ${channels.length} channels, ${daysList.length} days, ${totalMessages} messages`
 		);
 
+		// Send days without the large messages payload to keep payload small
+		const slimDays = daysList.map(({ date, formattedDate, stats }) => ({
+			date,
+			formattedDate,
+			stats
+		}));
+
 		return json({
 			success: true,
-			days: daysList,
-			totalDays: daysList.length,
+			days: slimDays,
+			totalDays: slimDays.length,
 			totalChannels: channels.length,
 			totalMessages,
 			range: { start: start.toISOString(), end: end.toISOString() },
@@ -132,9 +149,10 @@ export async function GET({ url }) {
 			performance: { duration }
 		});
 	} catch (error) {
-		console.error('❌ Error fetching message days:', error);
+		const emsg = /** @type {any} */ (error)?.message;
+		console.error('❌ Error fetching message days:', emsg);
 		return json(
-			{ success: false, error: 'Failed to aggregate message days', details: error?.message },
+			{ success: false, error: 'Failed to aggregate message days', details: emsg },
 			{ status: 500 }
 		);
 	}

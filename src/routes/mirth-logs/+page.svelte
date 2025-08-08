@@ -32,6 +32,46 @@
 		return () => closeLogSocket();
 	});
 
+	// Auto-fetch messages for selected day when in channels tab (uses server cache)
+	$effect(() => {
+		if (currentTab !== 'channels') return;
+		const day = logStore.selectedDay;
+		if (!day) return;
+		const controller = new AbortController();
+		(async () => {
+			try {
+				const res = await fetch(`/mirth-logs/api/messages/${day}`);
+				const data = await res.json();
+				if (data.success && Array.isArray(data.messages)) {
+					logStore.updateCurrentMessageLogs(data.messages);
+				}
+			} catch (e) {
+				console.warn('Failed to auto-fetch messages for selected day', e);
+			}
+		})();
+		return () => controller.abort();
+	});
+
+	// Auto-fetch dev logs for selected day when in logs tab
+	$effect(() => {
+		if (currentTab !== 'logs') return;
+		const day = logStore.selectedDay;
+		if (!day) return;
+		const controller = new AbortController();
+		(async () => {
+			try {
+				const res = await fetch(`/mirth-logs/api/logs/${day}`);
+				const data = await res.json();
+				if (data.success && Array.isArray(data.logs)) {
+					logStore.updateCurrentDevLogs(data.logs);
+				}
+			} catch (e) {
+				console.warn('Failed to auto-fetch dev logs for selected day', e);
+			}
+		})();
+		return () => controller.abort();
+	});
+
 	// API: fetch list of message days (aggregated across channels)
 	async function fetchMessageDays() {
 		logStore.setLoadingDays(true);
@@ -74,31 +114,7 @@
 		}
 	}
 
-	// API: fetch logs for a day and update store entries
-	async function fetchDevLogs(date: string) {
-		try {
-			const res = await fetch(`/mirth-logs/api/logs/${date}`);
-			const data = await res.json();
-			if (data.success && Array.isArray(data.logs)) {
-				logStore.updateCurrentDevLogs(data.logs);
-			}
-		} catch (err) {
-			console.warn('Failed to fetch day logs:', err);
-		}
-	}
-
-	// API: fetch messages for a day and update store entries
-	async function fetchMessages(date: string) {
-		try {
-			const res = await fetch(`/mirth-logs/api/messages/${date}`);
-			const data = await res.json();
-			if (data.success && Array.isArray(data.messages)) {
-				logStore.updateCurrentMessageLogs(data.messages);
-			}
-		} catch (err) {
-			console.warn('Failed to fetch day messages:', err);
-		}
-	}
+	// Removed old per-day fetch helpers that updated now-removed setters
 
 	function handleFilters(level: string | null, channel: string | null) {
 		logStore.setSelectedLevel(level as any);
@@ -121,7 +137,31 @@
 		console.log('🔍 handleSelectDay called with date:', date, 'currentTab:', currentTab);
 		logStore.setSelectedDay(date);
 
-		// Fetch individual day data based on current tab
+		// For channels tab, fetch messages for selected day into store (server is cached)
+		if (currentTab === 'channels') {
+			try {
+				const res = await fetch(`/mirth-logs/api/messages/${date}`);
+				const data = await res.json();
+				if (data.success && Array.isArray(data.messages)) {
+					logStore.updateCurrentMessageLogs(data.messages);
+				}
+			} catch (e) {
+				console.warn('Failed to fetch messages for selected day', e);
+			}
+		}
+
+		// For logs tab, fetch dev logs for selected day into store
+		if (currentTab === 'logs') {
+			try {
+				const res = await fetch(`/mirth-logs/api/logs/${date}`);
+				const data = await res.json();
+				if (data.success && Array.isArray(data.logs)) {
+					logStore.updateCurrentDevLogs(data.logs);
+				}
+			} catch (e) {
+				console.warn('Failed to fetch dev logs for selected day', e);
+			}
+		}
 	}
 
 	function handleTabChange(next: string) {

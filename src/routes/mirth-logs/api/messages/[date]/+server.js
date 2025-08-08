@@ -1,7 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { getMirthChannels, getChannelMessages } from '$lib/apiHelpers.js';
+import { getDayMessages } from '$lib/server/messageCache.js';
 
 // Helper function to safely get date string
+/** @param {string | Date} timestamp */
 function safeGetDateString(timestamp) {
 	try {
 		const date = new Date(timestamp);
@@ -20,6 +22,25 @@ export async function GET({ params }) {
 	}
 
 	try {
+		// 1) Try cache first
+		const cached = getDayMessages(date);
+		if (cached && Array.isArray(cached)) {
+			const sorted = [...cached].sort(
+				(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
+					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+			);
+			const endTime = Date.now();
+			return json({
+				success: true,
+				date,
+				messages: sorted,
+				totalMessages: sorted.length,
+				dataSource: 'cache',
+				performance: { duration: endTime - startTime, dataSource: 'cache' }
+			});
+		}
+
+		// 2) Fallback to live fetch
 		// Get all channels (respects ATHOME inside helpers)
 		const channels = await getMirthChannels();
 
@@ -31,7 +52,7 @@ export async function GET({ params }) {
 		endDate.setHours(23, 59, 59, 999);
 
 		// Process channels in parallel for better performance
-		const channelPromises = channels.map(async (ch) => {
+		const channelPromises = channels.map(async (/** @type {any} */ ch) => {
 			try {
 				const msgs = await getChannelMessages(ch.id, {
 					startDate: startDate.toISOString(),
@@ -42,13 +63,13 @@ export async function GET({ params }) {
 
 				// Filter messages for the exact date and standardize format
 				const dayMessages = msgs
-					.filter((m) => {
+					.filter((/** @type {any} */ m) => {
 						const messageDate = safeGetDateString(
 							m.receivedDate || m.timestamp || m.time || m.date
 						);
 						return messageDate === date;
 					})
-					.map((m) => ({
+					.map((/** @type {any} */ m) => ({
 						id: m.id || m.messageId || Math.random().toString(36).substr(2, 9),
 						timestamp:
 							m.receivedDate || m.timestamp || m.time || m.date || new Date().toISOString(),
@@ -62,7 +83,8 @@ export async function GET({ params }) {
 				return dayMessages;
 			} catch (err) {
 				// Continue other channels even if one fails
-				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, err?.message);
+				const emsg = /** @type {any} */ (err)?.message;
+				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, emsg);
 				return [];
 			}
 		});
@@ -72,7 +94,10 @@ export async function GET({ params }) {
 		const allMessages = channelResults.flat();
 
 		// Sort messages by timestamp (newest first)
-		allMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+		allMessages.sort(
+			(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
+				new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+		);
 
 		const endTime = Date.now();
 		console.log(
@@ -89,12 +114,13 @@ export async function GET({ params }) {
 			performance: { duration: endTime - startTime, dataSource: 'api' }
 		});
 	} catch (error) {
-		console.error('❌ Error fetching messages from API:', error);
+		const emsg = /** @type {any} */ (error)?.message;
+		console.error('❌ Error fetching messages from API:', emsg);
 		return json(
 			{
 				success: false,
 				error: 'Failed to fetch messages from API',
-				details: error?.message
+				details: emsg
 			},
 			{ status: 500 }
 		);
