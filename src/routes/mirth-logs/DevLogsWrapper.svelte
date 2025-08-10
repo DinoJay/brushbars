@@ -2,10 +2,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import DayButtons from './components/DayButtons.svelte';
-	import LogFilters from './components/LogFilters.svelte';
-	import MirthActivityTimeline from './components/timeline/MirthActivityTimeline.svelte';
-	import LogTable from './components/LogTable.svelte';
+	import DayButtons from '$components/DayButtons.svelte';
+	import LogFilters from '$components/LogFilters.svelte';
+	import MirthActivityTimeline from '$components/timeline/MirthActivityTimeline.svelte';
+	import LogTable from '$components/LogTable.svelte';
 	import { logStore } from '$stores/logStore.svelte';
 
 	// Selected day from URL

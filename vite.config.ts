@@ -10,7 +10,8 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	resolve: {
 		alias: {
-			$stores: resolve(__dirname, 'src/stores')
+			$stores: resolve(__dirname, 'src/stores'),
+			$components: resolve(__dirname, 'src/routes/mirth-logs/components')
 		}
 	}
 });
