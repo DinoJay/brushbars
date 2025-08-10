@@ -91,9 +91,9 @@
 
 	<div class="mb-6 rounded bg-white p-4 shadow">
 		<MirthActivityTimeline
-			entries={logStore.allMessages}
+			entries={logStore.timelineMessageEntries}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
-			resetOn={selectedDayFromUrl()}
+			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 		/>
 	</div>
 	<div class="rounded bg-white p-4 shadow">
