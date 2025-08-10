@@ -1,25 +1,40 @@
 <script lang="ts">
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient';
-	import { onMount } from 'svelte';
+
 	import { page } from '$app/stores';
-	import MirthActivityTimeline from './MirthActivityTimeline.svelte';
-	import LogTable from './LogTable.svelte';
-	import LogFilters from './components/LogFilters.svelte';
-	import DayButtons from './components/DayButtons.svelte';
+	import { goto } from '$app/navigation';
+	import DevLogsWrapper from './DevLogsWrapper.svelte';
+	import MessagesWrapper from './MessagesWrapper.svelte';
 	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$lib/components/ui/tabs';
-	import { logStore } from '../../stores/logStore.svelte';
+	import { logStore } from '$stores/logStore.svelte';
 
 	let currentTab: 'logs' | 'channels' = $state('logs');
+	// Show a global spinner until the relevant days are loaded
+	let showSpinner = $derived.by(() => {
+		const isLoading = logStore.loadingDays;
+		const missingDays =
+			currentTab === 'logs'
+				? !(logStore.devLogDays && logStore.devLogDays.length)
+				: !(logStore.messageDays && logStore.messageDays.length);
+		return isLoading || missingDays;
+	});
 
-	// Bootstrap on client: ensure selectedDay, and ensure days lists are loaded
-	onMount(() => {
-		// Only set selectedDay if not already set (e.g., from landing page)
-		if (!logStore.selectedDay) {
-			const params = new URLSearchParams(window.location.search);
-			const dayParam = params.get('day');
-			const today = new Date().toISOString().split('T')[0];
-			logStore.setSelectedDay(dayParam || today);
+	// Single source of truth for the selected day: always read from URL (no fallback here)
+	const selectedDayFromUrl = $derived(() => $page.url.searchParams.get('day'));
+
+	// Mirror URL -> store (one-way) so the rest of the app can consume the store
+	$effect(() => {
+		const day = selectedDayFromUrl();
+		if (day && logStore.selectedDay !== day) {
+			logStore.setSelectedDay(day);
 		}
+	});
+
+	// Bootstrap with runes: ensure selectedDay and days lists; then load initial data
+	let didInit = $state(false);
+	$effect(() => {
+		if (didInit) return;
+		didInit = true;
 
 		// Load days if not present (direct navigation support)
 		try {
@@ -29,51 +44,33 @@
 			if (!logStore.messageDays?.length) {
 				fetchMessageDays();
 			}
-
-			// Ensure initial data for current tab and selected day
-			const day = logStore.selectedDay;
-			if (day) {
-				if (currentTab === 'logs') {
-					fetch(`/mirth-logs/api/devLogs/${day}`)
-						.then((r) => r.json())
-						.then((d) => {
-							if (d.success && Array.isArray(d.logs)) logStore.updateDevLogs(d.logs);
-						})
-						.catch(() => {});
-				} else if (currentTab === 'channels') {
-					fetch(`/mirth-logs/api/messages/${day}`)
-						.then((r) => r.json())
-						.then((d) => {
-							if (d.success && Array.isArray(d.messages)) logStore.updateMessages(d.messages);
-						})
-						.catch(() => {});
-				}
-			}
 		} catch {}
 	});
 
-	// Keep store.selectedDay in sync with the URL ?day on browser navigation (back/forward)
-	onMount(() => {
-		const onPop = () => {
-			const params = new URLSearchParams(window.location.search);
-			const d = params.get('day');
-			if (d && d !== logStore.selectedDay) logStore.setSelectedDay(d);
-		};
-		window.addEventListener('popstate', onPop);
-		return () => window.removeEventListener('popstate', onPop);
-	});
-
-	// Keep the URL ?day param in sync with store.selectedDay (store → URL) without navigation
+	// If no ?day is present, jump to the latest available day once days are loaded
 	$effect(() => {
-		const storeDay = logStore.selectedDay;
-		const dayInUrl = $page.url.searchParams.get('day');
 		if (typeof window === 'undefined') return;
-		if (storeDay && storeDay !== dayInUrl) {
-			const url = new URL(window.location.href);
-			url.searchParams.set('day', storeDay);
-			history.replaceState(null, '', url.pathname + '?' + url.searchParams.toString());
+		const hasDayParam = !!$page.url.searchParams.get('day');
+		if (hasDayParam) return;
+		const daysList = currentTab === 'logs' ? logStore.devLogDays : logStore.messageDays;
+		if (daysList && daysList.length) {
+			const latest = daysList.reduce(
+				(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
+				''
+			);
+			if (latest) {
+				const url = new URL(window.location.href);
+				url.searchParams.set('day', latest);
+				goto(url.pathname + '?' + url.searchParams.toString(), {
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				});
+			}
 		}
 	});
+
+	// Remove manual history syncing; URL is the source of truth via $page
 
 	// Initialize websocket and load initial data - only runs once
 	$effect(() => {
@@ -97,7 +94,7 @@
 	// Auto-fetch messages for selected day when in channels tab (uses server cache)
 	$effect(() => {
 		if (currentTab !== 'channels') return;
-		const day = logStore.selectedDay;
+		const day = selectedDayFromUrl();
 		if (!day) return;
 		const controller = new AbortController();
 		(async () => {
@@ -117,7 +114,7 @@
 	// Auto-fetch dev logs for selected day when in logs tab
 	$effect(() => {
 		if (currentTab !== 'logs') return;
-		const day = logStore.selectedDay;
+		const day = selectedDayFromUrl();
 		if (!day) return;
 		const controller = new AbortController();
 		(async () => {
@@ -176,53 +173,37 @@
 		}
 	}
 
-	// Removed old per-day fetch helpers that updated now-removed setters
-
-	function handleFilters(level: string | null, channel: string | null) {
-		logStore.setSelectedLevel(level as any);
-		logStore.setSelectedChannel(channel);
-	}
-	// Debounced range handler to improve performance
-	let rangeTimeout: number;
-	function handleRange(range: [Date, Date]) {
-		// Clear previous timeout
-		if (rangeTimeout) {
-			clearTimeout(rangeTimeout);
-		}
-
-		// Debounce the range update to avoid excessive re-renders
-		rangeTimeout = setTimeout(() => {
-			logStore.setSelectedRange(range);
-		}, 100); // 100ms debounce
-	}
 	async function handleSelectDay(date: string) {
-		console.log('🔍 handleSelectDay called with date:', date, 'currentTab:', currentTab);
-		logStore.setSelectedDay(date);
+		// Optimistically update store for immediate UI feedback; URL remains source of truth
+		if (logStore.selectedDay !== date) {
+			logStore.setSelectedDay(date);
+		}
+		// Update the URL so $page changes and effects refetch
+		const url = new URL(window.location.href);
+		url.searchParams.set('day', date);
+		await goto(url.pathname + '?' + url.searchParams.toString(), {
+			replaceState: false,
+			noScroll: true,
+			keepFocus: true
+		});
 
-		// For channels tab, fetch messages for selected day into store (server is cached)
-		if (currentTab === 'channels') {
-			try {
+		// Also fetch immediately so UI updates without waiting for effects
+		try {
+			if (currentTab === 'logs') {
+				const res = await fetch(`/mirth-logs/api/devLogs/${date}`);
+				const data = await res.json();
+				if (data.success && Array.isArray(data.logs)) {
+					logStore.updateDevLogs(data.logs);
+				}
+			} else {
 				const res = await fetch(`/mirth-logs/api/messages/${date}`);
 				const data = await res.json();
 				if (data.success && Array.isArray(data.messages)) {
 					logStore.updateMessages(data.messages);
 				}
-			} catch (e) {
-				console.warn('Failed to fetch messages for selected day', e);
 			}
-		}
-
-		// For logs tab, fetch dev logs for selected day into store
-		if (currentTab === 'logs') {
-			try {
-				const res = await fetch(`/mirth-logs/api/devLogs/${date}`);
-				const data = await res.json();
-				if (data.success && Array.isArray(data.logs)) {
-					logStore.updateCurrentDevLogs(data.logs);
-				}
-			} catch (e) {
-				console.warn('Failed to fetch dev logs for selected day', e);
-			}
+		} catch (e) {
+			console.warn('Failed to fetch data for selected day', e);
 		}
 	}
 
@@ -236,61 +217,29 @@
 <main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-6 font-sans">
 	<h1 class="mb-4 text-2xl font-bold">📋 📡 Mirth Log Dashboard</h1>
 
-	<Tabs value={currentTab} class="" on:change={(e) => handleTabChange(e.detail)}>
-		<TabsList>
-			<TabsTrigger value="logs">Logs</TabsTrigger>
-			<TabsTrigger value="channels">Channels</TabsTrigger>
-		</TabsList>
-
-		<TabsContent value="logs">
-			<!-- Day Selection -->
-			<div class="mb-6 rounded bg-white p-4 shadow">
-				<DayButtons
-					selectedDay={logStore.selectedDay}
-					todaysLiveEntries={[]}
-					days={logStore.devLogDays}
-					loading={logStore.loadingDays}
-					error={logStore.errorDays}
-					onSelectDay={handleSelectDay}
-				/>
+	{#if showSpinner}
+		<div class="flex min-h-[60vh] items-center justify-center">
+			<div class="text-center">
+				<div
+					class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"
+				></div>
+				<p class="text-gray-600">Loading days…</p>
 			</div>
+		</div>
+	{:else}
+		<Tabs value={currentTab} class="" on:change={(e) => handleTabChange(e.detail)}>
+			<TabsList>
+				<TabsTrigger value="logs">Logs</TabsTrigger>
+				<TabsTrigger value="channels">Channels</TabsTrigger>
+			</TabsList>
 
-			<!-- Filters -->
-			<LogFilters entries={logStore.allDevLogs} onFiltersChange={handleFilters} />
+			<TabsContent value="logs">
+				<DevLogsWrapper />
+			</TabsContent>
 
-			<div class="mb-6 rounded bg-white p-4 shadow">
-				<MirthActivityTimeline entries={logStore.timelineDevLogs} onRangeChange={handleRange} />
-			</div>
-			<div class="rounded bg-white p-4 shadow">
-				<LogTable entries={logStore.filteredDevLogs} selectedRange={logStore.selectedRange} />
-			</div>
-		</TabsContent>
-
-		<TabsContent value="channels">
-			<!-- Day Selection -->
-			<div class="mb-6 rounded bg-white p-4 shadow">
-				<DayButtons
-					selectedDay={logStore.selectedDay}
-					todaysLiveEntries={[]}
-					days={logStore.messageDays}
-					loading={logStore.loadingDays}
-					error={logStore.errorDays}
-					onSelectDay={handleSelectDay}
-				/>
-			</div>
-
-			<!-- Filters -->
-			<LogFilters entries={logStore.allMessages} onFiltersChange={handleFilters} />
-
-			<div class="mb-6 rounded bg-white p-4 shadow">
-				<MirthActivityTimeline
-					entries={logStore.timelineMessageEntries}
-					onRangeChange={handleRange}
-				/>
-			</div>
-			<div class="rounded bg-white p-4 shadow">
-				<LogTable entries={logStore.messages} selectedRange={logStore.selectedRange} />
-			</div>
-		</TabsContent>
-	</Tabs>
+			<TabsContent value="channels">
+				<MessagesWrapper />
+			</TabsContent>
+		</Tabs>
+	{/if}
 </main>

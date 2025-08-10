@@ -1,6 +1,6 @@
 <!-- runes -->
 <script lang="ts">
-	import type { LogLevel } from '../../../stores/logStore.svelte';
+	import type { LogLevel } from '$stores/logStore.svelte';
 	import type { TimelineEntry } from '$lib/types';
 
 	// Use only provided entries; no store fallback

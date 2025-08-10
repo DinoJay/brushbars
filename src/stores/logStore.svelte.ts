@@ -1,12 +1,7 @@
 import * as d3 from 'd3';
+import type { TimelineEntry } from '$lib/types';
 
-export interface LogEntry {
-	id: number;
-	level: string;
-	timestamp: string;
-	channel: string;
-	message: string;
-}
+export type LogEntry = TimelineEntry;
 
 export interface DayData {
 	date: string;

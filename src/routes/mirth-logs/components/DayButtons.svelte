@@ -19,28 +19,24 @@
 
 	// All loading/error passed from parent; no internal fetching here
 
-	// Props: today's live entries are only used to recompute today's stats
-	const {
-		todaysLiveEntries = [] as TimelineEntry[],
-		onSelectDay = null,
-		days = [],
-		loading = false,
-		error = null,
-		selectedDay = null
-	} = $props<{
+	// Props object (keeps reactivity in Svelte 5)
+	const props = $props<{
 		todaysLiveEntries?: TimelineEntry[];
 		onSelectDay?: (date: string) => void;
 		days?: DayData[];
 		loading?: boolean;
 		error?: string | null;
-		selectedDay: string | null;
+		selectedDay?: string | null;
 	}>();
 
 	// Bindable selectedDay to support bind:selectedDay on parent
 
 	// Reactive derived value that automatically updates stats based on filtered entries
-	let reactiveDays = $derived.by(() => {
-		return days;
+	let reactiveDays = $derived.by(() => props.days || []);
+	// Normalize selectedDay: handle both plain string and derived/rune functions
+	const selectedDayValue = $derived.by(() => {
+		const v = (props as any).selectedDay;
+		return typeof v === 'function' ? v() : v;
 	});
 
 	// Get current date in YYYY-MM-DD format
@@ -67,11 +63,14 @@
 	}
 
 	// No store effects or auto-fetch here; parent drives data
+	$effect(() => {
+		console.log('📅 DayButtons selectedDay changed:', selectedDayValue);
+	});
 </script>
 
 <div class="space-y-6">
 	<!-- Error Display -->
-	{#if error}
+	{#if props.error}
 		<div class="rounded-lg border border-red-200 bg-red-50 p-4">
 			<div class="flex">
 				<div class="flex-shrink-0">
@@ -84,27 +83,25 @@
 					</svg>
 				</div>
 				<div class="ml-3">
-					<p class="text-sm text-red-700">{error}</p>
+					<p class="text-sm text-red-700">{props.error}</p>
 				</div>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Loading State -->
-	{#if loading}
+	{#if props.loading}
 		<div class="flex justify-center py-8">
 			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-500"></div>
 		</div>
-	{:else if days.length > 0}
+	{:else if reactiveDays.length > 0}
 		<!-- Days Grid -->
 		<div class="flex gap-4 overflow-x-auto pb-2">
 			{#each [...reactiveDays].reverse() as day}
 				<button
-					onclick={() => {
-						onSelectDay?.(day.date);
-					}}
-					data-selected={selectedDay === day.date}
-					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {selectedDay ===
+					onclick={() => props.onSelectDay?.(day.date)}
+					data-selected={props.selectedDay === day.date}
+					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {props.selectedDay ===
 					day.date
 						? 'border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-500'
 						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50 hover:shadow-lg'}"
@@ -112,7 +109,7 @@
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<h3
-								class="text-lg font-semibold {selectedDay === day.date
+								class="text-lg font-semibold {props.selectedDay === day.date
 									? 'text-blue-900'
 									: 'text-gray-900'}"
 							>
@@ -122,7 +119,7 @@
 								<span
 									class="rounded-full px-3 py-1 text-xs font-medium {getCurrentDayBadge(
 										day.date,
-										selectedDay === day.date
+										props.selectedDay === day.date
 									)}"
 								>
 									📡 Live
@@ -132,7 +129,7 @@
 					</div>
 
 					<div
-						class="mb-4 text-base font-medium {selectedDay === day.date
+						class="mb-4 text-base font-medium {props.selectedDay === day.date
 							? 'text-blue-800'
 							: 'text-gray-700'}"
 					>
@@ -147,18 +144,18 @@
 						{#each Object.entries(day.stats) as [level, count]}
 							{#if level !== 'total' && count > 0}
 								<div
-									class="flex items-center justify-between rounded-md px-3 py-2 {selectedDay ===
+									class="flex items-center justify-between rounded-md px-3 py-2 {props.selectedDay ===
 									day.date
 										? 'bg-blue-100'
 										: 'bg-gray-50'}"
 								>
 									<span
-										class="text-sm font-medium {selectedDay === day.date
+										class="text-sm font-medium {props.selectedDay === day.date
 											? 'text-blue-900'
 											: 'text-gray-700'}">{level}</span
 									>
 									<span
-										class="rounded-full px-2 py-1 text-xs font-semibold shadow-sm {selectedDay ===
+										class="rounded-full px-2 py-1 text-xs font-semibold shadow-sm {props.selectedDay ===
 										day.date
 											? 'bg-blue-200 text-blue-900'
 											: 'bg-white text-gray-900'}"
@@ -172,7 +169,7 @@
 				</button>
 			{/each}
 		</div>
-	{:else if !loading}
+	{:else if !props.loading}
 		<div class="py-8 text-center text-gray-500">
 			No days found. Make sure the API is working and logs are available.
 		</div>

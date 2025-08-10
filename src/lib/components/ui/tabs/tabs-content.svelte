@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js';
 	import { getContext } from 'svelte';
-    let { class: className = '', value, children = undefined } = $props<{ value: string }>();
+	let { class: className = '', value } = $props<{ value: string }>();
 
 	type Ctx = { current: string | null };
 	const ctx = getContext<Ctx | undefined>('bb-tabs');
@@ -9,5 +9,5 @@
 </script>
 
 <div data-slot="tabs-content" class={cn(hidden && 'hidden', className)} role="tabpanel">
-	{@render children?.()}
+	<slot />
 </div>
