@@ -61,7 +61,7 @@
 		}
 	}
 
-	function barOpacity(level: LogLevel | string, x: number) {
+	function barOpacity(level: LogLevel | string, x: number, width: number) {
 		// Level-based dimming
 		const selected = logStore.selectedLevel;
 		let opacity = 1;
@@ -73,8 +73,16 @@
 			const [start, end] = range;
 			const startX = (xScale as any)(start);
 			const endX = (xScale as any)(end);
-			if (x < Math.min(startX, endX) || x > Math.max(startX, endX)) {
+			if (!isFinite(startX) || !isFinite(endX)) {
+				// invalid range means treat as out-of-range
 				opacity = Math.min(opacity, 0.2);
+			} else {
+				const minX = Math.min(startX, endX);
+				const maxX = Math.max(startX, endX);
+				const barLeft = x;
+				const barRight = x + width;
+				const overlaps = barRight >= minX && barLeft <= maxX;
+				if (!overlaps) opacity = Math.min(opacity, 0.2);
 			}
 		}
 		return opacity;
@@ -89,7 +97,7 @@
 			width={bar.width}
 			height={bar.height}
 			fill={levelColor(bar.level)}
-			opacity={barOpacity(bar.level, bar.x)}
+			opacity={barOpacity(bar.level, bar.x, bar.width)}
 			rx="2"
 			ry="2"
 			class="cursor-pointer transition-all duration-200 hover:opacity-80"
