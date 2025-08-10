@@ -98,7 +98,7 @@
 		logStore.setLoadingDays(true);
 		logStore.setErrorDays(null);
 		try {
-			const res = await fetch('/mirth-logs/api/days');
+			const res = await fetch('/mirth-logs/api/devLogs/days');
 			const data = await res.json();
 			if (data.success && Array.isArray(data.days)) {
 				console.log('🔍 fetchDevLogDays days', data.days);
