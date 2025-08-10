@@ -1,4 +1,3 @@
-import * as d3 from 'd3';
 import type { TimelineEntry } from '$lib/types';
 
 export type LogEntry = TimelineEntry;

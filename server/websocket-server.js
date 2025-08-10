@@ -2,7 +2,6 @@ import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
 import { WebSocketServer } from 'ws';
-import * as d3 from 'd3';
 
 const PORT = 3001;
 
@@ -48,7 +47,7 @@ function parseLogLines(logText) {
 	for (const line of lines) {
 		const match = line.match(regex);
 		if (match) {
-			const [, level, timestamp, context, logger, message] = match;
+			const [, level, timestamp, context, message] = match;
 			const channelMatch = context.match(/ on (\S+?) \(/);
 			const channel = channelMatch ? channelMatch[1] : '(unknown)';
 
@@ -204,17 +203,6 @@ function getCurrentDayLogs(logs) {
 	return logs.filter((log) => {
 		const logDate = new Date(log.timestamp).toISOString().split('T')[0];
 		return logDate === todayString;
-	});
-}
-
-// Helper function to get logs from the last N days
-function getLogsFromLastDays(logs, days = 7) {
-	const cutoffDate = new Date();
-	cutoffDate.setDate(cutoffDate.getDate() - days);
-
-	return logs.filter((log) => {
-		const logDate = new Date(log.timestamp);
-		return logDate >= cutoffDate;
 	});
 }
 
