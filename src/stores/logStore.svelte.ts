@@ -88,6 +88,48 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return filtered;
 	});
 
+	// Binary search helpers
+	function lowerBoundByTimestamp(entries: LogEntry[], targetMs: number): number {
+		let lo = 0;
+		let hi = entries.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >>> 1;
+			const midMs = (entries[mid] as any).timestampMs as number;
+			if (midMs < targetMs) lo = mid + 1;
+			else hi = mid;
+		}
+		return lo;
+	}
+	function upperBoundByTimestamp(entries: LogEntry[], targetMs: number): number {
+		let lo = 0;
+		let hi = entries.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >>> 1;
+			const midMs = (entries[mid] as any).timestampMs as number;
+			if (midMs <= targetMs) lo = mid + 1;
+			else hi = mid;
+		}
+		return lo;
+	}
+
+	// Ensure numeric timestamp on entries
+	function withTimestampMs(list: LogEntry[]): LogEntry[] {
+		for (let i = 0; i < list.length; i++) {
+			const e: any = list[i];
+			if (typeof e.timestampMs !== 'number') {
+				e.timestampMs = new Date((e as any).timestamp).getTime();
+			}
+		}
+		return list;
+	}
+
+	// Sorted copies for fast range slicing (stable when inputs unchanged)
+	let sortedTimelineDevLogs = $derived.by(() => {
+		const arr = withTimestampMs([...timelineDevLogs]);
+		arr.sort((a: any, b: any) => a.timestampMs - b.timestampMs);
+		return arr;
+	});
+
 	// All dev log entries (with all filters including brush - for table)
 	let filteredDevLogs = $derived.by(() => {
 		// Early return if no brush filter
@@ -107,11 +149,12 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		const startMs = start.getTime();
 		const endMs = end.getTime();
 
-		// Use more efficient filtering with pre-computed timestamps
-		return timelineDevLogs.filter((log) => {
-			const ts = new Date(log.timestamp).getTime();
-			return ts >= startMs && ts <= endMs;
-		});
+		const arr = sortedTimelineDevLogs;
+		if (arr.length === 0) return arr;
+		const i0 = lowerBoundByTimestamp(arr, startMs);
+		const i1 = upperBoundByTimestamp(arr, endMs);
+		if (i0 >= i1) return [] as LogEntry[];
+		return arr.slice(i0, i1);
 	});
 
 	// All message entries (without brush filter - for timeline)
@@ -134,7 +177,14 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// Removed allMessageEntries; use messages or timelineMessageEntries directly
 
-	// Messages for table (apply brush filter similarly to dev logs)
+	// Sorted messages for fast range slicing
+	let sortedTimelineMessages = $derived.by(() => {
+		const arr = withTimestampMs([...timelineMessageEntries]);
+		arr.sort((a: any, b: any) => a.timestampMs - b.timestampMs);
+		return arr;
+	});
+
+	// Messages for table (apply brush filter via binary search)
 	let filteredMessages = $derived.by(() => {
 		if (!selectedRange || selectedRange.length !== 2) {
 			return timelineMessageEntries;
@@ -152,10 +202,12 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		const startMs = start.getTime();
 		const endMs = end.getTime();
 
-		return timelineMessageEntries.filter((log) => {
-			const ts = new Date(log.timestamp).getTime();
-			return ts >= startMs && ts <= endMs;
-		});
+		const arr = sortedTimelineMessages;
+		if (arr.length === 0) return arr;
+		const i0 = lowerBoundByTimestamp(arr, startMs);
+		const i1 = upperBoundByTimestamp(arr, endMs);
+		if (i0 >= i1) return [] as LogEntry[];
+		return arr.slice(i0, i1);
 	});
 
 	// Get day ranges for the data

@@ -141,9 +141,13 @@
 							return;
 						}
 						const [start, end] = r;
+						// Convert to pixels to match what user sees (accounts for bar width)
+						const selMinX = Math.min((xScale as any)(start), (xScale as any)(end));
+						const selMaxX = Math.max((xScale as any)(start), (xScale as any)(end));
 						const hits = groupedBars.filter((g) => {
-							const t = g.time.getTime();
-							return t >= start.getTime() && t <= end.getTime();
+							const bx = (xScale as any)(g.time);
+							const br = bx + (barWidth as any);
+							return br >= selMinX && bx <= selMaxX;
 						});
 						if (hits.length === 0) {
 							const invalid = new Date(NaN);

@@ -8,7 +8,8 @@
 		height,
 		margin,
 		onRangeChange = null,
-		resetKey = 0
+		resetKey = 0,
+		debounceMs = 0
 	} = $props<{
 		xScale: any;
 		yScale: any;
@@ -17,9 +18,16 @@
 		margin: { top: number; right: number; bottom: number; left: number };
 		onRangeChange?: (range: [Date, Date] | null) => void;
 		resetKey?: number;
+		debounceMs?: number;
 	}>();
 	let brushEl: SVGGElement | null = null;
 	let brushInstance: d3.BrushBehavior<any> | null = null;
+	let debounceId: ReturnType<typeof setTimeout> | null = null;
+	function emitDebounced(range: [Date, Date] | null) {
+		if (debounceId) clearTimeout(debounceId);
+		debounceId = setTimeout(() => onRangeChange?.(range), debounceMs);
+	}
+
 	function setupBrush() {
 		if (!brushEl || !xScale) return;
 		d3.select(brushEl).selectAll('*').remove();
@@ -31,12 +39,12 @@
 			])
 			.on('end', (event: any) => {
 				if (!event.selection || !xScale) {
-					onRangeChange?.(null);
+					emitDebounced(null);
 					return;
 				}
 				const [x0, x1] = event.selection as [number, number];
 				const selectedRange: [Date, Date] = [xScale.invert(x0), xScale.invert(x1)];
-				onRangeChange?.(selectedRange);
+				emitDebounced(selectedRange);
 			});
 		d3.select(brushEl)
 			.call(brushInstance)
@@ -59,6 +67,7 @@
 		resetKey; // track
 		if (brushInstance && brushEl) {
 			d3.select(brushEl).call((brushInstance as any).move, null);
+			if (debounceId) clearTimeout(debounceId);
 			onRangeChange?.(null);
 		}
 	});
