@@ -3,7 +3,10 @@
 	import { levelColor, calculateBarPositions } from './utils/chartUtils.js';
 	import { logStore, type LogLevel } from '$stores/logStore.svelte';
 	import type { TimelineEntry } from '$lib/types';
-	const { grouped, xScale, yScale, barWidth } = $props();
+	const { grouped, xScale, yScale, barWidth, visualRange = null } = $props();
+
+	// visualRange can be either date range or pixel coordinates
+	type VisualRange = [Date, Date] | [number, number] | null;
 
 	const barPositions = $derived.by(() => calculateBarPositions(grouped, xScale, barWidth, 1));
 
@@ -35,10 +38,16 @@
 		}> = [];
 		let yBase = yScale(0);
 		const totalCount = barData.count;
+		const totalHeight = yScale(0) - yScale(totalCount);
+
+		// Add padding between stacked levels (2px gap)
+		const padding = 2;
+		const totalPadding = (Object.keys(levels).length - 1) * padding;
+		const availableHeight = totalHeight - totalPadding;
+
 		Object.entries(levels).forEach(([level, count]) => {
 			const levelProportion = (count as number) / totalCount;
-			const totalHeight = yScale(0) - yScale(totalCount);
-			const height = totalHeight * levelProportion;
+			const height = availableHeight * levelProportion;
 			const y = yBase - height;
 			stackedLevels.push({
 				level,
@@ -48,7 +57,7 @@
 				x: barPosition.x,
 				width: barPosition.width
 			});
-			yBase = y;
+			yBase = y - padding; // Add padding between levels
 		});
 		return stackedLevels;
 	}
@@ -67,22 +76,23 @@
 		let opacity = 1;
 		if (selected && selected !== level) opacity = 0.25;
 
-		// Brush-based dimming (if a range is selected, reduce opacity for bars outside it)
-		const range = logStore.selectedRange as [Date, Date] | null;
-		if (range && xScale) {
-			const [start, end] = range;
-			const startX = (xScale as any)(start);
-			const endX = (xScale as any)(end);
-			if (!isFinite(startX) || !isFinite(endX)) {
-				// invalid range means treat as out-of-range
-				opacity = Math.min(opacity, 0.2);
+		// Brush-based filtering: highlight bars within the selected time range
+		// Only use visualRange for immediate feedback (pixel coordinates)
+		if (visualRange && Array.isArray(visualRange) && typeof visualRange[0] === 'number') {
+			const [x0, x1] = visualRange as [number, number];
+			const minX = Math.min(x0, x1);
+			const maxX = Math.max(x0, x1);
+
+			// Check if bar center is within the selected pixel range
+			const barCenter = x + width / 2;
+			const isInRange = barCenter >= minX && barCenter <= maxX;
+
+			if (isInRange) {
+				// Highlight bars in range (full opacity)
+				opacity = Math.max(opacity, 0.9);
 			} else {
-				const minX = Math.min(startX, endX);
-				const maxX = Math.max(startX, endX);
-				const barLeft = x;
-				const barRight = x + width;
-				const overlaps = barRight >= minX && barLeft <= maxX;
-				if (!overlaps) opacity = Math.min(opacity, 0.2);
+				// Dim bars outside range
+				opacity = Math.min(opacity, 0.2);
 			}
 		}
 		return opacity;

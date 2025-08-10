@@ -145,9 +145,35 @@
 	}
 
 	let resetKey = $state(0);
+	let storeUpdateDebounceId: ReturnType<typeof setTimeout> | null = null;
+
 	function clearBrush() {
 		resetKey += 1;
+		// Clear any pending debounced updates
+		if (storeUpdateDebounceId) {
+			clearTimeout(storeUpdateDebounceId);
+			storeUpdateDebounceId = null;
+		}
+		// Reset visual range immediately
+		visualRange = null;
 		onRangeChange?.(null);
+	}
+
+	// Separate state for immediate visual feedback vs store updates
+	// visualRange can be either date range or pixel coordinates for immediate feedback
+	let visualRange = $state<[Date, Date] | null | [number, number] | null>(null);
+
+	function debouncedStoreUpdate(range: [Date, Date] | null) {
+		// Clear any existing timeout
+		if (storeUpdateDebounceId) {
+			clearTimeout(storeUpdateDebounceId);
+			storeUpdateDebounceId = null;
+		}
+
+		// Debounce store updates to avoid excessive filtering during rapid brush movements
+		storeUpdateDebounceId = setTimeout(() => {
+			onRangeChange?.(range);
+		}, 300); // 300ms debounce for store updates - longer delay for better UX
 	}
 
 	// Reset brush when resetOn changes (e.g., selected day)
@@ -158,6 +184,13 @@
 		if (resetOn === clearBrush_last) return;
 		clearBrush_last = resetOn;
 		resetKey += 1;
+		// Clear any pending debounced updates
+		if (storeUpdateDebounceId) {
+			clearTimeout(storeUpdateDebounceId);
+			storeUpdateDebounceId = null;
+		}
+		// Reset visual range immediately
+		visualRange = null;
 		onRangeChange?.(null);
 	});
 
@@ -170,7 +203,7 @@
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
 				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
-				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} />
+				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} {visualRange} />
 				<ChartBrush
 					{xScale}
 					{yScale}
@@ -179,42 +212,86 @@
 					{margin}
 					onRangeChange={(r) => {
 						if (!r) {
+							// Clear visual range immediately
+							visualRange = null;
 							onRangeChange?.(null);
 							return;
 						}
-						const [start, end] = r;
-						// Work in pixel space using grouped bar x + width
-						const selMinX = Math.min((xScale as any)(start), (xScale as any)(end));
-						const selMaxX = Math.max((xScale as any)(start), (xScale as any)(end));
 
-						const hits = groupedBars.filter((g) => {
-							const bx = (xScale as any)(g.time);
-							const br = bx + (barWidth as any);
-							return br >= selMinX && bx <= selMaxX;
-						});
+						// Handle new format: [dates, pixels] or just dates
+						if (Array.isArray(r[0]) && Array.isArray(r[1])) {
+							// During brushing: r = [[startDate, endDate], [startPixel, endPixel]]
+							const [dates, pixels] = r;
+							const [start, end] = dates as [Date, Date];
+							const [x0, x1] = pixels as [number, number];
 
-						if (hits.length === 0) {
-							const invalid = new Date(NaN);
-							onRangeChange?.([invalid, invalid]);
+							// Use pixel coordinates for immediate visual feedback
+							const selMinX = Math.min(x0, x1);
+							const selMaxX = Math.max(x0, x1);
+
+							// For immediate visual feedback, use the exact pixel selection
+							// This ensures the brush visual matches the actual selection
+							const hits = groupedBars.filter((g) => {
+								const bx = (xScale as any)(g.time);
+								const br = bx + (barWidth as any);
+								return br >= selMinX && bx <= selMaxX;
+							});
+
+							if (hits.length === 0) {
+								const invalid = new Date(NaN);
+								// Set visual range immediately for instant feedback using pixel coordinates
+								visualRange = [x0, x1];
+								// Debounce the store update
+								debouncedStoreUpdate([invalid, invalid]);
+							} else {
+								// For immediate feedback, use the exact pixel selection without expansion
+								// This keeps the visual brush size accurate
+								const [start, end] = dates;
+								// Set visual range immediately for instant feedback using pixel coordinates
+								visualRange = [x0, x1];
+								// Debounce the store update
+								debouncedStoreUpdate([start, end]);
+							}
 						} else {
-							// For chunkier bars, expand the selection to include full bucket boundaries
-							// This ensures we capture all data within the selected time buckets
-							const bucketTimes = hits.map((g) => g.time).sort((a, b) => a.getTime() - b.getTime());
-							const firstBucket = bucketTimes[0];
-							const lastBucket = bucketTimes[bucketTimes.length - 1];
+							// After brushing: r = [startDate, endDate] (debounced)
+							const [start, end] = r as [Date, Date];
+							// Work in pixel space using grouped bar x + width
+							const selMinX = Math.min((xScale as any)(start), (xScale as any)(end));
+							const selMaxX = Math.max((xScale as any)(start), (xScale as any)(end));
 
-							// Calculate bucket size in milliseconds to expand selection
-							const bucketSizeMs = bucketMinutes * 60 * 1000; // Convert bucketMinutes to ms
-							const expandedStart = new Date(firstBucket.getTime() - bucketSizeMs / 2);
-							const expandedEnd = new Date(lastBucket.getTime() + bucketSizeMs / 2);
+							const hits = groupedBars.filter((g) => {
+								const bx = (xScale as any)(g.time);
+								const br = bx + (barWidth as any);
+								return br >= selMinX && bx <= selMaxX;
+							});
 
-							// Snap to the expanded bucket boundaries for better data coverage
-							onRangeChange?.([expandedStart, expandedEnd]);
+							if (hits.length === 0) {
+								const invalid = new Date(NaN);
+								// Set visual range immediately for instant feedback
+								visualRange = [invalid, invalid];
+								// Debounce the store update
+								debouncedStoreUpdate([invalid, invalid]);
+							} else {
+								// Use a smaller expansion factor for more precise selection
+								// This prevents the brush from appearing much larger than selected
+								const bucketTimes = hits
+									.map((g) => g.time)
+									.sort((a, b) => a.getTime() - b.getTime());
+								const firstBucket = bucketTimes[0];
+								const lastBucket = bucketTimes[bucketTimes.length - 1];
 
-							// Log selection info for debugging
-							console.log(
-								`Brush selection: ${hits.length} buckets (${bucketMinutes}min each), time range: ${expandedStart.toISOString()} to ${expandedEnd.toISOString()}`
-							);
+								// Calculate bucket size in milliseconds for minimal expansion
+								const bucketSizeMs = bucketMinutes * 60 * 1000; // Convert bucketMinutes to ms
+								// Use smaller expansion factor (1/4 instead of 1/2) for tighter selection
+								const expandedStart = new Date(firstBucket.getTime() - bucketSizeMs / 4);
+								const expandedEnd = new Date(lastBucket.getTime() + bucketSizeMs / 4);
+
+								// Snap to the minimally expanded bucket boundaries
+								// Set visual range immediately for instant feedback
+								visualRange = [expandedStart, expandedEnd];
+								// Debounce the store update
+								debouncedStoreUpdate([expandedStart, expandedEnd]);
+							}
 						}
 					}}
 					{resetKey}
