@@ -4,15 +4,32 @@
 	import type { TimelineEntry } from '$lib/types';
 
 	// Use only provided entries; no store fallback
-	const { entries, onFiltersChange = null } = $props<{
+	const {
+		entries,
+		onFiltersChange = null,
+		onFiltered = null
+	} = $props<{
 		entries: TimelineEntry[];
 		onFiltersChange?: (level: LogLevel | null, channel: string | null) => void;
+		onFiltered?: (filtered: TimelineEntry[]) => void;
 	}>();
 
 	const effectiveEntries = $derived(entries);
 
 	let selectedLevel = $state<LogLevel | null>(null);
 	let selectedChannel = $state<string | null>(null);
+
+	// Apply filters locally and expose filtered entries
+	let filteredEntries = $derived.by(() => {
+		let list = effectiveEntries || [];
+		if (selectedLevel) list = list.filter((e: any) => e.level === selectedLevel);
+		if (selectedChannel) list = list.filter((e: any) => e.channel === selectedChannel);
+		return list;
+	});
+
+	$effect(() => {
+		if (onFiltered) onFiltered(filteredEntries);
+	});
 
 	// Available levels and channels (from selected day data only)
 	let availableLevels = $derived.by(() => {

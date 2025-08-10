@@ -50,7 +50,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	let selectedRange = $state<[Date, Date] | null>(null);
 	let selectedLevel = $state<LogLevel | null>(null);
 	let selectedChannel = $state<string | null>(null);
-	let selectedDay = $state<string | null>(new Date().toISOString().split('T')[0]); // Initialize with today
+	let selectedDay = $state<string | null>(null); // Initialize with today
 
 	// Days state for both logs and messages
 	let devLogDays = $state<DayData[]>([]);
@@ -58,19 +58,27 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	let loadingDays = $state(false);
 	let errorDays = $state<string | null>(null);
 
-	// Decoupled current messages for selected day (channels)
-	let currentMessageLogs = $state<LogEntry[]>([]);
+	// Decoupled messages for selected day (channels)
+	let messages = $state<LogEntry[]>([]);
 
-	// Decoupled current dev logs for selected day (dev logs)
-	let currentDevLogs = $state<LogEntry[]>([]);
+	// Decoupled dev logs for selected day (dev logs)
+	let devLogs = $state<LogEntry[]>([]);
 
-	// Note: currentMessageLogs is populated by updateCurrentMessageLogs()
+	// Note: messages are populated by updateMessages()
+
+	// All dev logs without any filters (selected day + live WS)
+	let allDevLogs = $derived.by(() => {
+		return [...(devLogs || []), ...(liveDevLogEntries || [])];
+	});
+
+	// All messages without any filters (no live WS for messages yet)
+	let allMessages = $derived.by(() => {
+		return [...(messages || [])];
+	});
 
 	// All dev log entries (without brush filter - for timeline)
 	let timelineDevLogs = $derived.by(() => {
-		// Combine logs from selected day with live WebSocket entries
-		const allEntries = [...(currentDevLogs || []), ...(liveDevLogEntries || [])];
-		let filtered = allEntries;
+		let filtered = allDevLogs;
 
 		// Apply level filter
 		if (selectedLevel) {
@@ -105,8 +113,8 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// All message entries (without brush filter - for timeline)
 	let timelineMessageEntries = $derived.by(() => {
-		// Use only currentMessageLogs to avoid mixing dev WS logs
-		let filtered = currentMessageLogs || [];
+		// Use only messages to avoid mixing dev WS logs
+		let filtered = messages || [];
 
 		// Apply level filter
 		if (selectedLevel) {
@@ -121,23 +129,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return filtered;
 	});
 
-	// All message entries (with all filters including brush - for table)
-	let allMessageEntries = $derived.by(() => {
-		// Early return if no brush filter
-		if (!selectedRange || selectedRange.length !== 2) {
-			return timelineMessageEntries;
-		}
-
-		const [start, end] = selectedRange;
-		const startMs = start.getTime();
-		const endMs = end.getTime();
-
-		// Use more efficient filtering with pre-computed timestamps
-		return timelineMessageEntries.filter((log) => {
-			const ts = new Date(log.timestamp).getTime();
-			return ts >= startMs && ts <= endMs;
-		});
-	});
+	// Removed allMessageEntries; use messages or timelineMessageEntries directly
 
 	// Get day ranges for the data
 
@@ -168,14 +160,17 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get timelineDevLogs() {
 			return timelineDevLogs;
 		},
-		get currentDevLogs() {
-			return currentDevLogs;
+		get allDevLogs() {
+			return allDevLogs;
 		},
-		get currentMessageLogs() {
-			return currentMessageLogs;
+		get allMessages() {
+			return allMessages;
 		},
-		get allMessageEntries() {
-			return allMessageEntries;
+		get devLogs() {
+			return devLogs;
+		},
+		get messages() {
+			return messages;
 		},
 		get timelineMessageEntries() {
 			return timelineMessageEntries;
@@ -215,10 +210,10 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			liveDevLogEntries = newEntries;
 			console.log('✅ logStore.liveDevLogEntries updated, new length:', liveDevLogEntries.length);
 		},
-		updateCurrentDevLogs(newLogs: LogEntry[]) {
-			console.log('📊 logStore.updateCurrentDevLogs called with:', newLogs?.length || 0, 'logs');
-			currentDevLogs = Array.isArray(newLogs) ? newLogs : [];
-			console.log('✅ logStore.currentDevLogs updated, new length:', currentDevLogs.length);
+		updateDevLogs(newLogs: LogEntry[]) {
+			console.log('📊 logStore.updateDevLogs called with:', newLogs?.length || 0, 'logs');
+			devLogs = Array.isArray(newLogs) ? newLogs : [];
+			console.log('✅ logStore.devLogs updated, new length:', devLogs.length);
 		},
 		updateDevLogDays(newDays: DayData[]) {
 			console.log('📅 logStore.updateDevLogDays called with:', newDays.length, 'days');
@@ -230,14 +225,10 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			messageDays = newDays;
 			console.log('✅ logStore.messageDays updated, new length:', messageDays.length);
 		},
-		updateCurrentMessageLogs(newEntries: LogEntry[]) {
-			console.log(
-				'🔄 logStore.updateCurrentMessageLogs called with:',
-				newEntries?.length || 0,
-				'entries'
-			);
-			currentMessageLogs = Array.isArray(newEntries) ? newEntries : [];
-			console.log('✅ logStore.currentMessageLogs updated, new length:', currentMessageLogs.length);
+		updateMessages(newEntries: LogEntry[]) {
+			console.log('🔄 logStore.updateMessages called with:', newEntries?.length || 0, 'entries');
+			messages = Array.isArray(newEntries) ? newEntries : [];
+			console.log('✅ logStore.messages updated, new length:', messages.length);
 		},
 		setLoadingDays(loading: boolean) {
 			loadingDays = loading;

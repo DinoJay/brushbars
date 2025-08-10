@@ -22,19 +22,21 @@
 	// Props: today's live entries are only used to recompute today's stats
 	const {
 		todaysLiveEntries = [] as TimelineEntry[],
-		selectedDay = null,
 		onSelectDay = null,
 		days = [],
 		loading = false,
-		error = null
+		error = null,
+		selectedDay = null
 	} = $props<{
 		todaysLiveEntries?: TimelineEntry[];
-		selectedDay?: string | null;
 		onSelectDay?: (date: string) => void;
 		days?: DayData[];
 		loading?: boolean;
 		error?: string | null;
+		selectedDay: string | null;
 	}>();
+
+	// Bindable selectedDay to support bind:selectedDay on parent
 
 	// Reactive derived value that automatically updates stats based on filtered entries
 	let reactiveDays = $derived.by(() => {
@@ -98,7 +100,9 @@
 		<div class="flex gap-4 overflow-x-auto pb-2">
 			{#each [...reactiveDays].reverse() as day}
 				<button
-					onclick={() => onSelectDay?.(day.date)}
+					onclick={() => {
+						onSelectDay?.(day.date);
+					}}
 					data-selected={selectedDay === day.date}
 					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {selectedDay ===
 					day.date

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient';
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import MirthActivityTimeline from './MirthActivityTimeline.svelte';
 	import LogTable from './LogTable.svelte';
 	import LogFilters from './components/LogFilters.svelte';
@@ -8,6 +10,70 @@
 	import { logStore } from '../../stores/logStore.svelte';
 
 	let currentTab: 'logs' | 'channels' = $state('logs');
+
+	// Bootstrap on client: ensure selectedDay, and ensure days lists are loaded
+	onMount(() => {
+		// Only set selectedDay if not already set (e.g., from landing page)
+		if (!logStore.selectedDay) {
+			const params = new URLSearchParams(window.location.search);
+			const dayParam = params.get('day');
+			const today = new Date().toISOString().split('T')[0];
+			logStore.setSelectedDay(dayParam || today);
+		}
+
+		// Load days if not present (direct navigation support)
+		try {
+			if (!logStore.devLogDays?.length) {
+				fetchDevLogDays();
+			}
+			if (!logStore.messageDays?.length) {
+				fetchMessageDays();
+			}
+
+			// Ensure initial data for current tab and selected day
+			const day = logStore.selectedDay;
+			if (day) {
+				if (currentTab === 'logs') {
+					fetch(`/mirth-logs/api/devLogs/${day}`)
+						.then((r) => r.json())
+						.then((d) => {
+							if (d.success && Array.isArray(d.logs)) logStore.updateDevLogs(d.logs);
+						})
+						.catch(() => {});
+				} else if (currentTab === 'channels') {
+					fetch(`/mirth-logs/api/messages/${day}`)
+						.then((r) => r.json())
+						.then((d) => {
+							if (d.success && Array.isArray(d.messages)) logStore.updateMessages(d.messages);
+						})
+						.catch(() => {});
+				}
+			}
+		} catch {}
+	});
+
+	// Keep store.selectedDay in sync with the URL ?day on browser navigation (back/forward)
+	onMount(() => {
+		const onPop = () => {
+			const params = new URLSearchParams(window.location.search);
+			const d = params.get('day');
+			if (d && d !== logStore.selectedDay) logStore.setSelectedDay(d);
+		};
+		window.addEventListener('popstate', onPop);
+		return () => window.removeEventListener('popstate', onPop);
+	});
+
+	// Keep the URL ?day param in sync with store.selectedDay (store → URL) without navigation
+	$effect(() => {
+		const storeDay = logStore.selectedDay;
+		const dayInUrl = $page.url.searchParams.get('day');
+		if (typeof window === 'undefined') return;
+		if (storeDay && storeDay !== dayInUrl) {
+			const url = new URL(window.location.href);
+			url.searchParams.set('day', storeDay);
+			history.replaceState(null, '', url.pathname + '?' + url.searchParams.toString());
+		}
+	});
 
 	// Initialize websocket and load initial data - only runs once
 	$effect(() => {
@@ -22,11 +88,7 @@
 			}
 		);
 
-		// Initial load: fetch days for DayButtons, then also load today's logs.
-		fetchDevLogDays(); // does not read from store; logs data.days only
-		fetchMessageDays();
-		const today = new Date().toISOString().split('T')[0];
-		logStore.setSelectedDay(today); // write-only, safe
+		// Do not override selected day here; it is controlled externally (landing page / URL)
 		// fetchDayLogs(today); // does not read from store
 
 		return () => closeLogSocket();
@@ -43,7 +105,7 @@
 				const res = await fetch(`/mirth-logs/api/messages/${day}`);
 				const data = await res.json();
 				if (data.success && Array.isArray(data.messages)) {
-					logStore.updateCurrentMessageLogs(data.messages);
+					logStore.updateMessages(data.messages);
 				}
 			} catch (e) {
 				console.warn('Failed to auto-fetch messages for selected day', e);
@@ -60,10 +122,10 @@
 		const controller = new AbortController();
 		(async () => {
 			try {
-				const res = await fetch(`/mirth-logs/api/logs/${day}`);
+				const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
 				const data = await res.json();
 				if (data.success && Array.isArray(data.logs)) {
-					logStore.updateCurrentDevLogs(data.logs);
+					logStore.updateDevLogs(data.logs);
 				}
 			} catch (e) {
 				console.warn('Failed to auto-fetch dev logs for selected day', e);
@@ -143,7 +205,7 @@
 				const res = await fetch(`/mirth-logs/api/messages/${date}`);
 				const data = await res.json();
 				if (data.success && Array.isArray(data.messages)) {
-					logStore.updateCurrentMessageLogs(data.messages);
+					logStore.updateMessages(data.messages);
 				}
 			} catch (e) {
 				console.warn('Failed to fetch messages for selected day', e);
@@ -153,7 +215,7 @@
 		// For logs tab, fetch dev logs for selected day into store
 		if (currentTab === 'logs') {
 			try {
-				const res = await fetch(`/mirth-logs/api/logs/${date}`);
+				const res = await fetch(`/mirth-logs/api/devLogs/${date}`);
 				const data = await res.json();
 				if (data.success && Array.isArray(data.logs)) {
 					logStore.updateCurrentDevLogs(data.logs);
@@ -184,17 +246,17 @@
 			<!-- Day Selection -->
 			<div class="mb-6 rounded bg-white p-4 shadow">
 				<DayButtons
+					selectedDay={logStore.selectedDay}
 					todaysLiveEntries={[]}
 					days={logStore.devLogDays}
 					loading={logStore.loadingDays}
 					error={logStore.errorDays}
-					selectedDay={logStore.selectedDay}
 					onSelectDay={handleSelectDay}
 				/>
 			</div>
 
 			<!-- Filters -->
-			<LogFilters entries={logStore.filteredDevLogs} onFiltersChange={handleFilters} />
+			<LogFilters entries={logStore.allDevLogs} onFiltersChange={handleFilters} />
 
 			<div class="mb-6 rounded bg-white p-4 shadow">
 				<MirthActivityTimeline entries={logStore.timelineDevLogs} onRangeChange={handleRange} />
@@ -208,17 +270,17 @@
 			<!-- Day Selection -->
 			<div class="mb-6 rounded bg-white p-4 shadow">
 				<DayButtons
+					selectedDay={logStore.selectedDay}
 					todaysLiveEntries={[]}
 					days={logStore.messageDays}
 					loading={logStore.loadingDays}
 					error={logStore.errorDays}
-					selectedDay={logStore.selectedDay}
 					onSelectDay={handleSelectDay}
 				/>
 			</div>
 
 			<!-- Filters -->
-			<LogFilters entries={logStore.allMessageEntries} onFiltersChange={handleFilters} />
+			<LogFilters entries={logStore.allMessages} onFiltersChange={handleFilters} />
 
 			<div class="mb-6 rounded bg-white p-4 shadow">
 				<MirthActivityTimeline
@@ -227,7 +289,7 @@
 				/>
 			</div>
 			<div class="rounded bg-white p-4 shadow">
-				<LogTable entries={logStore.allMessageEntries} selectedRange={logStore.selectedRange} />
+				<LogTable entries={logStore.messages} selectedRange={logStore.selectedRange} />
 			</div>
 		</TabsContent>
 	</Tabs>
