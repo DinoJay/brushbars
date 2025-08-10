@@ -91,11 +91,12 @@
 
 	<div class="mb-6 rounded bg-white p-4 shadow">
 		<MirthActivityTimeline
-			entries={logStore.timelineMessageEntries}
+			entries={logStore.allMessages}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
+			resetOn={selectedDayFromUrl()}
 		/>
 	</div>
 	<div class="rounded bg-white p-4 shadow">
-		<LogTable entries={logStore.messages} selectedRange={logStore.selectedRange} />
+		<LogTable entries={logStore.filteredMessages} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

@@ -7,11 +7,13 @@
 	const {
 		entries,
 		onRangeChange = null,
-		groupUnit = 'hour'
+		groupUnit = 'hour',
+		resetOn = undefined as string | number | null | undefined
 	} = $props<{
 		entries: TimelineEntry[];
-		onRangeChange?: (r: [Date, Date]) => void;
+		onRangeChange?: (r: [Date, Date] | null) => void;
 		groupUnit?: 'hour' | 'day' | 'month';
+		resetOn?: string | number | null;
 	}>();
 
 	const effectiveEntries = $derived(entries);
@@ -41,9 +43,9 @@
 		return Array.from(groups.values()).sort((a, b) => a.time.getTime() - b.time.getTime());
 	});
 
-	function handleRangeChange(range: [Date, Date]) {
+	function handleRangeChange(range: [Date, Date] | null) {
 		if (onRangeChange) onRangeChange(range);
 	}
 </script>
 
-<ActivityTimeline data={grouped} {groupUnit} onRangeChange={handleRangeChange} />
+<ActivityTimeline data={grouped} {groupUnit} onRangeChange={handleRangeChange} {resetOn} />

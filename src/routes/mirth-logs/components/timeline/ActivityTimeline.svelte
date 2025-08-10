@@ -17,9 +17,10 @@
 	const {
 		data = [] as GroupedBar[],
 		groupUnit = 'hour',
-		onRangeChange = null as null | ((range: [Date, Date]) => void),
+		onRangeChange = undefined as undefined | ((range: [Date, Date] | null) => void),
 		height = 350,
-		timeThreshold = 2 * 60 * 1000 // 2 minutes default
+		timeThreshold = 2 * 60 * 1000, // 2 minutes default
+		resetOn = undefined as string | number | null | undefined
 	} = $props();
 
 	// Chart dimensions and margins
@@ -100,6 +101,26 @@
 	function handleUnitChange(unit: 'hour' | 'day' | 'month') {
 		console.log('Time unit changed to:', unit);
 	}
+
+	let resetKey = $state(0);
+	function clearBrush() {
+		resetKey += 1;
+		onRangeChange?.(null);
+	}
+
+	// Reset brush when resetOn changes (e.g., selected day)
+	$effect(() => {
+		if (resetOn === undefined) return;
+		// only act when the value truly changed
+		if (typeof clearBrush_last === 'undefined') clearBrush_last = resetOn;
+		if (resetOn === clearBrush_last) return;
+		clearBrush_last = resetOn;
+		resetKey += 1;
+		onRangeChange?.(null);
+	});
+
+	// Track last seen resetOn value (outside effect writes)
+	let clearBrush_last: string | number | null | undefined = undefined;
 </script>
 
 <div class="bg-white p-6">
@@ -108,8 +129,44 @@
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
 				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
 				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} />
-				<ChartBrush {xScale} {yScale} {width} {height} {margin} {onRangeChange} />
+				<ChartBrush
+					{xScale}
+					{yScale}
+					{width}
+					{height}
+					{margin}
+					onRangeChange={(r) => {
+						if (!r) {
+							onRangeChange?.(null);
+							return;
+						}
+						const [start, end] = r;
+						const hits = groupedBars.filter((g) => {
+							const t = g.time.getTime();
+							return t >= start.getTime() && t <= end.getTime();
+						});
+						if (hits.length === 0) {
+							const invalid = new Date(NaN);
+							onRangeChange?.([invalid, invalid]);
+						} else {
+							const first = hits[0].time.getTime();
+							const last = hits[hits.length - 1].time.getTime();
+							// Expand to the end of the last bucket (1 minute buckets)
+							const endEdge = new Date(last + 60 * 1000);
+							onRangeChange?.([new Date(first), endEdge]);
+						}
+					}}
+					{resetKey}
+				/>
 			</svg>
+			<div class="pointer-events-auto absolute top-2 right-2">
+				<button
+					onclick={clearBrush}
+					class="rounded-md border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow-sm hover:bg-white"
+				>
+					Clear brush
+				</button>
+			</div>
 		{:else}
 			<div class="flex h-full items-center justify-center">
 				<div class="text-center">

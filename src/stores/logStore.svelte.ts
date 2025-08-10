@@ -96,6 +96,14 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		}
 
 		const [start, end] = selectedRange;
+		if (
+			!(start instanceof Date) ||
+			isNaN(start.getTime()) ||
+			!(end instanceof Date) ||
+			isNaN(end.getTime())
+		) {
+			return [] as LogEntry[];
+		}
 		const startMs = start.getTime();
 		const endMs = end.getTime();
 
@@ -125,6 +133,30 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	});
 
 	// Removed allMessageEntries; use messages or timelineMessageEntries directly
+
+	// Messages for table (apply brush filter similarly to dev logs)
+	let filteredMessages = $derived.by(() => {
+		if (!selectedRange || selectedRange.length !== 2) {
+			return timelineMessageEntries;
+		}
+
+		const [start, end] = selectedRange;
+		if (
+			!(start instanceof Date) ||
+			isNaN(start.getTime()) ||
+			!(end instanceof Date) ||
+			isNaN(end.getTime())
+		) {
+			return [] as LogEntry[];
+		}
+		const startMs = start.getTime();
+		const endMs = end.getTime();
+
+		return timelineMessageEntries.filter((log) => {
+			const ts = new Date(log.timestamp).getTime();
+			return ts >= startMs && ts <= endMs;
+		});
+	});
 
 	// Get day ranges for the data
 
@@ -166,6 +198,9 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		},
 		get messages() {
 			return messages;
+		},
+		get filteredMessages() {
+			return filteredMessages;
 		},
 		get timelineMessageEntries() {
 			return timelineMessageEntries;

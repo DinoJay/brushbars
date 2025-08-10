@@ -1,9 +1,25 @@
 <!-- runes -->
-<script>
+<script lang="ts">
 	import * as d3 from 'd3';
-	const { xScale, yScale, width, height, margin, onRangeChange = null } = $props();
-	let brushEl;
-	let brushInstance = null;
+	const {
+		xScale,
+		yScale,
+		width,
+		height,
+		margin,
+		onRangeChange = null,
+		resetKey = 0
+	} = $props<{
+		xScale: any;
+		yScale: any;
+		width: number;
+		height: number;
+		margin: { top: number; right: number; bottom: number; left: number };
+		onRangeChange?: (range: [Date, Date] | null) => void;
+		resetKey?: number;
+	}>();
+	let brushEl: SVGGElement | null = null;
+	let brushInstance: d3.BrushBehavior<any> | null = null;
 	function setupBrush() {
 		if (!brushEl || !xScale) return;
 		d3.select(brushEl).selectAll('*').remove();
@@ -13,27 +29,37 @@
 				[margin.left, margin.top],
 				[width - margin.right, height - margin.bottom]
 			])
-			.on('end', (event) => {
+			.on('end', (event: any) => {
 				if (!event.selection || !xScale) {
-					if (onRangeChange) onRangeChange(null);
+					onRangeChange?.(null);
 					return;
 				}
-				const [x0, x1] = event.selection;
-				const selectedRange = [xScale.invert(x0), xScale.invert(x1)];
-				if (onRangeChange) onRangeChange(selectedRange);
+				const [x0, x1] = event.selection as [number, number];
+				const selectedRange: [Date, Date] = [xScale.invert(x0), xScale.invert(x1)];
+				onRangeChange?.(selectedRange);
 			});
-		d3.select(brushEl).call(brushInstance).call(brushInstance.move, null);
+		d3.select(brushEl)
+			.call(brushInstance)
+			.call(brushInstance.move as any, null);
 	}
 	$effect(() => {
 		if (brushEl && xScale && yScale && !brushInstance) setupBrush();
 	});
 	$effect(() => {
 		if (brushInstance && brushEl && xScale && yScale) {
-			brushInstance.extent([
+			(brushInstance as any).extent([
 				[margin.left, margin.top],
 				[width - margin.right, height - margin.bottom]
 			]);
-			d3.select(brushEl).call(brushInstance);
+			d3.select(brushEl).call(brushInstance as any);
+		}
+	});
+	// Clear selection when resetKey changes
+	$effect(() => {
+		resetKey; // track
+		if (brushInstance && brushEl) {
+			d3.select(brushEl).call((brushInstance as any).move, null);
+			onRangeChange?.(null);
 		}
 	});
 </script>

@@ -228,8 +228,8 @@
 			</div>
 		</div>
 	{:else}
-		<Tabs value={currentTab} class="mb-6" on:change={(e) => handleTabChange(e.detail)}>
-			<TabsList>
+		<Tabs value={currentTab} on:change={(e) => handleTabChange(e.detail)}>
+			<TabsList class="mb-6 p-2">
 				<TabsTrigger value="logs">Logs</TabsTrigger>
 				<TabsTrigger value="channels">Channels</TabsTrigger>
 			</TabsList>
