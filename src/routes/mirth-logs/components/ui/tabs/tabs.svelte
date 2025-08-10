@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, setContext } from 'svelte';
-	import { cn } from '$lib/utils.js';
+	import { cn } from '$lib/utils';
 
 	type TabsValue = string;
 
@@ -9,8 +9,7 @@
 		value = $bindable<TabsValue | null>(null),
 		defaultValue = null as TabsValue | null,
 		orientation = 'horizontal' as 'horizontal' | 'vertical',
-		activationMode = 'automatic' as 'automatic' | 'manual',
-		children = undefined
+		activationMode = 'automatic' as 'automatic' | 'manual'
 	} = $props();
 
 	const dispatch = createEventDispatcher<{ change: TabsValue }>();
@@ -35,5 +34,5 @@
 </script>
 
 <div data-slot="tabs" class={cn('', className)} data-orientation={orientation}>
-	{@render children?.({ value, setValue, activationMode, orientation })}
+	<slot {value} {setValue} {activationMode} {orientation} />
 </div>

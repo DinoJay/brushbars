@@ -49,6 +49,16 @@
 		stroke-linecap="round"
 	/>
 	{#each xTicks as x}
+		<!-- Vertical grid line across plot area -->
+		<line
+			x1={xScale(x)}
+			x2={xScale(x)}
+			y1={-(height - margin.bottom - margin.top)}
+			y2="0"
+			stroke="#f1f5f9"
+			stroke-width="1"
+			stroke-dasharray="2,2"
+		/>
 		<line x1={xScale(x)} x2={xScale(x)} y1="0" y2="6" stroke="#d1d5db" stroke-width="1" />
 		<text
 			transform={`rotate(-45, ${xScale(x)}, 35)`}

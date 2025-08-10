@@ -10,9 +10,13 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"types": ["node"],
+		"types": [],
 		"paths": {
-			"$stores/*": ["src/stores/*"]
+			"$stores/*": ["./src/stores/*"],
+			"$components": ["./src/routes/mirth-logs/components"],
+			"$components/*": ["./src/routes/mirth-logs/components/*"],
+			"$lib": ["./src/lib"],
+			"$lib/*": ["./src/lib/*"]
 		}
 	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

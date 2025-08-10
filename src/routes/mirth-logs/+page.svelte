@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { closeLogSocket, initLogSocket } from '$lib/websocketClient';
+	import { closeLogSocket, initLogSocket } from '$lib/websocketClient.js';
 
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import DevLogsWrapper from './DevLogsWrapper.svelte';
 	import MessagesWrapper from './MessagesWrapper.svelte';
-	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$lib/components/ui/tabs';
+	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/ui/tabs';
 	import { logStore } from '$stores/logStore.svelte';
 
 	let currentTab: 'logs' | 'channels' = $state('logs');
