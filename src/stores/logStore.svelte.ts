@@ -150,11 +150,19 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		const endMs = end.getTime();
 
 		const arr = sortedTimelineDevLogs;
-		if (arr.length === 0) return arr;
+		if (arr.length === 0) {
+			return arr;
+		}
+
 		const i0 = lowerBoundByTimestamp(arr, startMs);
 		const i1 = upperBoundByTimestamp(arr, endMs);
-		if (i0 >= i1) return [] as LogEntry[];
-		return arr.slice(i0, i1);
+
+		if (i0 >= i1) {
+			return [] as LogEntry[];
+		}
+
+		const result = arr.slice(i0, i1);
+		return result;
 	});
 
 	// All message entries (without brush filter - for timeline)

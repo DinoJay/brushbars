@@ -69,7 +69,7 @@ export function calculateBarWidth(grouped, width, margin) {
 	if (!grouped || grouped.length === 0) return 5;
 
 	const availableWidth = width - margin.left - margin.right;
-	const minGap = 2; // Minimum gap between bars in pixels
+	const minGap = 4; // Minimum gap between bars in pixels (wider default)
 
 	// Calculate total space needed for gaps
 	const totalGapSpace = (grouped.length - 1) * minGap;
@@ -80,14 +80,58 @@ export function calculateBarWidth(grouped, width, margin) {
 	// Calculate bar width
 	let barWidth = availableBarSpace / grouped.length;
 
-	// Apply minimum and maximum constraints
-	barWidth = Math.max(4, Math.min(20, barWidth));
+	// Apply minimum and maximum constraints (larger bars by default)
+	barWidth = Math.max(20, Math.min(40, barWidth));
 
 	console.log(
 		`📊 Bar width calculation: ${grouped.length} bars, ${availableWidth}px available, ${barWidth}px per bar`
 	);
 
 	return barWidth;
+}
+
+// Merge adjacent bars when their centers are closer than barWidth + minGapPx (in pixels)
+export function joinBarsByPixelDistance(grouped, xScale, barWidth, minGapPx = 4) {
+	if (!grouped || grouped.length <= 1 || !xScale) return grouped;
+
+	const merged = [];
+	let current = cloneBar(grouped[0]);
+
+	for (let i = 1; i < grouped.length; i++) {
+		const next = grouped[i];
+		const cxCurr = xScale(current.time);
+		const cxNext = xScale(next.time);
+		const centerGap = Math.abs(cxNext - cxCurr);
+		if (centerGap < barWidth + minGapPx) {
+			current = mergeTwoBars(current, next);
+		} else {
+			merged.push(current);
+			current = cloneBar(next);
+		}
+	}
+	merged.push(current);
+	return merged;
+}
+
+function cloneBar(bar) {
+	return {
+		time: new Date(bar.time),
+		count: bar.count,
+		levels: { ...(bar.levels || {}) },
+		logs: Array.isArray(bar.logs) ? [...bar.logs] : []
+	};
+}
+
+function mergeTwoBars(a, b) {
+	const minT = Math.min(a.time.getTime(), b.time.getTime());
+	const maxT = Math.max(a.time.getTime(), b.time.getTime());
+	const mid = new Date((minT + maxT) / 2);
+	const levels = { ...(a.levels || {}) };
+	for (const [k, v] of Object.entries(b.levels || {})) {
+		levels[k] = (levels[k] || 0) + v;
+	}
+	const logs = [...(a.logs || []), ...(b.logs || [])];
+	return { time: mid, count: a.count + b.count, levels, logs };
 }
 
 export function groupCloseBars(grouped, timeThreshold = 5 * 60 * 1000) {
@@ -138,40 +182,55 @@ export function groupCloseBars(grouped, timeThreshold = 5 * 60 * 1000) {
 }
 
 // New function to calculate proper bar positions with spacing
-export function calculateBarPositions(grouped, xScale, barWidth, minGap = 1) {
-	if (!grouped || grouped.length === 0) return [];
+export function calculateBarPositions(grouped, xScale, barWidth, minGap = 4) {
+	if (!grouped || grouped.length === 0 || !xScale) return [];
+
+	const [rangeStart, rangeEnd] = xScale.range();
+
+	// Compute minimal center-to-center distance to adapt bar width
+	let minCenterGap = Infinity;
+	for (let i = 1; i < grouped.length; i++) {
+		const prev = xScale(grouped[i - 1].time);
+		const curr = xScale(grouped[i].time);
+		minCenterGap = Math.min(minCenterGap, Math.abs(curr - prev));
+	}
+	const maxAllowedWidth = isFinite(minCenterGap) ? Math.max(2, minCenterGap - minGap) : barWidth;
+	const finalWidth = Math.max(2, Math.min(barWidth, maxAllowedWidth));
 
 	const positions = [];
-	let lastBarEnd = -Infinity;
-	const chartWidth = xScale.range()[1] - xScale.range()[0];
+	let lastBarEnd = rangeStart - minGap; // allow first bar to touch left boundary with gap logic
 
 	for (let i = 0; i < grouped.length; i++) {
 		const bar = grouped[i];
 		const centerX = xScale(bar.time);
 
-		// Calculate the ideal position (centered on time)
-		const idealX = centerX - barWidth / 2;
+		// Center bar on time by default
+		const idealX = centerX - finalWidth / 2;
 
-		// Ensure minimum gap from previous bar
-		const minX = lastBarEnd + minGap;
-		let actualX = Math.max(idealX, minX);
+		// Enforce minimum gap from previous bar and left boundary
+		const minAllowedX = Math.max(lastBarEnd + minGap, rangeStart);
+		let actualX = Math.max(idealX, minAllowedX);
 
-		// Ensure bar doesn't extend beyond chart boundaries
-		if (actualX + barWidth > chartWidth) {
-			actualX = chartWidth - barWidth;
-		}
-		if (actualX < 0) {
-			actualX = 0;
+		// Clamp to right boundary
+		if (actualX + finalWidth > rangeEnd) {
+			actualX = Math.max(rangeStart, rangeEnd - finalWidth);
 		}
 
-		positions.push({
-			bar,
-			x: actualX,
-			centerX: actualX + barWidth / 2,
-			width: barWidth
-		});
+		positions.push({ bar, x: actualX, centerX: actualX + finalWidth / 2, width: finalWidth });
 
-		lastBarEnd = actualX + barWidth;
+		lastBarEnd = actualX + finalWidth;
+	}
+
+	// Backward pass to resolve jams at the right boundary: push bars left to maintain minGap
+	for (let i = positions.length - 2; i >= 0; i--) {
+		const next = positions[i + 1];
+		const curr = positions[i];
+		const maxX = Math.min(curr.x, next.x - minGap - finalWidth);
+		const clampedX = Math.max(rangeStart, maxX);
+		if (clampedX < curr.x) {
+			curr.x = clampedX;
+			curr.centerX = curr.x + finalWidth / 2;
+		}
 	}
 
 	return positions;

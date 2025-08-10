@@ -20,7 +20,8 @@
 		onRangeChange = undefined as undefined | ((range: [Date, Date] | null) => void),
 		height = 350,
 		timeThreshold = 2 * 60 * 1000, // 2 minutes default
-		resetOn = undefined as string | number | null | undefined
+		resetOn = undefined as string | number | null | undefined,
+		bucketMinutes = 5 // Default to 5 minutes for chunkier bars
 	} = $props();
 
 	// Chart dimensions and margins
@@ -28,20 +29,39 @@
 	let width = $state(0);
 	const margin = { top: 20, right: 20, bottom: 40, left: 60 };
 
-	// Group bars that are close together
-	const groupedBars = $derived.by(() => {
+	// Group bars that are close together (temporal grouping only)
+	const temporallyGroupedBars = $derived.by(() => {
 		return groupCloseBars(data as any, timeThreshold) as GroupedBar[];
 	});
 
-	// Reactive derived values
+	// Calculate xScale based on temporally grouped bars (no pixel merging yet)
 	const xScale = $derived.by(() => {
-		if (groupedBars.length > 0 && width > 0) {
-			const times = groupedBars.map((e: GroupedBar) => e.time);
+		if (temporallyGroupedBars.length > 0 && width > 0) {
+			const times = temporallyGroupedBars.map((e: GroupedBar) => e.time);
 			const [minTime, maxTime] = d3.extent(times) as [Date | undefined, Date | undefined];
 
 			if (minTime && maxTime) {
 				const span = (maxTime as Date).getTime() - (minTime as Date).getTime();
-				const buffer = span === 0 ? 1000 * 60 * 60 : Math.max(span * 0.2, 1000 * 60 * 60);
+
+				const innerWidth = width - margin.left - margin.right;
+				const msPerPx = innerWidth > 0 ? span / innerWidth : 0;
+
+				// Base buffer: widen domain so bars have room without aggressive shrinking
+				let buffer =
+					span === 0
+						? 1000 * 60 * 60 * 6 // 6 hours when single point
+						: Math.max(span * 0.5, 1000 * 60 * 60 * 3); // 50% of span or at least 3 hours
+
+				// Ensure enough room for desired bar+gap total width in pixels
+				const desiredBarPx = 16; // target bar width
+				const desiredGapPx = 4; // target gap
+				const requiredPx =
+					temporallyGroupedBars.length * desiredBarPx +
+					Math.max(0, temporallyGroupedBars.length - 1) * desiredGapPx;
+				const shortagePx = Math.max(0, requiredPx - innerWidth);
+				if (msPerPx > 0 && shortagePx > 0) {
+					buffer = Math.max(buffer, (shortagePx / 2) * msPerPx);
+				}
 
 				const start = new Date((minTime as Date).getTime() - buffer);
 				const end = new Date((maxTime as Date).getTime() + buffer);
@@ -54,6 +74,28 @@
 		}
 		return null;
 	});
+
+	// Now merge bars by pixel proximity using the calculated xScale
+	const groupedBars = $derived.by(() => {
+		if (!xScale || !temporallyGroupedBars || temporallyGroupedBars.length === 0) {
+			return temporallyGroupedBars;
+		}
+		// Use current barWidth guess to merge neighbors in the same pixel column for chunkier bars
+		const estimatedBarWidth = calculateBarWidth(temporallyGroupedBars, width, margin);
+		const mergedByPixel = awaitJoinBarsByPixel(temporallyGroupedBars, xScale, estimatedBarWidth);
+		return mergedByPixel as GroupedBar[];
+	});
+
+	function awaitJoinBarsByPixel(bars: any[], scale: any, bw: number) {
+		try {
+			// dynamic import to avoid circular refs; chartUtils already exported this function
+			const { joinBarsByPixelDistance } = require('../utils/chartUtils.js');
+			return joinBarsByPixelDistance(bars, scale, bw, 4);
+		} catch {
+			// fallback: return original bars if require not available
+			return bars;
+		}
+	}
 
 	const yScale = $derived.by(() => {
 		if (groupedBars.length > 0) {
@@ -150,22 +192,29 @@
 							const br = bx + (barWidth as any);
 							return br >= selMinX && bx <= selMaxX;
 						});
+
 						if (hits.length === 0) {
 							const invalid = new Date(NaN);
 							onRangeChange?.([invalid, invalid]);
 						} else {
-							// Snap to the exact pixel-aligned bar span
-							let minX = Infinity;
-							let maxX = -Infinity;
-							for (const g of hits) {
-								const bx = (xScale as any)(g.time);
-								const br = bx + (barWidth as any);
-								if (bx < minX) minX = bx;
-								if (br > maxX) maxX = br;
-							}
-							const snappedStart = (xScale as any).invert(minX);
-							const snappedEnd = (xScale as any).invert(maxX);
-							onRangeChange?.([snappedStart, snappedEnd]);
+							// For chunkier bars, expand the selection to include full bucket boundaries
+							// This ensures we capture all data within the selected time buckets
+							const bucketTimes = hits.map((g) => g.time).sort((a, b) => a.getTime() - b.getTime());
+							const firstBucket = bucketTimes[0];
+							const lastBucket = bucketTimes[bucketTimes.length - 1];
+
+							// Calculate bucket size in milliseconds to expand selection
+							const bucketSizeMs = bucketMinutes * 60 * 1000; // Convert bucketMinutes to ms
+							const expandedStart = new Date(firstBucket.getTime() - bucketSizeMs / 2);
+							const expandedEnd = new Date(lastBucket.getTime() + bucketSizeMs / 2);
+
+							// Snap to the expanded bucket boundaries for better data coverage
+							onRangeChange?.([expandedStart, expandedEnd]);
+
+							// Log selection info for debugging
+							console.log(
+								`Brush selection: ${hits.length} buckets (${bucketMinutes}min each), time range: ${expandedStart.toISOString()} to ${expandedEnd.toISOString()}`
+							);
 						}
 					}}
 					{resetKey}
