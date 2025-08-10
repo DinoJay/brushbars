@@ -33,11 +33,10 @@
 
 	// Reactive derived value that automatically updates stats based on filtered entries
 	let reactiveDays = $derived.by(() => props.days || []);
-	// Normalize selectedDay: handle both plain string and derived/rune functions
-	const selectedDayValue = $derived.by(() => {
-		const v = (props as any).selectedDay;
-		return typeof v === 'function' ? v() : v;
-	});
+	// Helper to read current selected day (parent passes a plain string)
+	function selectedDayValue(): string | null | undefined {
+		return props.selectedDay ?? null;
+	}
 
 	// Get current date in YYYY-MM-DD format
 	function getCurrentDate(): string {
@@ -64,7 +63,7 @@
 
 	// No store effects or auto-fetch here; parent drives data
 	$effect(() => {
-		console.log('📅 DayButtons selectedDay changed:', selectedDayValue);
+		console.log('📅 DayButtons selectedDay changed:', selectedDayValue());
 	});
 </script>
 
@@ -100,17 +99,17 @@
 			{#each [...reactiveDays].reverse() as day}
 				<button
 					onclick={() => props.onSelectDay?.(day.date)}
-					data-selected={props.selectedDay === day.date}
-					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-all disabled:opacity-50 {props.selectedDay ===
+					data-selected={selectedDayValue() === day.date}
+					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-colors disabled:opacity-50 {selectedDayValue() ===
 					day.date
-						? 'border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-500'
-						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50 hover:shadow-lg'}"
+						? 'border-blue-500 bg-blue-50 shadow-sm'
+						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'}"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<h3
-								class="text-lg font-semibold {props.selectedDay === day.date
-									? 'text-blue-900'
+								class="text-lg font-semibold {selectedDayValue() === day.date
+									? 'text-blue-800'
 									: 'text-gray-900'}"
 							>
 								{day.date}
@@ -119,7 +118,7 @@
 								<span
 									class="rounded-full px-3 py-1 text-xs font-medium {getCurrentDayBadge(
 										day.date,
-										props.selectedDay === day.date
+										selectedDayValue() === day.date
 									)}"
 								>
 									📡 Live
@@ -129,8 +128,8 @@
 					</div>
 
 					<div
-						class="mb-4 text-base font-medium {props.selectedDay === day.date
-							? 'text-blue-800'
+						class="mb-4 text-base font-medium {selectedDayValue() === day.date
+							? 'text-blue-700'
 							: 'text-gray-700'}"
 					>
 						Total: {day.stats.total.toLocaleString()} logs
@@ -142,25 +141,25 @@
 					<!-- Log Level Stats -->
 					<div class="grid grid-cols-2 gap-2">
 						{#each Object.entries(day.stats) as [level, count]}
-							{#if level !== 'total' && count > 0}
+							{#if level !== 'total' && (count as number) > 0}
 								<div
-									class="flex items-center justify-between rounded-md px-3 py-2 {props.selectedDay ===
+									class="flex items-center justify-between rounded-md px-3 py-2 {selectedDayValue() ===
 									day.date
-										? 'bg-blue-100'
+										? 'bg-blue-50'
 										: 'bg-gray-50'}"
 								>
 									<span
-										class="text-sm font-medium {props.selectedDay === day.date
-											? 'text-blue-900'
+										class="text-sm font-medium {selectedDayValue() === day.date
+											? 'text-blue-800'
 											: 'text-gray-700'}">{level}</span
 									>
 									<span
-										class="rounded-full px-2 py-1 text-xs font-semibold shadow-sm {props.selectedDay ===
+										class="rounded-full px-2 py-1 text-xs font-semibold {selectedDayValue() ===
 										day.date
-											? 'bg-blue-200 text-blue-900'
-											: 'bg-white text-gray-900'}"
+											? 'bg-blue-100 text-blue-800'
+											: 'border border-gray-200 bg-white text-gray-900'}"
 									>
-										{count.toLocaleString()}
+										{(count as number).toLocaleString()}
 									</span>
 								</div>
 							{/if}

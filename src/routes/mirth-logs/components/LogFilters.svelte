@@ -108,9 +108,13 @@
 	</div>
 
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-		<!-- Level Filter List -->
-		<div>
-			<h4 class="mb-3 text-sm font-medium text-gray-700">Log Level</h4>
+		<!-- Level Filter List (scrollable list, sticky header) -->
+		<div class="flex max-h-[360px] flex-col overflow-auto">
+			<h4
+				class="sticky top-0 z-10 mb-3 bg-white/95 py-1 text-sm font-medium text-gray-700 backdrop-blur"
+			>
+				Log Level
+			</h4>
 			<div class="space-y-2">
 				<!-- All Levels Option -->
 				<button
@@ -152,9 +156,13 @@
 			</div>
 		</div>
 
-		<!-- Channel Filter List -->
-		<div>
-			<h4 class="mb-3 text-sm font-medium text-gray-700">Channel</h4>
+		<!-- Channel Filter List (scrollable list, sticky header) -->
+		<div class="flex max-h-[360px] flex-col overflow-auto">
+			<h4
+				class="sticky top-0 z-10 mb-3 bg-white/95 py-1 text-sm font-medium text-gray-700 backdrop-blur"
+			>
+				Channel
+			</h4>
 			<div class="space-y-2">
 				<!-- All Channels Option -->
 				<button

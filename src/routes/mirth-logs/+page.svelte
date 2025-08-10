@@ -5,7 +5,7 @@
 	import { goto } from '$app/navigation';
 	import DevLogsWrapper from './DevLogsWrapper.svelte';
 	import MessagesWrapper from './MessagesWrapper.svelte';
-	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/ui/tabs';
+	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/tabs';
 	import { logStore } from '$stores/logStore.svelte';
 
 	let currentTab: 'logs' | 'channels' = $state('logs');
@@ -173,44 +173,45 @@
 		}
 	}
 
-	async function handleSelectDay(date: string) {
-		// Optimistically update store for immediate UI feedback; URL remains source of truth
-		if (logStore.selectedDay !== date) {
-			logStore.setSelectedDay(date);
-		}
-		// Update the URL so $page changes and effects refetch
-		const url = new URL(window.location.href);
-		url.searchParams.set('day', date);
-		await goto(url.pathname + '?' + url.searchParams.toString(), {
-			replaceState: false,
-			noScroll: true,
-			keepFocus: true
-		});
-
-		// Also fetch immediately so UI updates without waiting for effects
-		try {
-			if (currentTab === 'logs') {
-				const res = await fetch(`/mirth-logs/api/devLogs/${date}`);
-				const data = await res.json();
-				if (data.success && Array.isArray(data.logs)) {
-					logStore.updateDevLogs(data.logs);
-				}
-			} else {
-				const res = await fetch(`/mirth-logs/api/messages/${date}`);
-				const data = await res.json();
-				if (data.success && Array.isArray(data.messages)) {
-					logStore.updateMessages(data.messages);
-				}
-			}
-		} catch (e) {
-			console.warn('Failed to fetch data for selected day', e);
-		}
-	}
-
-	function handleTabChange(next: string) {
-		const newTab = next === 'channels' ? 'channels' : 'logs';
+	async function handleTabChange(next: string) {
+		const newTab: 'logs' | 'channels' = next === 'channels' ? 'channels' : 'logs';
 		if (newTab === currentTab) return; // avoid duplicate change loops
 		currentTab = newTab;
+
+		// Ensure the corresponding days are loaded
+		// try {
+		// 	if (newTab === 'logs') {
+		// 		if (!logStore.devLogDays?.length) {
+		// 			await fetchDevLogDays();
+		// 		}
+		// 	} else {
+		// 		if (!logStore.messageDays?.length) {
+		// 			await fetchMessageDays();
+		// 		}
+		// 	}
+		// } catch {}
+
+		// Pick latest available day for this tab and push it into the URL
+		const daysList = newTab === 'logs' ? logStore.devLogDays : logStore.messageDays;
+		if (daysList && daysList.length && typeof window !== 'undefined') {
+			const latest = daysList.reduce(
+				(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
+				''
+			);
+			if (latest) {
+				if (logStore.selectedDay !== latest) {
+					logStore.setSelectedDay(latest);
+				}
+				const url = new URL(window.location.href);
+				url.searchParams.set('day', latest);
+				await goto(url.pathname + '?' + url.searchParams.toString(), {
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				});
+			}
+		}
+		console.log('🔍 messages', logStore.allMessages);
 	}
 </script>
 
@@ -227,7 +228,7 @@
 			</div>
 		</div>
 	{:else}
-		<Tabs value={currentTab} class="" on:change={(e) => handleTabChange(e.detail)}>
+		<Tabs value={currentTab} class="mb-6" on:change={(e) => handleTabChange(e.detail)}>
 			<TabsList>
 				<TabsTrigger value="logs">Logs</TabsTrigger>
 				<TabsTrigger value="channels">Channels</TabsTrigger>
