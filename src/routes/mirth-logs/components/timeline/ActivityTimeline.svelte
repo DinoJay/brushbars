@@ -141,9 +141,10 @@
 							return;
 						}
 						const [start, end] = r;
-						// Convert to pixels to match what user sees (accounts for bar width)
+						// Work in pixel space using grouped bar x + width
 						const selMinX = Math.min((xScale as any)(start), (xScale as any)(end));
 						const selMaxX = Math.max((xScale as any)(start), (xScale as any)(end));
+
 						const hits = groupedBars.filter((g) => {
 							const bx = (xScale as any)(g.time);
 							const br = bx + (barWidth as any);
@@ -153,11 +154,18 @@
 							const invalid = new Date(NaN);
 							onRangeChange?.([invalid, invalid]);
 						} else {
-							const first = hits[0].time.getTime();
-							const last = hits[hits.length - 1].time.getTime();
-							// Expand to the end of the last bucket (1 minute buckets)
-							const endEdge = new Date(last + 60 * 1000);
-							onRangeChange?.([new Date(first), endEdge]);
+							// Snap to the exact pixel-aligned bar span
+							let minX = Infinity;
+							let maxX = -Infinity;
+							for (const g of hits) {
+								const bx = (xScale as any)(g.time);
+								const br = bx + (barWidth as any);
+								if (bx < minX) minX = bx;
+								if (br > maxX) maxX = br;
+							}
+							const snappedStart = (xScale as any).invert(minX);
+							const snappedEnd = (xScale as any).invert(maxX);
+							onRangeChange?.([snappedStart, snappedEnd]);
 						}
 					}}
 					{resetKey}
