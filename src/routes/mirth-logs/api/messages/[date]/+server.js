@@ -43,6 +43,7 @@ export async function GET({ params }) {
 		// 2) Fallback to live fetch
 		// Get all channels (respects ATHOME inside helpers)
 		const channels = await getMirthChannels();
+		console.log('🔍 Channels:', channels);
 
 		// Calculate date range for the specific date
 		const targetDate = new Date(date);

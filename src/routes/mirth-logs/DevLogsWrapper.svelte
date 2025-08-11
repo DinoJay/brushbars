@@ -8,45 +8,13 @@
 	import LogTable from '$components/LogTable.svelte';
 	import { logStore } from '$stores/logStore.svelte';
 
-	// Selected day from URL
-	const selectedDayFromUrl = $derived(() => $page.url.searchParams.get('day'));
-
-	// Ensure days are loaded
-	$effect(() => {
-		if (!logStore.devLogDays?.length) {
-			(async () => {
-				try {
-					logStore.setLoadingDays(true);
-					const res = await fetch('/mirth-logs/api/devLogs/days');
-					const data = await res.json();
-					if (data.success && Array.isArray(data.days)) {
-						logStore.updateDevLogDays(data.days);
-					}
-				} finally {
-					logStore.setLoadingDays(false);
-				}
-			})();
-		}
-	});
-
-	// Fetch logs when day changes
-	$effect(() => {
-		const day = selectedDayFromUrl();
-		if (!day) return;
-		const controller = new AbortController();
-		(async () => {
-			try {
-				const res = await fetch(`/mirth-logs/api/devLogs/${day}`, { signal: controller.signal });
-				const data = await res.json();
-				if (data.success && Array.isArray(data.logs)) {
-					logStore.updateDevLogs(data.logs);
-				}
-			} catch {}
-		})();
-		return () => controller.abort();
-	});
+	// Get selected day directly from URL
+	function selectedDayFromUrl() {
+		return $page.url.searchParams.get('day');
+	}
 
 	async function handleSelectDay(date: string) {
+		// Update URL directly - selectedDay will automatically update via $derived
 		const url = new URL(window.location.href);
 		url.searchParams.set('day', date);
 		await goto(url.pathname + '?' + url.searchParams.toString(), {
@@ -54,11 +22,67 @@
 			noScroll: true,
 			keepFocus: true
 		});
+
+		// Fetch data for the selected day
+		await fetchDataForDay(date);
+	}
+
+	// Fetch data for a specific day
+	async function fetchDataForDay(day: string) {
+		if (!day) return;
+
+		try {
+			console.log('🔄 Fetching dev logs for day:', day);
+			const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.success && Array.isArray(data.logs)) {
+					logStore.updateDevLogs(data.logs);
+					console.log('✅ Loaded dev logs:', data.logs.length);
+				}
+			}
+		} catch (error) {
+			console.warn('Failed to fetch dev logs for day:', day, error);
+		}
 	}
 
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
+
+	// Filter logs based on selected day and time range
+	const filteredLogsForSelectedDay = $derived.by(() => {
+		const selectedDay = selectedDayFromUrl();
+
+		if (!selectedDay) return logStore.filteredDevLogs;
+
+		// First filter by selected day
+		let filtered = logStore.filteredDevLogs.filter((log) => {
+			const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+			return logDate === selectedDay;
+		});
+
+		// Then apply time range filter if present
+		if (logStore.selectedRange && logStore.selectedRange.length === 2) {
+			const [start, end] = logStore.selectedRange;
+			if (
+				start instanceof Date &&
+				end instanceof Date &&
+				!isNaN(start.getTime()) &&
+				!isNaN(end.getTime())
+			) {
+				const startMs = start.getTime();
+				const endMs = end.getTime();
+
+				filtered = filtered.filter((log) => {
+					const logMs = new Date(log.timestamp).getTime();
+					return logMs >= startMs && logMs <= endMs;
+				});
+			}
+		}
+
+		return filtered;
+	});
 </script>
 
 {#if showSpinner}
@@ -98,6 +122,6 @@
 		/>
 	</div>
 	<div class="rounded bg-white p-4 shadow">
-		<LogTable entries={logStore.filteredDevLogs} selectedRange={logStore.selectedRange} />
+		<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

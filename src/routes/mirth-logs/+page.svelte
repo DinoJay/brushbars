@@ -7,51 +7,121 @@
 	import MessagesWrapper from './MessagesWrapper.svelte';
 	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/tabs';
 	import { logStore } from '$stores/logStore.svelte';
+	import type { PageData } from './$types';
 
-	let currentTab: 'logs' | 'channels' = $state('logs');
-	// Show a global spinner until the relevant days are loaded
-	let showSpinner = $derived.by(() => {
-		const isLoading = logStore.loadingDays;
-		const missingDays =
-			currentTab === 'logs'
-				? !(logStore.devLogDays && logStore.devLogDays.length)
-				: !(logStore.messageDays && logStore.messageDays.length);
-		return isLoading || missingDays;
+	// Get data from server load function
+	const props = $props<{ data: PageData }>();
+
+	let isLoadingData = $state(false);
+	let lastFetchedDay = $state<string | null>(null);
+	let lastFetchedTab = $state<'logs' | 'channels' | null>(null);
+	let hasLoadedInitialData = $state(false);
+	let hasInitializedStore = $state(false);
+
+	// Get currentTab from URL
+	const currentTab = $derived.by(() => {
+		const tab = $page.url.searchParams.get('tab') || 'logs';
+		return tab as 'logs' | 'channels';
 	});
 
-	// Single source of truth for the selected day: always read from URL (no fallback here)
-	const selectedDayFromUrl = $derived(() => $page.url.searchParams.get('day'));
+	// Get selectedDay from URL - always in sync
+	const selectedDay = $derived.by(() => {
+		return $page.url.searchParams.get('day');
+	});
 
-	// Mirror URL -> store (one-way) so the rest of the app can consume the store
+	// Initialize store with server data only once on component mount
 	$effect(() => {
-		const day = selectedDayFromUrl();
-		if (day && logStore.selectedDay !== day) {
-			logStore.setSelectedDay(day);
+		if (hasInitializedStore) {
+			console.log('🔄 Store already initialized, skipping');
+			return;
+		}
+
+		const { data } = props;
+		if (data && data.success) {
+			console.log('🔄 Initializing store with server data:', { day: data.day, tab: data.tab });
+			hasInitializedStore = true;
+
+			// Set initial day in URL if not present
+			const urlDay = selectedDay;
+			if (!urlDay && data.day) {
+				const url = new URL(window.location.href);
+				url.searchParams.set('day', data.day);
+				window.history.replaceState({}, '', url.toString());
+				console.log('✅ Set initial day in URL:', data.day);
+			}
+
+			// Load initial data into store
+			if (data.tab === 'channels' && Array.isArray(data.messages)) {
+				logStore.updateMessages(data.messages);
+				console.log('✅ Initial messages loaded from server:', data.messages.length);
+			} else if (data.tab === 'logs' && Array.isArray(data.logs)) {
+				logStore.updateDevLogs(data.logs);
+				console.log('✅ Initial dev logs loaded from server:', data.logs.length);
+			}
+
+			// Load initial days data
+			loadInitialDaysData();
 		}
 	});
 
-	// Bootstrap with runes: ensure selectedDay and days lists; then load initial data
-	let didInit = $state(false);
-	$effect(() => {
-		if (didInit) return;
-		didInit = true;
-
-		// Load days if not present (direct navigation support)
+	// Load initial days data for both tabs
+	async function loadInitialDaysData() {
 		try {
-			if (!logStore.devLogDays?.length) {
-				fetchDevLogDays();
+			console.log('🔄 Loading initial days data...');
+
+			// Load dev log days
+			const devLogsRes = await fetch('/mirth-logs/api/devLogs/days');
+			if (devLogsRes.ok) {
+				const devLogsData = await devLogsRes.json();
+				if (devLogsData.success && Array.isArray(devLogsData.days)) {
+					logStore.updateDevLogDays(devLogsData.days);
+					console.log('✅ Initial dev log days loaded:', devLogsData.days.length);
+				}
 			}
-			if (!logStore.messageDays?.length) {
-				fetchMessageDays();
+
+			// Load message days
+			const messagesRes = await fetch('/mirth-logs/api/messages/days');
+			if (messagesRes.ok) {
+				const messagesData = await messagesRes.json();
+				if (messagesData.success && Array.isArray(messagesData.days)) {
+					logStore.updateMessageDays(messagesData.days);
+					console.log('✅ Initial message days loaded:', messagesData.days.length);
+				}
 			}
-		} catch {}
+		} catch (error) {
+			console.warn('Failed to load initial days data:', error);
+		}
+	}
+
+	// Bootstrap with runes: ensure selectedDay and days lists; then load initial data
+	// Load initial data when component mounts and store is ready
+	$effect(() => {
+		if (hasLoadedInitialData) {
+			console.log('🔄 Initial data already loaded, skipping');
+			return;
+		}
+
+		const day = selectedDay;
+		const hasDays =
+			currentTab === 'logs'
+				? logStore.devLogDays && logStore.devLogDays.length > 0
+				: logStore.messageDays && logStore.messageDays.length > 0;
+
+		if (day && currentTab && hasDays) {
+			console.log('🔄 Loading initial data for day:', day, 'tab:', currentTab);
+			hasLoadedInitialData = true;
+			fetchDataForDay(day, currentTab);
+		}
 	});
 
 	// If no ?day is present, jump to the latest available day once days are loaded
+	// Only run this effect once when days are first loaded, not on every change
+	let hasSetInitialDay = $state(false);
 	$effect(() => {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined' || hasSetInitialDay) return;
 		const hasDayParam = !!$page.url.searchParams.get('day');
 		if (hasDayParam) return;
+
 		const daysList = currentTab === 'logs' ? logStore.devLogDays : logStore.messageDays;
 		if (daysList && daysList.length) {
 			const latest = daysList.reduce(
@@ -59,6 +129,7 @@
 				''
 			);
 			if (latest) {
+				hasSetInitialDay = true;
 				const url = new URL(window.location.href);
 				url.searchParams.set('day', latest);
 				goto(url.pathname + '?' + url.searchParams.toString(), {
@@ -91,156 +162,112 @@
 		return () => closeLogSocket();
 	});
 
-	// Auto-fetch messages for selected day when in channels tab (uses server cache)
-	$effect(() => {
-		if (currentTab !== 'channels') return;
-		const day = selectedDayFromUrl();
-		if (!day) return;
-		const controller = new AbortController();
-		(async () => {
-			try {
+	// Data fetching is now handled in the handleTabChange function
+
+	// Function to fetch data for a specific day and tab
+	async function fetchDataForDay(day: string, tab: 'logs' | 'channels') {
+		if (!day) {
+			console.warn('⚠️ No day provided to fetchDataForDay');
+			return;
+		}
+
+		// Prevent duplicate fetches
+		if (lastFetchedDay === day && lastFetchedTab === tab && !isLoadingData) {
+			console.log('🔄 Skipping duplicate fetch for:', tab, 'day:', day);
+			return;
+		}
+
+		console.log('🔄 Fetching data for:', tab, 'day:', day);
+		isLoadingData = true;
+
+		try {
+			// Fast client-side update - fetch data directly without navigation
+			if (tab === 'channels') {
+				console.log('🔄 Fetching messages for day:', day);
 				const res = await fetch(`/mirth-logs/api/messages/${day}`);
-				const data = await res.json();
-				if (data.success && Array.isArray(data.messages)) {
-					logStore.updateMessages(data.messages);
+				if (res.ok) {
+					const data = await res.json();
+					console.log('📊 Messages API response:', data);
+					if (data.success && Array.isArray(data.messages)) {
+						logStore.updateMessages(data.messages);
+						console.log('✅ Fast update: Loaded messages:', data.messages.length);
+					} else {
+						console.warn('⚠️ Messages API returned invalid data:', data);
+					}
+				} else {
+					console.error('❌ Messages API error:', res.status, res.statusText);
 				}
-			} catch (e) {
-				console.warn('Failed to auto-fetch messages for selected day', e);
-			}
-		})();
-		return () => controller.abort();
-	});
-
-	// Auto-fetch dev logs for selected day when in logs tab
-	$effect(() => {
-		if (currentTab !== 'logs') return;
-		const day = selectedDayFromUrl();
-		if (!day) return;
-		const controller = new AbortController();
-		(async () => {
-			try {
-				const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
-				const data = await res.json();
-				if (data.success && Array.isArray(data.logs)) {
-					logStore.updateDevLogs(data.logs);
-				}
-			} catch (e) {
-				console.warn('Failed to auto-fetch dev logs for selected day', e);
-			}
-		})();
-		return () => controller.abort();
-	});
-
-	// API: fetch list of message days (aggregated across channels)
-	async function fetchMessageDays() {
-		logStore.setLoadingDays(true);
-		logStore.setErrorDays(null);
-		try {
-			const res = await fetch('/mirth-logs/api/messages/days?days=30');
-			const data = await res.json();
-			if (!data.success) {
-				logStore.setErrorDays(data.error || 'Failed to load message days');
-				return;
-			}
-			console.log('🔍 fetchMessageDays data', data);
-
-			logStore.updateMessageDays(data.days);
-		} catch (err) {
-			logStore.setErrorDays('Network error while loading message days');
-		} finally {
-			logStore.setLoadingDays(false);
-		}
-	}
-
-	// API: fetch list of log days (dev logs)
-	async function fetchDevLogDays() {
-		logStore.setLoadingDays(true);
-		logStore.setErrorDays(null);
-		try {
-			const res = await fetch('/mirth-logs/api/devLogs/days');
-			const data = await res.json();
-			if (data.success && Array.isArray(data.days)) {
-				console.log('🔍 fetchDevLogDays days', data.days);
-				logStore.updateDevLogDays(data.days);
 			} else {
-				logStore.setErrorDays(data.error || 'Failed to load log days');
+				console.log('🔄 Fetching dev logs for day:', day);
+				const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
+				if (res.ok) {
+					const data = await res.json();
+					console.log('📊 Dev logs API response:', data);
+					if (data.success && Array.isArray(data.logs)) {
+						logStore.updateDevLogs(data.logs);
+						console.log('✅ Fast update: Loaded dev logs:', data.logs.length);
+					} else {
+						console.warn('⚠️ Dev logs API returned invalid data:', data);
+					}
+				} else {
+					console.error('❌ Dev logs API error:', res.status, res.statusText);
+				}
 			}
-			console.log('🔍 fetchLogDays days', data.days);
-		} catch (err) {
-			logStore.setErrorDays('Network error while loading log days');
+
+			// Update tracking variables
+			lastFetchedDay = day;
+			lastFetchedTab = tab;
+
+			// URL is already updated by handleDayChange, no need to update here
+		} catch (e) {
+			console.warn(`Failed to fetch ${tab} data for day ${day}:`, e);
 		} finally {
-			logStore.setLoadingDays(false);
+			isLoadingData = false;
 		}
 	}
 
-	async function handleTabChange(next: string) {
-		const newTab: 'logs' | 'channels' = next === 'channels' ? 'channels' : 'logs';
-		if (newTab === currentTab) return; // avoid duplicate change loops
-		currentTab = newTab;
+	// Handle tab changes
+	async function handleTabChange(tab: 'logs' | 'channels') {
+		console.log('🔄 Tab changed to:', tab);
 
-		// Ensure the corresponding days are loaded
-		// try {
-		// 	if (newTab === 'logs') {
-		// 		if (!logStore.devLogDays?.length) {
-		// 			await fetchDevLogDays();
-		// 		}
-		// 	} else {
-		// 		if (!logStore.messageDays?.length) {
-		// 			await fetchMessageDays();
-		// 		}
-		// 	}
-		// } catch {}
+		// Update URL - currentTab will automatically update via $derived
+		const url = new URL(window.location.href);
+		url.searchParams.set('tab', tab);
+		window.history.replaceState({}, '', url.toString());
 
-		// Pick latest available day for this tab and push it into the URL
-		const daysList = newTab === 'logs' ? logStore.devLogDays : logStore.messageDays;
-		if (daysList && daysList.length && typeof window !== 'undefined') {
-			const latest = daysList.reduce(
-				(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
-				''
-			);
-			if (latest) {
-				if (logStore.selectedDay !== latest) {
-					logStore.setSelectedDay(latest);
-				}
-				const url = new URL(window.location.href);
-				url.searchParams.set('day', latest);
-				await goto(url.pathname + '?' + url.searchParams.toString(), {
-					replaceState: true,
-					noScroll: true,
-					keepFocus: true
-				});
-			}
+		// Fetch data for current day and new tab immediately
+		const currentDay = selectedDay;
+		if (currentDay) {
+			await fetchDataForDay(currentDay, tab);
 		}
-		console.log('🔍 messages', logStore.allMessages);
 	}
 </script>
 
 <main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-6 font-sans">
-	<h1 class="mb-4 text-2xl font-bold">📋 📡 Mirth Log Dashboard</h1>
-
-	{#if showSpinner}
-		<div class="flex min-h-[60vh] items-center justify-center">
-			<div class="text-center">
-				<div
-					class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"
-				></div>
-				<p class="text-gray-600">Loading days…</p>
-			</div>
+	<div class="mb-6 rounded bg-white p-4 shadow">
+		<div class="flex items-center justify-between">
+			<h1 class="text-2xl font-bold text-gray-900">Mirth Logs</h1>
+			{#if isLoadingData}
+				<div class="flex items-center text-blue-600">
+					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
+					<span class="text-sm">Loading...</span>
+				</div>
+			{/if}
 		</div>
-	{:else}
-		<Tabs value={currentTab} on:change={(e) => handleTabChange(e.detail)}>
-			<TabsList class="mb-6 p-2">
-				<TabsTrigger value="logs">Logs</TabsTrigger>
-				<TabsTrigger value="channels">Channels</TabsTrigger>
-			</TabsList>
+	</div>
 
-			<TabsContent value="logs">
-				<DevLogsWrapper />
-			</TabsContent>
+	<Tabs value={currentTab} on:change={(e) => handleTabChange(e.detail as 'logs' | 'channels')}>
+		<TabsList class="mb-6 p-2">
+			<TabsTrigger value="logs">Logs</TabsTrigger>
+			<TabsTrigger value="channels">Channels</TabsTrigger>
+		</TabsList>
 
-			<TabsContent value="channels">
-				<MessagesWrapper />
-			</TabsContent>
-		</Tabs>
-	{/if}
+		<TabsContent value="logs">
+			<DevLogsWrapper />
+		</TabsContent>
+
+		<TabsContent value="channels">
+			<MessagesWrapper />
+		</TabsContent>
+	</Tabs>
 </main>

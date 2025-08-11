@@ -93,13 +93,6 @@
 			<h3 class="text-lg font-semibold text-gray-900">Log Entries</h3>
 			<div class="flex items-center space-x-4 text-sm text-gray-500">
 				<span>Showing {visibleEntries.length} of {effectiveEntries.length} entries</span>
-				{#if selectedRange}
-					<span
-						class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800"
-					>
-						Filtered
-					</span>
-				{/if}
 			</div>
 		</div>
 	</div>

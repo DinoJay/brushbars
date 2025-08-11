@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import * as d3 from 'd3';
 import https from 'https';
+import http from 'http';
 import { stringify } from 'querystring';
 
 // Import example data for fallback
@@ -253,7 +254,8 @@ const MIRTH_CONFIG = {
 	port: parseInt(process.env.MIRTH_PORT) || 5443,
 	username: process.env.MIRTH_USERNAME || 'admin',
 	password: process.env.MIRTH_PASSWORD || 'admin2024',
-	timeout: 10000
+	timeout: 10000,
+	useHttps: process.env.MIRTH_HTTPS !== 'false' // Default to HTTPS
 };
 
 // Session cookie for authentication
@@ -265,10 +267,11 @@ if (typeof process !== 'undefined' && process.env) {
 	process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
-// Helper function to make HTTPS requests
-function makeHttpsRequest(options, postData = null) {
+// Helper function to make HTTP/HTTPS requests
+function makeHttpRequest(options, postData = null) {
 	return new Promise((resolve, reject) => {
-		const req = https.request(options, (res) => {
+		const protocol = MIRTH_CONFIG.useHttps ? https : http;
+		const req = protocol.request(options, (res) => {
 			let data = '';
 			res.on('data', (chunk) => (data += chunk));
 			res.on('end', () => {
@@ -308,7 +311,7 @@ async function authenticateMirth() {
 			}
 		};
 
-		const { statusCode, headers, body } = await makeHttpsRequest(options, postData);
+		const { statusCode, headers, body } = await makeHttpRequest(options, postData);
 		console.log(`🔍 Login response - Status: ${statusCode}`);
 		console.log(`🔍 Login response - Headers:`, Object.keys(headers));
 		console.log(`🔍 Login response - Body:`, body.substring(0, 200));
@@ -354,7 +357,7 @@ async function mirthApiRequest(endpoint, options = {}) {
 		requestOptions.headers['Content-Length'] = Buffer.byteLength(postData);
 	}
 
-	const { body } = await makeHttpsRequest(requestOptions, postData);
+	const { body } = await makeHttpRequest(requestOptions, postData);
 
 	// Try to parse as JSON first, if that fails, return the raw body
 	try {
@@ -375,6 +378,10 @@ export async function getMirthChannels() {
 		}
 
 		console.log('🔐 Fetching channels from Mirth Connect...');
+		console.log(
+			`🔍 Connecting to: ${MIRTH_CONFIG.useHttps ? 'HTTPS' : 'HTTP'}://${MIRTH_CONFIG.hostname}:${MIRTH_CONFIG.port}`
+		);
+		console.log(`🔍 Username: ${MIRTH_CONFIG.username}`);
 
 		// Try the simple /api/channels endpoint without parameters
 		const response = await mirthApiRequest('/api/channels');
@@ -460,14 +467,57 @@ export async function getMirthChannels() {
 		}
 	} catch (error) {
 		console.error('❌ Failed to fetch Mirth channels:', error);
-		// Not ATHOME: propagate empty to let API layer return error
-		throw error;
+		// When not in ATHOME mode, fail with error instead of falling back to examples
+		throw new Error(
+			`Failed to connect to Mirth Connect server at ${MIRTH_CONFIG.useHttps ? 'HTTPS' : 'HTTP'}://${MIRTH_CONFIG.hostname}:${MIRTH_CONFIG.port}. Check your server configuration and network connectivity. Original error: ${error.message}`
+		);
+	}
+}
+
+// ... existing code ...
+
+// Helper function to format dates for Mirth Connect API
+function formatDateForMirth(date) {
+	// Convert to local timezone offset (no Z, use actual offset like -0700)
+	const offset = date.getTimezoneOffset();
+	const offsetHours = Math.abs(Math.floor(offset / 60));
+	const offsetMinutes = Math.abs(offset % 60);
+	const offsetSign = offset <= 0 ? '+' : '-';
+
+	// Format: YYYY-MM-DDTHH:mm:ss.SSS±HHMM (like 1985-10-26T09:00:00.000-0700)
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	const seconds = String(date.getSeconds()).padStart(2, '0');
+	const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+
+	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offsetSign}${String(offsetHours).padStart(2, '0')}${String(offsetMinutes).padStart(2, '0')}`;
+}
+
+function normalizeMirthDate(dateString) {
+	try {
+		// Parse the date string from Mirth
+		const parsedDate = new Date(dateString);
+
+		// Check if it's a valid date
+		if (isNaN(parsedDate.getTime())) {
+			console.warn('⚠️ Invalid date from Mirth:', dateString);
+			return new Date().toISOString();
+		}
+
+		// Return in ISO format that your app expects
+		return parsedDate.toISOString();
+	} catch (error) {
+		console.warn('⚠️ Error parsing date from Mirth:', dateString, error);
+		return new Date().toISOString();
 	}
 }
 
 // Get messages for a specific channel
 export async function getChannelMessages(channelId, options = {}) {
-	const { startDate, endDate, limit = 1000, offset = 0, includeContent = false } = options;
+	const { startDate, endDate, limit = 500000, offset = 0, includeContent = false } = options;
 
 	try {
 		if (IS_ATHOME) {
@@ -481,42 +531,128 @@ export async function getChannelMessages(channelId, options = {}) {
 		// Try to get real data first
 		let endpoint = `/api/channels/${channelId}/messages?limit=${limit}&offset=${offset}`;
 
+		// Format dates for Mirth Connect API
 		if (startDate) {
-			endpoint += `&startDate=${encodeURIComponent(startDate)}`;
+			const formattedStartDate = formatDateForMirth(new Date(startDate));
+			endpoint += `&startDate=${encodeURIComponent(formattedStartDate)}`;
 		}
 		if (endDate) {
-			endpoint += `&endDate=${encodeURIComponent(endDate)}`;
+			const formattedEndDate = formatDateForMirth(new Date(endDate));
+			endpoint += `&endDate=${encodeURIComponent(formattedEndDate)}`;
 		}
 		if (includeContent) {
 			endpoint += '&includeContent=true';
 		}
 
-		const messages = await mirthApiRequest(endpoint);
-		return messages.map((message) => ({
-			id: message.id,
-			channelId: message.channelId,
-			channelName: message.channelName,
-			receivedDate: message.receivedDate,
-			processed: message.processed,
-			status: message.status,
-			connectorName: message.connectorName,
-			connectorType: message.connectorType,
-			content: includeContent ? message.content : null,
-			raw: includeContent ? message.raw : null,
-			transformed: includeContent ? message.transformed : null,
-			encoded: includeContent ? message.encoded : null,
-			response: includeContent ? message.response : null,
-			responseTransformed: includeContent ? message.responseTransformed : null,
-			responseEncoded: includeContent ? message.responseEncoded : null,
-			error: message.error,
-			correlationId: message.correlationId,
-			sequenceId: message.sequenceId
-		}));
+		console.log(`🔍 Fetching messages from: ${endpoint}`);
+		const response = await mirthApiRequest(endpoint);
+
+		// Debug the response structure
+		console.log('🔍 Response type:', typeof response);
+		// console.log('�� Response structure:', response);
+
+		// Handle different response formats from Mirth Connect
+		let messages = [];
+		if (Array.isArray(response)) {
+			// Direct array response
+			messages = response;
+		} else if (response && typeof response === 'object') {
+			// Object response - check common properties
+			if (response.list && Array.isArray(response.list)) {
+				messages = response.list;
+			} else if (response.messages && Array.isArray(response.messages)) {
+				messages = response.messages;
+			} else if (response.data && Array.isArray(response.data)) {
+				messages = response.data;
+			} else if (response.items && Array.isArray(response.items)) {
+				messages = response.items;
+			} else {
+				console.warn('⚠️ Unexpected response structure, no messages array found:', response);
+				return [];
+			}
+		} else if (typeof response === 'string') {
+			// XML response - try to parse
+			console.log('⚠️ Received XML response, attempting to parse...');
+			console.log('🔍 XML response starts with:', response.substring(0, 200));
+			console.log('🔍 XML response ends with:', response.substring(response.length - 200));
+
+			// Check if it's an error response
+			if (response.includes('<error>') || response.includes('Request failed')) {
+				console.log('⚠️ Server error response detected');
+				return [];
+			}
+
+			// Try to extract message information from XML
+			console.log('🔍 Looking for message tags in XML response...');
+			const messageMatches = response.match(/<message[^>]*>[\s\S]*?<\/message>/g);
+			console.log('🔍 Message regex matches:', messageMatches ? messageMatches.length : 0);
+			if (messageMatches) {
+				console.log(`✅ Found ${messageMatches.length} messages in XML response`);
+
+				// Parse each message XML block
+				messages = messageMatches.map((messageXml, index) => {
+					// Extract message ID
+					const idMatch = messageXml.match(/<id>([^<]+)<\/id>/);
+					const id = idMatch ? idMatch[1] : `msg-${index}`;
+
+					// Extract received date from Mirth's nested XML structure
+					const timeMatch = messageXml.match(/<time>([^<]+)<\/time>/);
+					const receivedDate = timeMatch
+						? new Date(parseInt(timeMatch[1])).toISOString() // Convert Unix timestamp to ISO
+						: new Date().toISOString();
+					// console.log('🔍 Received date:', receivedDate);
+
+					// Extract status
+					const statusMatch = messageXml.match(/<status>([^<]+)<\/status>/);
+					const status = statusMatch ? statusMatch[1] : 'UNKNOWN';
+
+					// Extract processed status
+					const processedMatch = messageXml.match(/<processed>([^<]+)<\/processed>/);
+					const processed = processedMatch ? processedMatch[1] === 'true' : false;
+
+					return {
+						id,
+						channelId,
+						channelName: 'Unknown Channel',
+						receivedDate,
+						processed,
+						status,
+						connectorName: 'Unknown',
+						connectorType: 'Unknown',
+						content: null,
+						raw: null,
+						transformed: null,
+						encoded: null,
+						response: null,
+						responseTransformed: null,
+						responseEncoded: null,
+						error: null,
+						correlationId: null,
+						sequenceId: null
+					};
+				});
+			} else {
+				console.log('⚠️ No message tags found in XML response');
+				return [];
+			}
+		} else {
+			console.warn('⚠️ Unexpected response type:', typeof response);
+			return [];
+		}
+
+		console.log(`✅ Found ${messages.length} messages in response`);
+
+		return messages;
 	} catch (error) {
 		console.error(`❌ Failed to fetch messages for channel ${channelId}:`, error);
-		throw error;
+		// When not in ATHOME mode, fail with error instead of falling back to examples
+		throw new Error(
+			`Failed to fetch messages for channel ${channelId} from Mirth Connect server. Check your server configuration and network connectivity. Original error: ${error.message}`
+		);
 	}
 }
+
+// ... existing code ...
 
 // Get message statistics for a channel
 export async function getChannelMessageStats(channelId, startDate, endDate) {
@@ -545,7 +681,13 @@ export async function getChannelMessageStats(channelId, startDate, endDate) {
 			};
 		}
 
-		const endpoint = `/api/channels/${channelId}/messages/statistics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+		// Format dates for Mirth Connect API
+		const formattedStartDate = formatDateForMirth(new Date(startDate));
+		const formattedEndDate = formatDateForMirth(new Date(endDate));
+
+		const endpoint = `/api/channels/${channelId}/messages/statistics?startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
+		console.log(`🔍 Fetching stats from: ${endpoint}`);
+
 		const stats = await mirthApiRequest(endpoint);
 
 		return {
@@ -559,6 +701,11 @@ export async function getChannelMessageStats(channelId, startDate, endDate) {
 		};
 	} catch (error) {
 		console.error(`❌ Failed to fetch message stats for channel ${channelId}:`, error);
-		throw error;
+		// When not in ATHOME mode, fail with error instead of falling back to examples
+		throw new Error(
+			`Failed to fetch message stats for channel ${channelId} from Mirth Connect server. Check your server configuration and network connectivity. Original error: ${error.message}`
+		);
 	}
 }
+
+// ... existing code ...

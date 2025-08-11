@@ -41,10 +41,10 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// Reactive state using Svelte 5 runes
 	let liveDevLogEntries = $state<LogEntry[]>([]); // Live dev logs streamed via WebSocket
-	let selectedRange = $state<[Date, Date] | null>(null);
-	let selectedLevel = $state<LogLevel | null>(null);
+	// Channel and level selection
 	let selectedChannel = $state<string | null>(null);
-	let selectedDay = $state<string | null>(null); // Initialize with today
+	let selectedLevel = $state<LogLevel | null>(null);
+	let selectedRange = $state<[Date, Date] | null>(null);
 
 	// Days state for both logs and messages
 	let devLogDays = $state<DayData[]>([]);
@@ -234,17 +234,39 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get selectedChannel() {
 			return selectedChannel;
 		},
-		get selectedDay() {
-			return selectedDay;
-		},
 		get selectedRange() {
 			return selectedRange;
 		},
 		get filteredDevLogs() {
-			return filteredDevLogs;
+			let filtered = allDevLogs;
+
+			// Apply level filter
+			if (selectedLevel) {
+				filtered = filtered.filter((log) => log.level === selectedLevel);
+			}
+
+			// Apply channel filter
+			if (selectedChannel) {
+				filtered = filtered.filter((log) => log.channel === selectedChannel);
+			}
+
+			return filtered;
 		},
 		get timelineDevLogs() {
-			return timelineDevLogs;
+			// Apply level and channel filters to dev logs
+			let filtered = allDevLogs;
+
+			// Apply level filter
+			if (selectedLevel) {
+				filtered = filtered.filter((log) => log.level === selectedLevel);
+			}
+
+			// Apply channel filter
+			if (selectedChannel) {
+				filtered = filtered.filter((log) => log.channel === selectedChannel);
+			}
+
+			return filtered;
 		},
 		get allDevLogs() {
 			return allDevLogs;
@@ -259,10 +281,36 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			return messages;
 		},
 		get filteredMessages() {
-			return filteredMessages;
+			// Apply level and channel filters to messages
+			let filtered = allMessages;
+
+			// Apply level filter
+			if (selectedLevel) {
+				filtered = filtered.filter((message) => message.level === selectedLevel);
+			}
+
+			// Apply channel filter
+			if (selectedChannel) {
+				filtered = filtered.filter((message) => message.channel === selectedChannel);
+			}
+
+			return filtered;
 		},
 		get timelineMessageEntries() {
-			return timelineMessageEntries;
+			// Apply level and channel filters to messages
+			let filtered = messages || [];
+
+			// Apply level filter
+			if (selectedLevel) {
+				filtered = filtered.filter((log) => log.level === selectedLevel);
+			}
+
+			// Apply channel filter
+			if (selectedChannel) {
+				filtered = filtered.filter((log) => log.channel === selectedChannel);
+			}
+
+			return filtered;
 		},
 		get liveDevLogEntries() {
 			return liveDevLogEntries;
@@ -288,9 +336,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		setSelectedChannel(channel: string | null) {
 			selectedChannel = channel;
 		},
-		setSelectedDay(day: string | null) {
-			selectedDay = day;
-		},
+
 		setSelectedRange(range: [Date, Date] | null) {
 			selectedRange = range;
 		},

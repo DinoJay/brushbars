@@ -3,10 +3,13 @@ import * as d3 from 'd3';
 import { getMirthChannels, getChannelMessages } from '$lib/apiHelpers.js';
 import { warmCache } from '$lib/server/messageCache.js';
 
-// Build an ISO date (YYYY-MM-DD) from a Date
+// Build an ISO date (YYYY-MM-DD) from a Date - FIXED VERSION
 /** @param {Date} date */
 function toIsoDate(date) {
-	return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().split('T')[0];
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
 }
 
 // Aggregate per-day message counts across all channels
@@ -14,16 +17,33 @@ export async function GET({ url }) {
 	const startTime = Date.now();
 	const searchParams = url.searchParams;
 	const daysParam = parseInt(searchParams.get('days') || '30', 10);
-	const days = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 30;
+	const days = 60; //Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 30;
 
 	try {
+		// Time range: last N days (inclusive of today)
+		// ... existing code ...
+
 		// Time range: last N days (inclusive of today)
 		const end = new Date();
 		const start = new Date();
 		start.setDate(end.getDate() - (days - 1));
 
+		// Set start to beginning of day (00:00:00.000)
+		start.setHours(0, 0, 0, 0);
+		// Set end to end of day (23:59:59.999)
+		end.setHours(23, 59, 59, 999);
+
+		// ... existing code ...
+		console.log(
+			'🔍 Environment check - ATHOME:',
+			process.env.ATHOME,
+			'athome:',
+			process.env.athome
+		);
+
 		// Get all channels (respects ATHOME inside helpers)
 		const channels = await getMirthChannels();
+		// console.log('🔍 Retrieved channels:', channels.length, 'channels');
 
 		// Build a map of day -> stats and messages
 		const dayMap = new Map();
@@ -40,14 +60,17 @@ export async function GET({ url }) {
 			return dayMap.get(dayString);
 		};
 
-		// Process channels in parallel for better performance
-		const channelPromises = channels.map(async (/** @type {any} */ ch) => {
+		// Process channels sequentially for better debugging
+		const allChannelResults = [];
+		for (const ch of channels) {
 			try {
+				console.log(`🔍 Processing channel: ${ch.name} (${ch.id})`);
 				const msgs = await getChannelMessages(ch.id, {
 					startDate: start.toISOString(),
 					endDate: end.toISOString(),
-					limit: 50000
+					limit: 500000
 				});
+				console.log(`🔍 Channel ${ch.name} returned ${msgs.length} messages`);
 
 				// Process messages for this channel
 				const channelResults = [];
@@ -82,20 +105,22 @@ export async function GET({ url }) {
 					});
 				}
 
-				return channelResults;
+				console.log(`🔍 Channel ${ch.name} processed into ${channelResults.length} results`);
+				allChannelResults.push(...channelResults);
+
+				// Add a small delay between channels to avoid overwhelming the server
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			} catch (err) {
 				// Continue other channels even if one fails
 				const emsg = /** @type {any} */ (err)?.message;
 				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, emsg);
-				return [];
+				// Don't add anything to allChannelResults for failed channels
 			}
-		});
-
-		// Wait for all channels to complete
-		const allChannelResults = await Promise.all(channelPromises);
+		}
+		console.log('🔍 All channel results:', allChannelResults.length, 'total results');
 
 		// Aggregate results from all channels
-		for (const channelResult of allChannelResults.flat()) {
+		for (const channelResult of allChannelResults) {
 			const target = ensureDay(channelResult.dayString);
 			target.stats.total += 1;
 

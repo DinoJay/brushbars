@@ -29,12 +29,37 @@
 		selectedDay?: string | null;
 	}>();
 
-	// Bindable selectedDay to support bind:selectedDay on parent
+	// Helper to normalize dates for comparison
+	function normalizeDate(date: string | null | undefined): string | null {
+		if (!date) return null;
 
-	// Reactive derived value that automatically updates stats based on filtered entries
-	let reactiveDays = $derived.by(() => props.days || []);
+		// If it's already in YYYY-MM-DD format, return as is
+		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return date;
+		}
+
+		// Try to parse and convert to YYYY-MM-DD
+		try {
+			const parsed = new Date(date);
+			if (!isNaN(parsed.getTime())) {
+				return parsed.toISOString().split('T')[0];
+			}
+		} catch (e) {
+			console.warn('Failed to parse date:', date, e);
+		}
+
+		return date;
+	}
+
 	// Helper to read current selected day (parent passes a plain string)
 	function selectedDayValue(): string | null | undefined {
+		console.log('🔍 DayButtons selectedDayValue called:', {
+			propsSelectedDay: props.selectedDay,
+			selectedDayType: typeof props.selectedDay,
+			daysLength: props.days?.length,
+			firstDayDate: props.days?.[0]?.date,
+			firstDayDateType: typeof props.days?.[0]?.date
+		});
 		return props.selectedDay ?? null;
 	}
 
@@ -61,10 +86,17 @@
 		return '';
 	}
 
-	// No store effects or auto-fetch here; parent drives data
+	// Helper function to check if a day is selected
+	function isDaySelected(dayDate: string): boolean {
+		const normalizedSelectedDay = normalizeDate(selectedDayValue());
+		const normalizedDayDate = normalizeDate(dayDate);
+		return normalizedSelectedDay === normalizedDayDate;
+	}
+
 	$effect(() => {
-		console.log('📅 DayButtons selectedDay changed:', selectedDayValue());
+		console.log('🔍 SELECTED DAY:', props.selectedDay);
 	});
+	// No store effects or auto-fetch here; parent drives data
 </script>
 
 <div class="space-y-6">
@@ -93,32 +125,29 @@
 		<div class="flex justify-center py-8">
 			<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-500"></div>
 		</div>
-	{:else if reactiveDays.length > 0}
+	{:else if props.days?.length > 0}
 		<!-- Days Grid -->
 		<div class="flex gap-4 overflow-x-auto pb-2">
-			{#each [...reactiveDays].reverse() as day}
+			{#each [...props.days].reverse() as day}
+				{@const isSelected = isDaySelected(day.date)}
+
 				<button
 					onclick={() => props.onSelectDay?.(day.date)}
-					data-selected={selectedDayValue() === day.date}
-					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-colors disabled:opacity-50 {selectedDayValue() ===
-					day.date
+					data-selected={isSelected}
+					class="w-64 flex-shrink-0 rounded-lg border p-4 text-left transition-colors disabled:opacity-50 {isSelected
 						? 'border-blue-500 bg-blue-50 shadow-sm'
 						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'}"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<h3
-								class="text-lg font-semibold {selectedDayValue() === day.date
-									? 'text-blue-800'
-									: 'text-gray-900'}"
-							>
+							<h3 class="text-lg font-semibold {isSelected ? 'text-blue-800' : 'text-gray-900'}">
 								{day.date}
 							</h3>
 							{#if isToday(day.date)}
 								<span
 									class="rounded-full px-3 py-1 text-xs font-medium {getCurrentDayBadge(
 										day.date,
-										selectedDayValue() === day.date
+										isSelected
 									)}"
 								>
 									📡 Live
@@ -127,11 +156,7 @@
 						</div>
 					</div>
 
-					<div
-						class="mb-4 text-base font-medium {selectedDayValue() === day.date
-							? 'text-blue-700'
-							: 'text-gray-700'}"
-					>
+					<div class="mb-4 text-base font-medium {isSelected ? 'text-blue-700' : 'text-gray-700'}">
 						Total: {day.stats.total.toLocaleString()} logs
 						{#if isToday(day.date)}
 							<span class="ml-2 text-sm font-normal text-green-600">(real-time)</span>
@@ -143,19 +168,15 @@
 						{#each Object.entries(day.stats) as [level, count]}
 							{#if level !== 'total' && (count as number) > 0}
 								<div
-									class="flex items-center justify-between rounded-md px-3 py-2 {selectedDayValue() ===
-									day.date
+									class="flex items-center justify-between rounded-md px-3 py-2 {isSelected
 										? 'bg-blue-50'
 										: 'bg-gray-50'}"
 								>
-									<span
-										class="text-sm font-medium {selectedDayValue() === day.date
-											? 'text-blue-800'
-											: 'text-gray-700'}">{level}</span
+									<span class="text-sm font-medium {isSelected ? 'text-blue-800' : 'text-gray-700'}"
+										>{level}</span
 									>
 									<span
-										class="rounded-full px-2 py-1 text-xs font-semibold {selectedDayValue() ===
-										day.date
+										class="rounded-full px-2 py-1 text-xs font-semibold {isSelected
 											? 'bg-blue-100 text-blue-800'
 											: 'border border-gray-200 bg-white text-gray-900'}"
 									>
