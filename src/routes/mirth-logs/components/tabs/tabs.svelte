@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, setContext } from 'svelte';
+	import { setContext } from 'svelte';
 	import { cn } from '$lib/utils';
 
 	type TabsValue = string;
@@ -9,10 +9,10 @@
 		value = $bindable<TabsValue | null>(null),
 		defaultValue = null as TabsValue | null,
 		orientation = 'horizontal' as 'horizontal' | 'vertical',
-		activationMode = 'automatic' as 'automatic' | 'manual'
+		activationMode = 'automatic' as 'automatic' | 'manual',
+		onChange = undefined as ((value: TabsValue) => void) | undefined,
+		children
 	} = $props();
-
-	const dispatch = createEventDispatcher<{ change: TabsValue }>();
 
 	if (value === null && defaultValue !== null) {
 		value = defaultValue;
@@ -20,7 +20,7 @@
 
 	function setValue(next: TabsValue) {
 		value = next;
-		dispatch('change', next);
+		onChange?.(next);
 	}
 
 	// Provide context for descendants
@@ -33,6 +33,6 @@
 	setContext('bb-tabs', ctx);
 </script>
 
-<div data-slot="tabs" class={cn('', className)} data-orientation={orientation}>
-	<slot {value} {setValue} {activationMode} {orientation} />
+<div class={cn('', className)} data-orientation={orientation}>
+	{@render children?.()}
 </div>

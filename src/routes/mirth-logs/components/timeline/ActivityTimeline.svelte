@@ -211,88 +211,50 @@
 					{height}
 					{margin}
 					onRangeChange={(r) => {
+						console.log('🖌️ ActivityTimeline received brush event:', r);
+
 						if (!r) {
-							// Clear visual range immediately
+							// Clear visual range immediately and clear store
 							visualRange = null;
+							console.log('🗑️ Clearing brush selection');
 							onRangeChange?.(null);
 							return;
 						}
 
-						// Handle new format: [dates, pixels] or just dates
+						// During brushing: r = [[startDate, endDate], [x0, x1]]
 						if (Array.isArray(r[0]) && Array.isArray(r[1])) {
-							// During brushing: r = [[startDate, endDate], [startPixel, endPixel]]
-							const [dates, pixels] = r;
-							const [start, end] = dates as [Date, Date];
-							const [x0, x1] = pixels as [number, number];
-
-							// Use pixel coordinates for immediate visual feedback
-							const selMinX = Math.min(x0, x1);
-							const selMaxX = Math.max(x0, x1);
-
-							// For immediate visual feedback, use the exact pixel selection
-							// This ensures the brush visual matches the actual selection
-							const hits = groupedBars.filter((g) => {
-								const bx = (xScale as any)(g.time);
-								const br = bx + (barWidth as any);
-								return br >= selMinX && bx <= selMaxX;
-							});
-
-							if (hits.length === 0) {
-								const invalid = new Date(NaN);
-								// Set visual range immediately for instant feedback using pixel coordinates
-								visualRange = [x0, x1];
-								// Debounce the store update
-								debouncedStoreUpdate([invalid, invalid]);
-							} else {
-								// For immediate feedback, use the exact pixel selection without expansion
-								// This keeps the visual brush size accurate
-								const [start, end] = dates;
-								// Set visual range immediately for instant feedback using pixel coordinates
-								visualRange = [x0, x1];
-								// Debounce the store update
-								debouncedStoreUpdate([start, end]);
-							}
-						} else {
-							// After brushing: r = [startDate, endDate] (debounced)
-							const [start, end] = r as [Date, Date];
-							// Work in pixel space using grouped bar x + width
-							const selMinX = Math.min((xScale as any)(start), (xScale as any)(end));
-							const selMaxX = Math.max((xScale as any)(start), (xScale as any)(end));
-
-							const hits = groupedBars.filter((g) => {
-								const bx = (xScale as any)(g.time);
-								const br = bx + (barWidth as any);
-								return br >= selMinX && bx <= selMaxX;
-							});
-
-							if (hits.length === 0) {
-								const invalid = new Date(NaN);
-								// Set visual range immediately for instant feedback
-								visualRange = [invalid, invalid];
-								// Debounce the store update
-								debouncedStoreUpdate([invalid, invalid]);
-							} else {
-								// Use a smaller expansion factor for more precise selection
-								// This prevents the brush from appearing much larger than selected
-								const bucketTimes = hits
-									.map((g) => g.time)
-									.sort((a, b) => a.getTime() - b.getTime());
-								const firstBucket = bucketTimes[0];
-								const lastBucket = bucketTimes[bucketTimes.length - 1];
-
-								// Calculate bucket size in milliseconds for minimal expansion
-								const bucketSizeMs = bucketMinutes * 60 * 1000; // Convert bucketMinutes to ms
-								// Use smaller expansion factor (1/4 instead of 1/2) for tighter selection
-								const expandedStart = new Date(firstBucket.getTime() - bucketSizeMs / 4);
-								const expandedEnd = new Date(lastBucket.getTime() + bucketSizeMs / 4);
-
-								// Snap to the minimally expanded bucket boundaries
-								// Set visual range immediately for instant feedback
-								visualRange = [expandedStart, expandedEnd];
-								// Debounce the store update
-								debouncedStoreUpdate([expandedStart, expandedEnd]);
-							}
+							const [, pixels] = r as [[Date, Date], [number, number]];
+							const [x0, x1] = pixels;
+							console.log('🎨 Brush visual feedback:', [x0, x1]);
+							// Visual feedback only
+							visualRange = [x0, x1];
+							return;
 						}
+
+						// Final selection: r = [startDate, endDate]
+						const [start, end] = r as [Date, Date];
+						console.log('✅ Final brush selection:', start, 'to', end);
+
+						// Degenerate selection clears
+						if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+							visualRange = null;
+							console.log('⚠️ Invalid date range, clearing selection');
+							onRangeChange?.(null);
+							return;
+						}
+
+						// Convert final date range to pixel coordinates for visual highlighting
+						// This ensures bars remain highlighted after brushing
+						const startX = (xScale as any)(start);
+						const endX = (xScale as any)(end);
+						if (isFinite(startX) && isFinite(endX)) {
+							visualRange = [startX, endX];
+							console.log('🎨 Setting visual range to pixels:', [startX, endX]);
+						}
+
+						// Pass the date range to parent for table filtering
+						console.log('📊 Updating store with date range:', start, 'to', end);
+						onRangeChange?.([start, end]);
 					}}
 					{resetKey}
 				/>

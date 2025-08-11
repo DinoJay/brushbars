@@ -24,6 +24,8 @@
 	let brushEl: SVGGElement | null = null;
 	let brushInstance: d3.BrushBehavior<any> | null = null;
 	let debounceId: ReturnType<typeof setTimeout> | null = null;
+	let brushTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 	function emitDebounced(range: [Date, Date] | null | [[Date, Date], [number, number]]) {
 		// Clear any existing timeout
 		if (debounceId) {
@@ -52,33 +54,70 @@
 				[width - margin.right, height - margin.bottom]
 			])
 			.on('start', (event: any) => {
-				// Clear any pending debounced calls when brushing starts
+				// Clear any pending timeouts when brushing starts
 				if (debounceId) {
 					clearTimeout(debounceId);
 					debounceId = null;
 				}
+				if (brushTimeoutId) {
+					clearTimeout(brushTimeoutId);
+					brushTimeoutId = null;
+				}
 			})
 			.on('brush', (event: any) => {
-				// Handle intermediate brush states for responsive feedback
+				// Handle brush states for both visual feedback and final selection
 				if (!event.selection || !xScale) {
-					emitDebounced(null);
+					onRangeChange?.(null);
 					return;
 				}
 				const [x0, x1] = event.selection as [number, number];
+				if (Math.abs(x1 - x0) < 1) {
+					// Treat degenerate (zero-width) as clear
+					onRangeChange?.(null);
+					return;
+				}
 				const selectedRange: [Date, Date] = [xScale.invert(x0), xScale.invert(x1)];
-				// Pass both date range and pixel coordinates for immediate visual feedback
+
+				// Clear any existing brush timeout
+				if (brushTimeoutId) {
+					clearTimeout(brushTimeoutId);
+				}
+
+				// During brushing - emit pixel coordinates for visual feedback
 				onRangeChange?.([selectedRange, [x0, x1]]);
+
+				// Set a timeout to emit final selection after brushing stops
+				brushTimeoutId = setTimeout(() => {
+					console.log('🎯 Brush timeout - emitting final selection:', selectedRange);
+					onRangeChange?.(selectedRange);
+					brushTimeoutId = null;
+				}, 100); // 100ms delay to detect when brushing stops
+			})
+			.on('end', (event: any) => {
+				// Clear the brush timeout since we're handling the end event
+				if (brushTimeoutId) {
+					clearTimeout(brushTimeoutId);
+					brushTimeoutId = null;
+				}
+
+				// Handle final brush state
+				if (!event.selection || !xScale) {
+					console.log('🗑️ Brush end - clearing selection');
+					onRangeChange?.(null);
+					return;
+				}
+
+				const [x0, x1] = event.selection as [number, number];
+				if (Math.abs(x1 - x0) < 1) {
+					console.log('🗑️ Brush end - degenerate selection, clearing');
+					onRangeChange?.(null);
+					return;
+				}
+
+				const selectedRange: [Date, Date] = [xScale.invert(x0), xScale.invert(x1)];
+				console.log('✅ Brush end - emitting final selection:', selectedRange);
+				onRangeChange?.(selectedRange);
 			});
-		// .on('end', (event: any) => {
-		// 	// Final brush state
-		// 	if (!event.selection || !xScale) {
-		// 		emitDebounced(null);
-		// 		return;
-		// 	}
-		// 	const [x0, x1] = event.selection as [number, number];
-		// 	const selectedRange: [Date, Date] = [xScale.invert(x0), xScale.invert(x1)];
-		// 	emitDebounced(selectedRange);
-		// });
 		d3.select(brushEl)
 			.call(brushInstance)
 			.call(brushInstance.move as any, null);

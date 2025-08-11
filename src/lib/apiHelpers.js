@@ -700,28 +700,24 @@ export async function getMirthChannels() {
 				return exampleChannels;
 			}
 
-			// Try to extract channel information from XML
-			const channelMatches = response.match(/<channel[^>]*>[\s\S]*?<\/channel>/g);
-			if (channelMatches) {
-				console.log(`✅ Found ${channelMatches.length} channels in XML response`);
+			// Parse XML using D3
+			const xmlDoc = parseXmlWithD3(response);
+			if (!xmlDoc) {
+				console.log('⚠️ Failed to parse XML response, using example data');
+				return exampleChannels;
+			}
 
-				// Parse each channel XML block
-				return channelMatches.map((channelXml, index) => {
-					// Extract channel ID
-					const idMatch = channelXml.match(/<id>([^<]+)<\/id>/);
-					const id = idMatch ? idMatch[1] : `channel-${index}`;
+			// Find all channel elements
+			const channelElements = xmlDoc.querySelectorAll('channel');
+			if (channelElements && channelElements.length > 0) {
+				console.log(`✅ Found ${channelElements.length} channels in XML response`);
 
-					// Extract channel name
-					const nameMatch = channelXml.match(/<name>([^<]+)<\/name>/);
-					const name = nameMatch ? nameMatch[1] : `Channel ${index + 1}`;
-
-					// Extract description
-					const descMatch = channelXml.match(/<description>([^<]*)<\/description>/);
-					const description = descMatch ? descMatch[1] : '';
-
-					// Extract enabled status
-					const enabledMatch = channelXml.match(/<enabled>([^<]+)<\/enabled>/);
-					const enabled = enabledMatch ? enabledMatch[1] === 'true' : true;
+				// Parse each channel element
+				return Array.from(channelElements).map((channelElement, index) => {
+					const id = getXmlText(channelElement, 'id', `channel-${index}`);
+					const name = getXmlText(channelElement, 'name', `Channel ${index + 1}`);
+					const description = getXmlText(channelElement, 'description', '');
+					const enabled = getXmlBoolean(channelElement, 'enabled', true);
 
 					return {
 						id,
@@ -774,8 +770,6 @@ export async function getMirthChannels() {
 	}
 }
 
-// ... existing code ...
-
 // Helper function to format dates for Mirth Connect API
 function formatDateForMirth(date) {
 	// Convert to local timezone offset (no Z, use actual offset like -0700)
@@ -796,23 +790,49 @@ function formatDateForMirth(date) {
 	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offsetSign}${String(offsetHours).padStart(2, '0')}${String(offsetMinutes).padStart(2, '0')}`;
 }
 
-function normalizeMirthDate(dateString) {
+// Helper function to parse XML using D3
+function parseXmlWithD3(xmlString) {
 	try {
-		// Parse the date string from Mirth
-		const parsedDate = new Date(dateString);
+		// Use D3's XML parser for Node.js environment
+		const xmlDoc = d3.xmlParse(xmlString);
 
-		// Check if it's a valid date
-		if (isNaN(parsedDate.getTime())) {
-			console.warn('⚠️ Invalid date from Mirth:', dateString);
-			return new Date().toISOString();
+		// Check for parsing errors
+		if (!xmlDoc || xmlDoc.querySelector('parsererror')) {
+			console.warn('⚠️ XML parsing error detected');
+			return null;
 		}
 
-		// Return in ISO format that your app expects
-		return parsedDate.toISOString();
+		return xmlDoc;
 	} catch (error) {
-		console.warn('⚠️ Error parsing date from Mirth:', dateString, error);
-		return new Date().toISOString();
+		console.warn('⚠️ Failed to parse XML with D3:', error);
+		return null;
 	}
+}
+
+// Helper function to safely get text content from XML element
+function getXmlText(element, tagName, defaultValue = '') {
+	if (!element) return defaultValue;
+	const tag = element.querySelector(tagName);
+	return tag ? tag.textContent.trim() : defaultValue;
+}
+
+// Helper function to safely get attribute from XML element
+function getXmlAttribute(element, attributeName, defaultValue = '') {
+	if (!element) return defaultValue;
+	return element.getAttribute(attributeName) || defaultValue;
+}
+
+// Helper function to safely get boolean from XML element
+function getXmlBoolean(element, tagName, defaultValue = false) {
+	const value = getXmlText(element, tagName, String(defaultValue));
+	return value === 'true';
+}
+
+// Helper function to safely get integer from XML element
+function getXmlInteger(element, tagName, defaultValue = 0) {
+	const value = getXmlText(element, tagName, String(defaultValue));
+	const parsed = parseInt(value, 10);
+	return isNaN(parsed) ? defaultValue : parsed;
 }
 
 // Get messages for a specific channel

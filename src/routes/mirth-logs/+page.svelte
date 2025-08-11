@@ -230,21 +230,38 @@
 	async function handleTabChange(tab: 'logs' | 'channels') {
 		console.log('🔄 Tab changed to:', tab);
 
-		// Update URL - currentTab will automatically update via $derived
+		// Determine latest available day for the target tab from store
+		const daysList = tab === 'logs' ? logStore.devLogDays : logStore.messageDays;
+		if (!daysList || daysList.length === 0) {
+			console.warn('⚠️ No days available for tab:', tab);
+			return;
+		}
+
+		const latestDay = daysList.reduce(
+			(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
+			''
+		);
+		if (!latestDay) {
+			console.warn('⚠️ Could not determine latest day for tab:', tab);
+			return;
+		}
+
+		// Navigate to keep selectedDay in the URL and trigger reactivity
 		const url = new URL(window.location.href);
 		url.searchParams.set('tab', tab);
-		window.history.replaceState({}, '', url.toString());
-
-		// Fetch data for current day and new tab immediately
-		const currentDay = selectedDay;
-		if (currentDay) {
-			await fetchDataForDay(currentDay, tab);
-		}
+		url.searchParams.set('day', latestDay);
+		goto(url.pathname + '?' + url.searchParams.toString(), {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true,
+			invalidateAll: false
+		});
+		console.log('✅ Navigated with latest day for tab:', tab, 'day:', latestDay);
 	}
 </script>
 
 <main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-4 font-sans">
-	<Tabs value={currentTab} on:change={(e) => handleTabChange(e.detail as 'logs' | 'channels')}>
+	<Tabs value={currentTab} onChange={(tab) => handleTabChange(tab as 'logs' | 'channels')}>
 		<div class="mb-4 flex items-center justify-between rounded bg-white p-3 shadow">
 			<TabsList class="p-1">
 				<TabsTrigger value="logs">Logs</TabsTrigger>
