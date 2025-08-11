@@ -592,6 +592,7 @@ export async function getChannelMessages(channelId, options = {}) {
 				// Parse each message XML block
 				messages = messageMatches.map((messageXml, index) => {
 					// Extract message ID
+					// console.log('🔍 Message XML:', mgccessageXml);
 					const idMatch = messageXml.match(/<id>([^<]+)<\/id>/);
 					const id = idMatch ? idMatch[1] : `msg-${index}`;
 

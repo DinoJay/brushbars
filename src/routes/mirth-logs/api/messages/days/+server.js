@@ -2,6 +2,8 @@ import { json } from '@sveltejs/kit';
 import * as d3 from 'd3';
 import { getMirthChannels, getChannelMessages } from '$lib/apiHelpers.js';
 import { warmCache } from '$lib/server/messageCache.js';
+import { writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 // Build an ISO date (YYYY-MM-DD) from a Date - FIXED VERSION
 /** @param {Date} date */
@@ -60,9 +62,8 @@ export async function GET({ url }) {
 			return dayMap.get(dayString);
 		};
 
-		// Process channels sequentially for better debugging
-		const allChannelResults = [];
-		for (const ch of channels) {
+		// Process channels in parallel for better performance
+		const channelPromises = channels.map(async (/** @type {any} */ ch) => {
 			try {
 				console.log(`🔍 Processing channel: ${ch.name} (${ch.id})`);
 				const msgs = await getChannelMessages(ch.id, {
@@ -70,7 +71,7 @@ export async function GET({ url }) {
 					endDate: end.toISOString(),
 					limit: 500000
 				});
-				console.log(`🔍 Channel ${ch.name} returned ${msgs.length} messages`);
+				console.log(`🔍 Channel ${ch.name} ID ${ch.id} returned ${msgs.length} messages`);
 
 				// Process messages for this channel
 				const channelResults = [];
@@ -106,17 +107,17 @@ export async function GET({ url }) {
 				}
 
 				console.log(`🔍 Channel ${ch.name} processed into ${channelResults.length} results`);
-				allChannelResults.push(...channelResults);
-
-				// Add a small delay between channels to avoid overwhelming the server
-				await new Promise((resolve) => setTimeout(resolve, 100));
+				return channelResults;
 			} catch (err) {
 				// Continue other channels even if one fails
 				const emsg = /** @type {any} */ (err)?.message;
 				console.warn('⚠️ Failed to load messages for channel', ch?.id || ch?.name, emsg);
-				// Don't add anything to allChannelResults for failed channels
+				return []; // Return empty array for failed channels
 			}
-		}
+		});
+
+		// Wait for all channels to complete processing
+		const allChannelResults = (await Promise.all(channelPromises)).flat();
 		console.log('🔍 All channel results:', allChannelResults.length, 'total results');
 
 		// Aggregate results from all channels
