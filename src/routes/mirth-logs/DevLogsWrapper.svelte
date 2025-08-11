@@ -95,7 +95,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="mb-4 rounded bg-white p-3 shadow">
+	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
 		<DayButtons
 			selectedDay={selectedDayFromUrl()}
 			todaysLiveEntries={[]}
@@ -114,14 +114,14 @@
 		}}
 	/>
 
-	<div class="mb-4 rounded bg-white p-3 shadow">
+	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
 		<MirthActivityTimeline
 			entries={logStore.timelineDevLogs}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
 			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 		/>
 	</div>
-	<div class="rounded bg-white p-3 shadow">
+	<div class="rounded bg-white p-3 shadow dark:bg-gray-800">
 		<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

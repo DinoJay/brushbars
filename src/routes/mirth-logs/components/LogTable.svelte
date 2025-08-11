@@ -26,10 +26,10 @@
 
 	// Level styling
 	const levelStyles = {
-		ERROR: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: '🔴' },
-		WARN: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', icon: '🟡' },
-		INFO: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: '' },
-		DEBUG: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: '⚪' }
+		ERROR: { bg: 'bg-red-100', text: 'text-red-700', icon: '🔴' },
+		WARN: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '🟡' },
+		INFO: { bg: 'bg-blue-100', text: 'text-blue-700', icon: '' },
+		DEBUG: { bg: 'bg-gray-100', text: 'text-gray-700', icon: '⚪' }
 	};
 
 	// Computed visible entries with search filtering and sorting
@@ -253,16 +253,18 @@
 	}
 </script>
 
-<div class="log-table-container">
+<div class="log-table-container overflow-hidden rounded-xl bg-white dark:bg-gray-800">
 	<!-- Header with Search -->
-	<div class="border-b border-gray-200 px-4 py-3">
+	<div
+		class="border-b border-gray-100 bg-gray-50/30 px-6 py-4 dark:border-gray-700 dark:bg-gray-700/30"
+	>
 		<div
 			class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
 		>
 			<div class="flex items-center space-x-3">
-				<h3 class="text-base font-semibold text-gray-900">Log Entries</h3>
+				<h3 class="text-base font-semibold text-gray-900 dark:text-white">Log Entries</h3>
 				{#if searchQuery}
-					<span class="text-xs text-gray-500">
+					<span class="text-xs text-gray-500 dark:text-gray-400">
 						({visibleEntries.length} of {searchFilteredEntries.length} results)
 					</span>
 				{/if}
@@ -273,7 +275,7 @@
 				<!-- Search Field Selector -->
 				<select
 					bind:value={searchField}
-					class="h-8 rounded border border-gray-300 bg-white px-2 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+					class="h-8 rounded-lg border-0 bg-white px-3 text-xs text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-700 dark:text-white"
 				>
 					<option value="all">All Fields</option>
 					<option value="message">Message</option>
@@ -287,7 +289,7 @@
 						bind:value={searchQuery}
 						type="text"
 						placeholder="Search logs..."
-						class="h-8 w-48 rounded border border-gray-300 bg-white pr-8 pl-8 text-xs placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+						class="h-8 w-48 rounded-lg border-0 bg-white pr-8 pl-8 text-xs text-gray-900 placeholder-gray-400 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
 					/>
 					<!-- Search Icon -->
 					<div class="absolute top-1/2 left-2.5 -translate-y-1/2">
@@ -324,7 +326,7 @@
 				</div>
 
 				<!-- Total Count -->
-				<span class="text-xs text-gray-500">
+				<span class="text-xs text-gray-500 dark:text-gray-400">
 					Total: {effectiveEntries.length}
 				</span>
 			</div>
@@ -339,93 +341,95 @@
 				onscroll={handleScroll}
 				class="h-full overflow-x-auto overflow-y-auto"
 			>
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="sticky top-0 z-10 bg-gray-50">
+				<table class="min-w-full divide-y divide-gray-50 dark:divide-gray-700">
+					<thead>
 						<tr>
-							<th
-								class="w-12 bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-							></th>
+							<th class="w-12 bg-gray-50 px-4 py-2 dark:bg-gray-700"></th>
 							<th
 								onclick={() => handleSort('timestamp')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100"
+								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
 							>
 								Time {getSortIndicator('timestamp')}
 							</th>
 							<th
 								onclick={() => handleSort('level')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100"
+								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
 							>
 								Level {getSortIndicator('level')}
 							</th>
 							<th
 								onclick={() => handleSort('channel')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100"
+								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
 							>
 								Channel {getSortIndicator('channel')}
 							</th>
 							<th
 								onclick={() => handleSort('status')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100"
+								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
 							>
 								Status {getSortIndicator('status')}
 							</th>
 							<th
 								onclick={() => handleSort('message')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100"
+								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
 							>
 								Message {getSortIndicator('message')}
 							</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-100 bg-white">
+					<tbody class="divide-y divide-gray-50 bg-white dark:divide-gray-700 dark:bg-gray-800">
 						{#each visibleEntries as log, index}
-							<tr class="transition-colors duration-150 hover:bg-gray-50">
+							<tr
+								class="transition-colors duration-150 hover:bg-gray-50/50 dark:hover:bg-gray-700/50"
+							>
 								<td class="px-4 py-3 whitespace-nowrap">
 									<button
 										onclick={() => toggleRow(log.id)}
-										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-gray-200"
+										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-600"
 										title={isExpanded(log.id) ? 'Collapse' : 'Expand'}
 									>
 										{#if isExpanded(log.id)}
-											<span class="text-sm text-gray-600">−</span>
+											<span class="text-sm text-gray-600 dark:text-gray-300">−</span>
 										{:else}
-											<span class="text-sm text-gray-600">+</span>
+											<span class="text-sm text-gray-600 dark:text-gray-300">+</span>
 										{/if}
 									</button>
 								</td>
-								<td class="px-4 py-3 font-mono text-sm whitespace-nowrap text-gray-900">
+								<td
+									class="px-4 py-3 font-mono text-sm whitespace-nowrap text-gray-900 dark:text-white"
+								>
 									{formatTime(log.timestamp)}
 								</td>
 								<td class="px-4 py-3 whitespace-nowrap">
 									<span
-										class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium {levelStyles[
+										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {levelStyles[
 											log.level as keyof typeof levelStyles
-										]?.bg} {levelStyles[log.level as keyof typeof levelStyles]?.text} {levelStyles[
-											log.level as keyof typeof levelStyles
-										]?.border}"
+										]?.bg} {levelStyles[log.level as keyof typeof levelStyles]?.text}"
 									>
 										{levelStyles[log.level as keyof typeof levelStyles]?.icon}
 										{log.level}
 									</span>
 								</td>
-								<td class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900">
+								<td
+									class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white"
+								>
 									{log.channel || '—'}
 								</td>
 								<td class="px-4 py-3 whitespace-nowrap">
 									<span
-										class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium {log.status ===
+										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {log.status ===
 										'ERROR'
-											? 'border-red-200 bg-red-50 text-red-700'
+											? 'bg-red-100 text-red-700'
 											: log.status === 'RECEIVED'
-												? 'border-blue-200 bg-blue-50 text-blue-700'
+												? 'bg-blue-100 text-blue-700'
 												: log.status === 'SENT'
-													? 'border-green-200 bg-green-50 text-green-700'
-													: 'border-gray-200 bg-gray-50 text-gray-700'}"
+													? 'bg-green-100 text-green-700'
+													: 'bg-gray-100 text-gray-700'}"
 									>
 										{log.status || '—'}
 									</span>
 								</td>
-								<td class="px-4 py-3 text-sm text-gray-900">
+								<td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
 									<div
 										class="max-w-lg {isExpanded(log.id) ? '' : 'truncate'}"
 										title={isExpanded(log.id) ? '' : log.message}
@@ -435,7 +439,7 @@
 								</td>
 							</tr>
 							{#if isExpanded(log.id)}
-								<tr class="bg-gray-50" data-log-id={log.id}>
+								<tr class="bg-gray-50/50 dark:bg-gray-700/50" data-log-id={log.id}>
 									<td></td>
 									<td colspan="5" class="px-4 py-3">
 										<MessageDetailsTabs {log} />
@@ -448,9 +452,11 @@
 						{#if isLoading}
 							<tr>
 								<td colspan="6" class="px-4 py-3 text-center">
-									<div class="flex items-center justify-center space-x-2 text-gray-500">
+									<div
+										class="flex items-center justify-center space-x-2 text-gray-500 dark:text-gray-400"
+									>
 										<div
-											class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+											class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400"
 										></div>
 										<span class="text-sm">Loading more entries...</span>
 									</div>
@@ -464,7 +470,7 @@
 								<td colspan="6" class="px-4 py-3 text-center">
 									<button
 										onclick={loadMore}
-										class="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+										class="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
 									>
 										Load More ({sortedEntries.length - visibleEntries.length} remaining)
 									</button>
@@ -476,15 +482,15 @@
 			</div>
 		{:else}
 			<!-- Empty state placeholder -->
-			<div class="flex h-full items-center justify-center bg-gray-50">
+			<div class="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-800">
 				<div class="text-center">
-					<div class="mb-4 text-6xl text-gray-300">
+					<div class="mb-4 text-6xl text-gray-300 dark:text-gray-600">
 						{searchQuery ? '🔍' : '📋'}
 					</div>
-					<h3 class="mb-2 text-lg font-medium text-gray-900">
+					<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
 						{searchQuery ? 'No search results found' : 'No log data available'}
 					</h3>
-					<p class="text-sm text-gray-500">
+					<p class="text-sm text-gray-500 dark:text-gray-400">
 						{searchQuery
 							? `No logs match "${searchQuery}" in ${searchField === 'all' ? 'any field' : searchField}`
 							: 'No log entries are currently available for the selected criteria'}
@@ -492,7 +498,7 @@
 					{#if searchQuery}
 						<button
 							onclick={clearSearch}
-							class="mt-3 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+							class="mt-3 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
 						>
 							Clear Search
 						</button>

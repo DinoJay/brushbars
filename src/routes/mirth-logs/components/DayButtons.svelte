@@ -127,28 +127,38 @@
 		</div>
 	{:else if props.days?.length > 0}
 		<!-- Days Grid -->
-		<div class="flex gap-3 overflow-x-auto pb-2">
+		<div class="flex gap-4 overflow-x-auto px-2 pb-4">
 			{#each [...props.days].reverse() as day}
 				{@const isSelected = isDaySelected(day.date)}
 
 				<button
 					onclick={() => props.onSelectDay?.(day.date)}
 					data-selected={isSelected}
-					class="w-48 flex-shrink-0 rounded-lg border p-3 text-left transition-colors disabled:opacity-50 {isSelected
-						? 'border-blue-500 bg-blue-50 shadow-sm'
-						: 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'}"
+					class="w-52 flex-shrink-0 rounded-2xl p-5 text-left transition-all duration-300 disabled:opacity-50"
+					style="
+						{isSelected
+						? 'background-color: var(--color-accent-light); border: 2px solid var(--color-accent); box-shadow: var(--shadow-lg);'
+						: 'background-color: var(--color-bg-secondary); border: 2px solid var(--color-border); box-shadow: var(--shadow-sm);'}
+					"
 				>
 					<div class="mb-2 flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<h3 class="text-base font-semibold {isSelected ? 'text-blue-800' : 'text-gray-900'}">
+							<h3
+								class="text-lg font-bold"
+								style="color: {isSelected
+									? 'var(--color-accent-dark)'
+									: 'var(--color-text-primary)'};"
+							>
 								{day.date}
 							</h3>
 							{#if isToday(day.date)}
 								<span
-									class="rounded-full px-2 py-1 text-xs font-medium {getCurrentDayBadge(
-										day.date,
-										isSelected
-									)}"
+									class="rounded-full px-3 py-1.5 text-xs font-semibold"
+									style="
+										{isSelected
+										? 'background-color: var(--color-accent); color: white;'
+										: 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'}
+									"
 								>
 									📡 Live
 								</span>
@@ -156,62 +166,96 @@
 						</div>
 					</div>
 
-					<div class="mb-3 text-sm font-medium {isSelected ? 'text-blue-700' : 'text-gray-700'}">
+					<div
+						class="mb-4 text-sm font-medium"
+						style="color: {isSelected
+							? 'var(--color-accent-dark)'
+							: 'var(--color-text-secondary)'};"
+					>
 						Total: {day.stats.total.toLocaleString()} logs
 						{#if isToday(day.date)}
-							<span class="ml-2 text-xs font-normal text-green-600">(real-time)</span>
+							<span class="ml-2 text-xs font-normal" style="color: var(--color-accent);"
+								>(real-time)</span
+							>
 						{/if}
 					</div>
 
 					<!-- Log Level Stats -->
-					<div class="grid grid-cols-2 gap-1.5">
+					<div class="grid grid-cols-2 gap-2">
 						<!-- Always show INFO, WARN, ERROR even if 0 -->
 						<div
-							class="flex items-center justify-between rounded px-2 py-1.5 {isSelected
-								? 'bg-blue-50'
-								: 'bg-gray-50'}"
+							class="flex items-center justify-between rounded-lg px-3 py-2"
+							style="
+								{isSelected
+								? 'background-color: var(--color-accent-light);'
+								: 'background-color: var(--color-bg-tertiary);'}
+							"
 						>
-							<span class="text-xs font-medium {isSelected ? 'text-blue-800' : 'text-gray-700'}"
-								>INFO</span
+							<span
+								class="text-xs font-semibold"
+								style="color: {isSelected
+									? 'var(--color-accent-dark)'
+									: 'var(--color-text-secondary)'};">INFO</span
 							>
 							<span
-								class="rounded-full px-1.5 py-0.5 text-xs font-semibold {isSelected
-									? 'bg-blue-100 text-blue-800'
-									: 'border border-gray-200 bg-white text-gray-900'}"
+								class="rounded-full px-2 py-1 text-xs font-bold"
+								style="
+									{isSelected
+									? 'background-color: var(--color-accent); color: white;'
+									: 'background-color: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border);'}
+								"
 							>
 								{(day.stats.INFO || 0).toLocaleString()}
 							</span>
 						</div>
 
 						<div
-							class="flex items-center justify-between rounded px-2 py-1.5 {isSelected
-								? 'bg-blue-50'
-								: 'bg-gray-50'}"
+							class="flex items-center justify-between rounded-lg px-3 py-2"
+							style="
+								{isSelected
+								? 'background-color: var(--color-accent-light);'
+								: 'background-color: var(--color-bg-tertiary);'}
+							"
 						>
-							<span class="text-xs font-medium {isSelected ? 'text-blue-800' : 'text-gray-700'}"
-								>WARN</span
+							<span
+								class="text-xs font-semibold"
+								style="color: {isSelected
+									? 'var(--color-accent-dark)'
+									: 'var(--color-text-secondary)'};">WARN</span
 							>
 							<span
-								class="rounded-full px-1.5 py-0.5 text-xs font-semibold {isSelected
-									? 'bg-blue-100 text-blue-800'
-									: 'border border-gray-200 bg-white text-gray-900'}"
+								class="rounded-full px-2 py-1 text-xs font-bold"
+								style="
+									{isSelected
+									? 'background-color: var(--color-accent); color: white;'
+									: 'background-color: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border);'}
+								"
 							>
 								{(day.stats.WARN || 0).toLocaleString()}
 							</span>
 						</div>
 
 						<div
-							class="flex items-center justify-between rounded px-2 py-1.5 {isSelected
-								? 'bg-blue-50'
-								: 'bg-gray-50'}"
+							class="flex items-center justify-between rounded-lg px-3 py-2"
+							style="
+								{isSelected
+								? 'background-color: var(--color-accent-light);'
+								: 'background-color: var(--color-bg-tertiary);'}
+							"
 						>
-							<span class="text-xs font-medium {isSelected ? 'text-blue-800' : 'text-gray-700'}"
-								>ERROR</span
+							<span
+								class="text-xs font-semibold"
+								style="color: {isSelected
+									? 'var(--color-accent-dark)'
+									: 'var(--color-text-secondary)'};">ERROR</span
 							>
 							<span
-								class="rounded-full px-1.5 py-0.5 text-xs font-semibold {isSelected
-									? 'bg-blue-100 text-blue-800'
-									: 'border border-gray-200 bg-white text-gray-900'}"
+								class="rounded-full px-2 py-1 text-xs font-bold"
+								style="
+									{isSelected
+									? 'background-color: var(--color-accent); color: white;'
+									: 'background-color: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border);'}
+								"
 							>
 								{(day.stats.ERROR || 0).toLocaleString()}
 							</span>
@@ -222,16 +266,18 @@
 							{#if level !== 'total' && level !== 'INFO' && level !== 'WARN' && level !== 'ERROR' && (count as number) > 0}
 								<div
 									class="flex items-center justify-between rounded px-2 py-1.5 {isSelected
-										? 'bg-blue-50'
-										: 'bg-gray-50'}"
+										? 'bg-blue-50 dark:bg-blue-900/30'
+										: 'bg-gray-50 dark:bg-gray-700'}"
 								>
-									<span class="text-xs font-medium {isSelected ? 'text-blue-800' : 'text-gray-700'}"
-										>{level}</span
+									<span
+										class="text-xs font-medium {isSelected
+											? 'text-blue-800 dark:text-blue-200'
+											: 'text-gray-700 dark:text-gray-300'}">{level}</span
 									>
 									<span
 										class="rounded-full px-1.5 py-0.5 text-xs font-semibold {isSelected
-											? 'bg-blue-100 text-blue-800'
-											: 'border border-gray-200 bg-white text-gray-900'}"
+											? 'bg-blue-500 text-white dark:bg-blue-400 dark:text-gray-900'
+											: 'border border-gray-200 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-600 dark:text-white'}"
 									>
 										{(count as number).toLocaleString()}
 									</span>
@@ -243,7 +289,7 @@
 			{/each}
 		</div>
 	{:else if !props.loading}
-		<div class="py-6 text-center text-gray-500">
+		<div class="py-6 text-center text-gray-500 dark:text-gray-400">
 			No days found. Make sure the API is working and logs are available.
 		</div>
 	{/if}

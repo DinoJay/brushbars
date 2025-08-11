@@ -1,12 +1,13 @@
 <!-- runes -->
-<script>
-	import { logStore } from '../logStore.svelte.ts';
+<script lang="ts">
+	import { logStore } from '$stores/logStore.svelte';
+	import type { LogLevel } from '$stores/logStore.svelte';
 
 	function clearFilter() {
 		logStore.setSelectedLevel(null);
 	}
 
-	function getLevelColor(level) {
+	function getLevelColor(level: LogLevel) {
 		switch (level) {
 			case 'ERROR':
 				return '#dc2626';
@@ -24,7 +25,7 @@
 
 {#if logStore.selectedLevel}
 	<div class="mb-4 flex items-center gap-2">
-		<span class="text-sm text-gray-600">Filtered by:</span>
+		<span class="text-sm text-gray-600 dark:text-gray-300">Filtered by:</span>
 		<div
 			class="flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium text-white"
 			style="background-color: {getLevelColor(logStore.selectedLevel)}"
@@ -32,7 +33,7 @@
 			<span>{logStore.selectedLevel}</span>
 			<button
 				onclick={clearFilter}
-				class="bg-opacity-20 hover:bg-opacity-30 ml-1 rounded-full bg-white p-1 transition-all duration-200"
+				class="bg-opacity-20 hover:bg-opacity-30 ml-1 rounded-full bg-white p-1 transition-all duration-200 dark:bg-gray-200"
 			>
 				×
 			</button>

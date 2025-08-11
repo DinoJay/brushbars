@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	let { class: className = '' } = $props();
+	interface $$Props {
+		class?: string;
+	}
+
+	let { class: className = '' }: $$Props = $props();
 </script>
 
 <div
-	data-slot="tabs-list"
-	class={cn(
-		'flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1 shadow-sm',
-		className
-	)}
+	class="flex items-center gap-1 rounded-xl p-2 {className}"
+	style="background-color: var(--color-bg-tertiary); border: 1px solid var(--color-border-light);"
 >
 	<slot />
 </div>

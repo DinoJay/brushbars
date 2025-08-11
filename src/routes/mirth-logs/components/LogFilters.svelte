@@ -89,21 +89,30 @@
 
 	// Level color mapping
 	const levelColors: Record<string, string> = {
-		DEBUG: 'bg-gray-100 text-gray-800 border-gray-300',
-		INFO: 'bg-blue-100 text-blue-800 border-blue-300',
-		WARN: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-		ERROR: 'bg-red-100 text-red-800 border-red-300'
+		DEBUG:
+			'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600',
+		INFO: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-600',
+		WARN: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-600',
+		ERROR:
+			'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-red-300 dark:border-red-600'
 	};
 </script>
 
-<div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+<div
+	class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+>
 	<div class="mb-3 flex items-center justify-between">
 		<div class="flex items-center space-x-4">
-			<h3 class="text-sm font-medium text-gray-900">Filters</h3>
-			<span class="text-xs text-gray-500">Total: {totalCount.toLocaleString()}</span>
+			<h3 class="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
+			<span class="text-xs text-gray-500 dark:text-gray-400"
+				>Total: {totalCount.toLocaleString()}</span
+			>
 		</div>
 		{#if selectedLevel || selectedChannel}
-			<button onclick={clearFilters} class="text-xs text-blue-600 hover:text-blue-800">
+			<button
+				onclick={clearFilters}
+				class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+			>
 				Clear all
 			</button>
 		{/if}
@@ -112,13 +121,13 @@
 	<div class="flex flex-wrap gap-3">
 		<!-- Level Filter -->
 		<div class="flex items-center space-x-2">
-			<label class="text-xs font-medium text-gray-700">Level:</label>
+			<label class="text-xs font-medium text-gray-700 dark:text-gray-300">Level:</label>
 			<div class="flex space-x-1">
 				<button
 					onclick={() => setLevel(null)}
 					class="rounded px-2 py-1 text-xs font-medium transition-colors {!selectedLevel
-						? 'bg-blue-100 text-blue-800'
-						: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+						? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+						: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 				>
 					All ({totalCount.toLocaleString()})
 				</button>
@@ -126,8 +135,9 @@
 					<button
 						onclick={() => setLevel(level as any)}
 						class="rounded px-2 py-1 text-xs font-medium transition-colors {selectedLevel === level
-							? levelColors[level] || 'bg-blue-100 text-blue-800'
-							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+							? levelColors[level] ||
+								'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+							: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 					>
 						{level} ({levelCounts[level]?.toLocaleString() || 0})
 					</button>
@@ -138,13 +148,13 @@
 		<!-- Channel Filter -->
 		{#if availableChannels.length > 0}
 			<div class="flex items-center space-x-2">
-				<label class="text-xs font-medium text-gray-700">Channel:</label>
+				<label class="text-xs font-medium text-gray-700 dark:text-gray-300">Channel:</label>
 				<div class="flex space-x-1">
 					<button
 						onclick={() => setChannel(null)}
 						class="rounded px-2 py-1 text-xs font-medium transition-colors {!selectedChannel
-							? 'bg-blue-100 text-blue-800'
-							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+							? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+							: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 					>
 						All
 					</button>
@@ -153,14 +163,14 @@
 							onclick={() => setChannel(channel)}
 							class="rounded px-2 py-1 text-xs font-medium transition-colors {selectedChannel ===
 							channel
-								? 'bg-blue-100 text-blue-800'
-								: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+								? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+								: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 						>
 							{channel} ({channelCounts[channel]?.toLocaleString() || 0})
 						</button>
 					{/each}
 					{#if availableChannels.length > 10}
-						<span class="px-2 py-1 text-xs text-gray-500">
+						<span class="px-2 py-1 text-xs text-gray-500 dark:text-gray-400">
 							+{availableChannels.length - 10} more
 						</span>
 					{/if}

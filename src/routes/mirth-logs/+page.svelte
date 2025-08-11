@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient.js';
-
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import DevLogsWrapper from './DevLogsWrapper.svelte';
 	import MessagesWrapper from './MessagesWrapper.svelte';
 	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/tabs';
 	import { logStore } from '$stores/logStore.svelte';
+	import { isDark, themeStore } from '$stores/themeStore.svelte';
 	import type { PageData } from './$types';
+
+	let statusText = $state('Loading days...');
 
 	// Get data from server load function
 	const props = $props<{ data: PageData }>();
@@ -41,6 +44,9 @@
 			console.log('🔄 Initializing store with server data:', { day: data.day, tab: data.tab });
 			hasInitializedStore = true;
 
+			// Initialize theme store
+			themeStore.init();
+
 			// Set initial day in URL if not present
 			const urlDay = selectedDay;
 			if (!urlDay && data.day) {
@@ -61,6 +67,33 @@
 
 			// Load initial days data
 			loadInitialDaysData();
+		}
+	});
+
+	// Initialize theme store on component mount
+	$effect(() => {
+		if (browser) {
+			console.log('🎨 Component: Initializing theme store');
+			themeStore.init();
+		}
+	});
+
+	// Debug theme changes
+	$effect(() => {
+		console.log('🎨 Component: Theme changed to:', $isDark ? 'dark' : 'light');
+	});
+
+	// Debug CSS custom properties
+	$effect(() => {
+		if (browser) {
+			const root = document.documentElement;
+			const computedStyle = getComputedStyle(root);
+			console.log('🎨 CSS Variables:', {
+				bgPrimary: computedStyle.getPropertyValue('--color-bg-primary'),
+				bgSecondary: computedStyle.getPropertyValue('--color-bg-secondary'),
+				textPrimary: computedStyle.getPropertyValue('--color-text-primary'),
+				hasDarkClass: root.classList.contains('dark')
+			});
 		}
 	});
 
@@ -260,22 +293,87 @@
 	}
 </script>
 
-<main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-4 font-sans">
+<main
+	class="mx-auto min-h-screen max-w-screen-2xl p-8 font-sans"
+	style="background-color: var(--color-bg-primary); color: var(--color-text-primary);"
+>
 	<Tabs value={currentTab} onChange={(tab) => handleTabChange(tab as 'logs' | 'channels')}>
-		<div class="mb-4 flex items-center justify-between rounded bg-white p-3 shadow">
-			<TabsList class="p-1">
+		<div
+			class="mb-8 flex items-center justify-between rounded-2xl p-6"
+			style="background-color: var(--color-bg-secondary); box-shadow: var(--shadow-md); border: 1px solid var(--color-border);"
+		>
+			<TabsList class="p-1.5">
 				<TabsTrigger value="logs">Logs</TabsTrigger>
 				<TabsTrigger value="channels">Channels</TabsTrigger>
 			</TabsList>
-			<div class="flex items-center space-x-4">
-				<h1 class="text-lg font-semibold text-gray-900">Mirth Logs</h1>
+			<div class="flex items-center space-x-6">
+				<h1
+					class="flex items-center gap-3 text-2xl font-bold text-gray-900"
+					style="color: var(--color-text-primary);"
+				>
+					<span class="text-3xl">📡</span>
+					Mirth Logs
+				</h1>
 				{#if isLoadingData}
-					<div class="flex items-center text-blue-600">
-						<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
+					<div class="flex items-center text-blue-600 dark:text-blue-400">
+						<div
+							class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600 dark:border-blue-400"
+						></div>
 						<span class="text-sm">Loading...</span>
 					</div>
 				{/if}
 			</div>
+
+			<!-- Theme Toggle -->
+			<button
+				onclick={() => {
+					console.log('🎨 Theme toggle clicked!');
+					themeStore.toggle();
+					console.log('🎨 Current theme value:', $isDark);
+				}}
+				class="rounded-xl p-3 transition-all duration-200 hover:scale-105"
+				style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary); box-shadow: var(--shadow-sm);"
+				title={$isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+			>
+				{#if $isDark}
+					<!-- Sun icon for dark mode -->
+					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+						/>
+					</svg>
+				{:else}
+					<!-- Moon icon for light mode -->
+					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+						/>
+					</svg>
+				{/if}
+			</button>
+
+			<!-- Test Button -->
+			<button
+				onclick={() => {
+					console.log('🧪 Test button clicked!');
+					document.documentElement.classList.toggle('dark');
+					console.log(
+						'🧪 Dark class toggled:',
+						document.documentElement.classList.contains('dark')
+					);
+				}}
+				class="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 p-3 text-white transition-all duration-200 hover:scale-105 hover:from-blue-600 hover:to-purple-700"
+				style="box-shadow: var(--shadow-md);"
+				title="Test dark mode toggle"
+			>
+				�� Test
+			</button>
 		</div>
 
 		<TabsContent value="logs">

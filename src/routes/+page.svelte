@@ -64,9 +64,11 @@
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50">
+<div class="bg-gray-25 flex min-h-screen items-center justify-center dark:bg-gray-900">
 	<div class="text-center">
-		<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"></div>
-		<p class="text-gray-600">{statusText}</p>
+		<div
+			class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500 dark:border-blue-400"
+		></div>
+		<p class="text-gray-600 dark:text-gray-300">{statusText}</p>
 	</div>
 </div>

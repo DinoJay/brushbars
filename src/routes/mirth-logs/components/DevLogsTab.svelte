@@ -3,8 +3,8 @@
 	import { goto } from '$app/navigation';
 	import DayButtons from './DayButtons.svelte';
 	import LogFilters from './LogFilters.svelte';
-	import MirthActivityTimeline from '../MirthActivityTimeline.svelte';
-	import LogTable from '../LogTable.svelte';
+	import MirthActivityTimeline from './timeline/MirthActivityTimeline.svelte';
+	import LogTable from './LogTable.svelte';
 	import type { TimelineEntry } from '$lib/types';
 	import type { DayData, LogLevel } from '$stores/logStore.svelte';
 
@@ -62,13 +62,13 @@
 	<div class="flex min-h-[60vh] items-center justify-center">
 		<div class="text-center">
 			<div
-				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"
+				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500 dark:border-blue-400"
 			></div>
-			<p class="text-gray-600">Loading days…</p>
+			<p class="text-gray-600 dark:text-gray-300">Loading days…</p>
 		</div>
 	</div>
 {:else}
-	<div class="mb-6 rounded bg-white p-4 shadow">
+	<div class="mb-6 rounded bg-white p-4 shadow dark:bg-gray-800">
 		<DayButtons
 			{selectedDay}
 			todaysLiveEntries={[]}
@@ -87,10 +87,10 @@
 		}}
 	/>
 
-	<div class="mb-6 rounded bg-white p-4 shadow">
+	<div class="mb-6 rounded bg-white p-4 shadow dark:bg-gray-800">
 		<MirthActivityTimeline entries={entriesTimeline} onRangeChange={onSetRange} />
 	</div>
-	<div class="rounded bg-white p-4 shadow">
+	<div class="rounded bg-white p-4 shadow dark:bg-gray-800">
 		<LogTable entries={entriesTable} {selectedRange} />
 	</div>
 {/if}

@@ -198,7 +198,7 @@
 	let clearBrush_last: string | number | null | undefined = undefined;
 </script>
 
-<div class="bg-white p-6">
+<div class="rounded-xl bg-white p-6 dark:bg-gray-800">
 	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
@@ -262,7 +262,7 @@
 			<div class="pointer-events-auto absolute top-2 right-2">
 				<button
 					onclick={clearBrush}
-					class="rounded-md border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow-sm hover:bg-white"
+					class="rounded-lg bg-white/90 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-white dark:bg-gray-700/90 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Clear brush
 				</button>
@@ -271,7 +271,7 @@
 			<div class="flex h-full items-center justify-center">
 				<div class="text-center">
 					<div class="mb-2 text-4xl">📊</div>
-					<div class="text-gray-500">No data to display</div>
+					<div class="text-gray-500 dark:text-gray-400">No data to display</div>
 				</div>
 			</div>
 		{/if}

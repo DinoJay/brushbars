@@ -113,7 +113,7 @@
 	}
 </script>
 
-<div class="bg-white p-6">
+<div class="bg-white p-6 dark:bg-gray-800">
 	<!-- Chart Container -->
 	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
@@ -128,7 +128,7 @@
 			<div class="flex h-full items-center justify-center">
 				<div class="text-center">
 					<div class="mb-2 text-4xl">📊</div>
-					<div class="text-gray-500">No data to display</div>
+					<div class="text-gray-500 dark:text-gray-400">No data to display</div>
 				</div>
 			</div>
 		{/if}

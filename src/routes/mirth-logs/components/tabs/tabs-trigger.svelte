@@ -1,23 +1,21 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import { getContext } from 'svelte';
-	let { class: className = '', value } = $props<{ value: string }>();
+	interface $$Props {
+		value: string;
+		selected?: boolean;
+		class?: string;
+	}
 
-	type Ctx = { current: string | null; setValue: (v: string) => void };
-	const ctx = getContext<Ctx | undefined>('bb-tabs');
-	const selected = $derived((ctx?.current ?? null) === value);
+	let { value, selected = false, class: className = '' }: $$Props = $props();
 </script>
 
 <button
-	type="button"
-	class={cn(
-		'relative rounded-md px-3 py-2 text-sm font-medium transition-colors',
-		selected ? 'bg-blue-600 text-white shadow' : 'text-gray-700 hover:bg-gray-100',
-		className
-	)}
-	aria-selected={selected}
-	role="tab"
-	onclick={() => ctx?.setValue?.(value)}
+	class="relative rounded-lg px-5 py-3 text-sm font-medium transition-all duration-200 {className}"
+	class:selected
+	style="
+		{selected
+		? 'background-color: var(--color-accent); color: white; box-shadow: var(--shadow-md);'
+		: 'background-color: transparent; color: var(--color-text-secondary);'}
+	"
 >
 	<slot />
 </button>
