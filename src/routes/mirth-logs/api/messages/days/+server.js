@@ -83,7 +83,7 @@ export async function GET({ url }) {
 					// Determine level from message status
 					const level = (m.status || m.level || 'INFO').toUpperCase();
 
-					// Transform message to TimelineEntry format
+					// Transform message to comprehensive TimelineEntry format
 					const transformedMessage = {
 						id: m.id || m.correlationId || `${ch.id}_${Date.now()}_${Math.random()}`,
 						timestamp:
@@ -91,6 +91,42 @@ export async function GET({ url }) {
 						level: level,
 						channel: ch.name,
 						message: m.content || m.raw || m.transformed || 'No message content',
+
+						// Basic Message Information
+						messageId: m.id,
+						channelId: ch.id,
+						serverId: m.serverId,
+						receivedDate: m.receivedDate || m.timestamp || m.time || m.date,
+						status: m.status,
+						processed: m.processed,
+
+						// Connector Information
+						connectorName: m.connectorName,
+						connectorType: m.connectorType,
+						errorCode: m.errorCode,
+						sendAttempts: m.sendAttempts,
+						chainId: m.chainId,
+						orderId: m.orderId,
+
+						// Message Content
+						rawContent: m.raw,
+						transformedContent: m.transformed,
+						encodedContent: m.encoded,
+						responseContent: m.response,
+						responseTransformed: m.responseTransformed,
+						responseEncoded: m.responseEncoded,
+
+						// Processing Details
+						processingErrorContent: m.processingErrorContent,
+						postProcessorErrorContent: m.postProcessorErrorContent,
+						responseErrorContent: m.responseErrorContent,
+						metaDataMap: m.metaDataMap,
+
+						// Additional fields
+						correlationId: m.correlationId,
+						sequenceId: m.sequenceId,
+						error: m.error,
+
 						// Preserve original message data
 						originalMessage: {
 							...m,

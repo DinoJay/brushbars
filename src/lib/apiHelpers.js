@@ -54,7 +54,7 @@ export function parseLogLines(logText) {
 	let counter = 0;
 	let filteredCount = 0;
 
-	// Improved regex to handle more log formats
+	// Enhanced regex to capture more detailed information from Mirth logs
 	const regex =
 		/^(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([^\]]+)]\s+(\w+):\s+(.*)$/;
 
@@ -62,8 +62,12 @@ export function parseLogLines(logText) {
 		const match = line.match(regex);
 		if (match) {
 			const [, level, timestamp, context, logger, message] = match;
-			const channelMatch = context.match(/ on (\S+?) \(/);
-			const channel = channelMatch ? channelMatch[1] : '(unknown)';
+
+			// Extract rich information from the context
+			const contextInfo = parseContext(context);
+
+			// Extract additional information from the message
+			const messageInfo = parseMessage(message, level);
 
 			// Normalize timestamp format (add .000 if milliseconds missing)
 			let normalizedTimestamp = timestamp;
@@ -75,8 +79,64 @@ export function parseLogLines(logText) {
 				id: counter++,
 				level: level.toUpperCase(),
 				timestamp: normalizedTimestamp,
-				channel,
-				message
+				channel: contextInfo.channel,
+				message: message,
+				status: messageInfo.status,
+
+				// Extended Log Details
+				threadId: contextInfo.threadId,
+				userId: contextInfo.userId,
+				sessionId: contextInfo.sessionId,
+				correlationId: contextInfo.correlationId,
+				sourceIp: contextInfo.sourceIp,
+				destinationIp: contextInfo.destinationIp,
+
+				// Channel-Specific Information
+				channelName: contextInfo.channelName,
+				channelVersion: contextInfo.channelVersion,
+				connectorType: contextInfo.connectorType,
+				connectorName: contextInfo.connectorName,
+				channelId: contextInfo.channelId,
+				channelStatus: contextInfo.channelStatus,
+
+				// Processing Context
+				messageId: messageInfo.messageId,
+				processingTime: messageInfo.processingTime,
+				queueSize: messageInfo.queueSize,
+				memoryUsage: messageInfo.memoryUsage,
+				cpuUsage: messageInfo.cpuUsage,
+				processingStatus: messageInfo.processingStatus,
+
+				// Performance Metrics
+				responseTime: messageInfo.responseTime,
+				throughput: messageInfo.throughput,
+				queueLatency: messageInfo.queueLatency,
+				resourceUtilization: messageInfo.resourceUtilization,
+				avgProcessingTime: messageInfo.avgProcessingTime,
+				peakMemoryUsage: messageInfo.peakMemoryUsage,
+
+				// Network Information
+				protocol: messageInfo.protocol,
+				sourcePort: messageInfo.sourcePort,
+				destinationPort: messageInfo.destinationPort,
+				connectionStatus: messageInfo.connectionStatus,
+				networkLatency: messageInfo.networkLatency,
+				connectionType: messageInfo.connectionType,
+
+				// Error Context
+				exceptionType: messageInfo.exceptionType,
+				stackTrace: messageInfo.stackTrace,
+				errorCode: messageInfo.errorCode,
+				retryCount: messageInfo.retryCount,
+				lastError: messageInfo.lastError,
+				errorDetails: messageInfo.errorDetails,
+
+				// Additional extracted fields
+				processingType: contextInfo.processingType,
+				destinationNumber: contextInfo.destinationNumber,
+				sqlQuery: messageInfo.sqlQuery,
+				patientInfo: messageInfo.patientInfo,
+				hl7Message: messageInfo.hl7Message
 			});
 		} else {
 			// Try alternative regex patterns for different log formats
@@ -86,8 +146,8 @@ export function parseLogLines(logText) {
 
 			if (altMatch1) {
 				const [, timestamp, level, context, message] = altMatch1;
-				const channelMatch = context.match(/ on (\S+?) \(/);
-				const channel = channelMatch ? channelMatch[1] : '(unknown)';
+				const contextInfo = parseContext(context);
+				const messageInfo = parseMessage(message, level);
 
 				let normalizedTimestamp = timestamp;
 				if (!timestamp.includes('.')) {
@@ -98,8 +158,64 @@ export function parseLogLines(logText) {
 					id: counter++,
 					level: level.toUpperCase(),
 					timestamp: normalizedTimestamp,
-					channel,
-					message
+					channel: contextInfo.channel,
+					message: message,
+					status: messageInfo.status,
+
+					// Extended Log Details
+					threadId: contextInfo.threadId,
+					userId: contextInfo.userId,
+					sessionId: contextInfo.sessionId,
+					correlationId: contextInfo.correlationId,
+					sourceIp: contextInfo.sourceIp,
+					destinationIp: contextInfo.destinationIp,
+
+					// Channel-Specific Information
+					channelName: contextInfo.channelName,
+					channelVersion: contextInfo.channelVersion,
+					connectorType: contextInfo.connectorType,
+					connectorName: contextInfo.connectorName,
+					channelId: contextInfo.channelId,
+					channelStatus: contextInfo.channelStatus,
+
+					// Processing Context
+					messageId: messageInfo.messageId,
+					processingTime: messageInfo.processingTime,
+					queueSize: messageInfo.queueSize,
+					memoryUsage: messageInfo.memoryUsage,
+					cpuUsage: messageInfo.cpuUsage,
+					processingStatus: messageInfo.processingStatus,
+
+					// Performance Metrics
+					responseTime: messageInfo.responseTime,
+					throughput: messageInfo.throughput,
+					queueLatency: messageInfo.queueLatency,
+					resourceUtilization: messageInfo.resourceUtilization,
+					avgProcessingTime: messageInfo.avgProcessingTime,
+					peakMemoryUsage: messageInfo.peakMemoryUsage,
+
+					// Network Information
+					protocol: messageInfo.protocol,
+					sourcePort: messageInfo.sourcePort,
+					destinationPort: messageInfo.destinationPort,
+					connectionStatus: messageInfo.connectionStatus,
+					networkLatency: messageInfo.networkLatency,
+					connectionType: messageInfo.connectionType,
+
+					// Error Context
+					exceptionType: messageInfo.exceptionType,
+					stackTrace: messageInfo.stackTrace,
+					errorCode: messageInfo.errorCode,
+					retryCount: messageInfo.retryCount,
+					lastError: messageInfo.lastError,
+					errorDetails: messageInfo.errorDetails,
+
+					// Additional extracted fields
+					processingType: contextInfo.processingType,
+					destinationNumber: contextInfo.destinationNumber,
+					sqlQuery: messageInfo.sqlQuery,
+					patientInfo: messageInfo.patientInfo,
+					hl7Message: messageInfo.hl7Message
 				});
 			} else {
 				// Skip lines that don't match any pattern
@@ -125,6 +241,190 @@ export function parseLogLines(logText) {
 	}
 
 	return validEntries;
+}
+
+// Enhanced context parsing function
+function parseContext(context) {
+	const result = {
+		channel: '(unknown)',
+		threadId: null,
+		userId: null,
+		sessionId: null,
+		correlationId: null,
+		sourceIp: null,
+		destinationIp: null,
+		channelName: null,
+		channelVersion: null,
+		connectorType: null,
+		connectorName: null,
+		channelId: null,
+		channelStatus: null,
+		processingType: null,
+		destinationNumber: null
+	};
+
+	try {
+		// Extract channel information: "Destination Filter/Transformer JavaScript Task on ADT_QRY19 (a5a398c3-6fd8-4866-bc93-2924e3ac5f0d), Destination 1 (1)"
+		const channelMatch = context.match(/on (\S+?) \(([^)]+)\)/);
+		if (channelMatch) {
+			result.channel = channelMatch[1];
+			result.channelId = channelMatch[2];
+		}
+
+		// Extract thread information: "pool-1-thread-94"
+		const threadMatch = context.match(/< ([^>]+)$/);
+		if (threadMatch) {
+			result.threadId = threadMatch[1];
+		}
+
+		// Extract processing type: "Destination Filter/Transformer JavaScript Task"
+		const processingMatch = context.match(/^([^/]+)/);
+		if (processingMatch) {
+			result.processingType = processingMatch[1].trim();
+		}
+
+		// Extract destination information: "Destination 1 (1)"
+		const destMatch = context.match(/(Destination \d+ \(\d+\))/);
+		if (destMatch) {
+			result.destinationNumber = destMatch[1];
+			result.connectorName = destMatch[1];
+		}
+
+		// Extract connector type from processing type
+		if (result.processingType) {
+			if (result.processingType.includes('Source')) {
+				result.connectorType = 'Source';
+			} else if (result.processingType.includes('Destination')) {
+				result.connectorType = 'Destination';
+			} else if (result.processingType.includes('Filter')) {
+				result.connectorType = 'Filter';
+			} else if (result.processingType.includes('Transformer')) {
+				result.connectorType = 'Transformer';
+			}
+		}
+
+		// Set channel name and status
+		result.channelName = result.channel;
+		result.channelStatus = 'ACTIVE'; // Default assumption
+	} catch (error) {
+		console.warn('⚠️ Error parsing context:', context, error);
+	}
+
+	return result;
+}
+
+// Enhanced message parsing function
+function parseMessage(message, level) {
+	const result = {
+		status: 'INFO',
+		messageId: null,
+		processingTime: null,
+		queueSize: null,
+		memoryUsage: null,
+		cpuUsage: null,
+		processingStatus: null,
+		responseTime: null,
+		throughput: null,
+		queueLatency: null,
+		resourceUtilization: null,
+		avgProcessingTime: null,
+		peakMemoryUsage: null,
+		protocol: null,
+		sourcePort: null,
+		destinationPort: null,
+		connectionStatus: null,
+		networkLatency: null,
+		connectionType: null,
+		exceptionType: null,
+		stackTrace: null,
+		errorCode: null,
+		retryCount: null,
+		lastError: null,
+		errorDetails: null,
+		sqlQuery: null,
+		patientInfo: null,
+		hl7Message: null
+	};
+
+	try {
+		// Set status based on level
+		if (level === 'ERROR') {
+			result.status = 'ERROR';
+		} else if (level === 'WARN' || level === 'WARNING') {
+			result.status = 'WARNING';
+		} else if (level === 'INFO') {
+			result.status = 'INFO';
+		} else if (level === 'DEBUG') {
+			result.status = 'DEBUG';
+		}
+
+		// Extract SQL queries
+		const sqlMatch = message.match(/SQL [^:]+: (.+?)(?:\s|$)/);
+		if (sqlMatch) {
+			result.sqlQuery = sqlMatch[1];
+		}
+
+		// Extract patient information
+		const patientMatch = message.match(/Signalétique récupérée : (.+?)(?:\s|$)/);
+		if (patientMatch) {
+			result.patientInfo = patientMatch[1];
+		}
+
+		// Extract HL7 message information
+		const hl7Match = message.match(/(?:QRY\^A19|ADR\^A19) (.+?)(?:\s|$)/);
+		if (hl7Match) {
+			result.hl7Message = hl7Match[1];
+		}
+
+		// Extract error information for ERROR level logs
+		if (level === 'ERROR') {
+			// Extract Java exception type
+			const exceptionMatch = message.match(/JavaException: ([^:]+)/);
+			if (exceptionMatch) {
+				result.exceptionType = exceptionMatch[1];
+			}
+
+			// Extract error details
+			const errorMatch = message.match(
+				/Erreur JDBC lors de la résolution NSEJ\/CBMRN : (.+?)(?:\s|$)/
+			);
+			if (errorMatch) {
+				result.errorDetails = errorMatch[1];
+			}
+
+			// Extract SQL error codes
+			const sqlErrorMatch = message.match(/\[SQL(\d+)\]/);
+			if (sqlErrorMatch) {
+				result.errorCode = `SQL${sqlErrorMatch[1]}`;
+			}
+		}
+
+		// Extract processing status
+		if (message.includes('statut = OK')) {
+			result.processingStatus = 'COMPLETED';
+		} else if (message.includes('statut = AE')) {
+			result.processingStatus = 'ERROR';
+		} else if (message.includes('received for')) {
+			result.processingStatus = 'RECEIVED';
+		}
+
+		// Extract message IDs (CBMRN, NSEJ)
+		const cbMrnMatch = message.match(/CBMRN: (\S+)/);
+		if (cbMrnMatch) {
+			result.messageId = `CBMRN_${cbMrnMatch[1]}`;
+		}
+
+		const nsejMatch = message.match(/NSEJ: (\S+)/);
+		if (nsejMatch) {
+			result.messageId = result.messageId
+				? `${result.messageId}_NSEJ_${nsejMatch[1]}`
+				: `NSEJ_${nsejMatch[1]}`;
+		}
+	} catch (error) {
+		console.warn('⚠️ Error parsing message:', message, error);
+	}
+
+	return result;
 }
 
 // Load logs from all-logs.txt file
@@ -592,16 +892,18 @@ export async function getChannelMessages(channelId, options = {}) {
 				// Parse each message XML block
 				messages = messageMatches.map((messageXml, index) => {
 					// Extract message ID
-					// console.log('🔍 Message XML:', mgccessageXml);
 					const idMatch = messageXml.match(/<id>([^<]+)<\/id>/);
 					const id = idMatch ? idMatch[1] : `msg-${index}`;
+
+					// Extract server ID
+					const serverIdMatch = messageXml.match(/<serverId>([^<]+)<\/serverId>/);
+					const serverId = serverIdMatch ? serverIdMatch[1] : null;
 
 					// Extract received date from Mirth's nested XML structure
 					const timeMatch = messageXml.match(/<time>([^<]+)<\/time>/);
 					const receivedDate = timeMatch
 						? new Date(parseInt(timeMatch[1])).toISOString() // Convert Unix timestamp to ISO
 						: new Date().toISOString();
-					// console.log('🔍 Received date:', receivedDate);
 
 					// Extract status
 					const statusMatch = messageXml.match(/<status>([^<]+)<\/status>/);
@@ -611,6 +913,88 @@ export async function getChannelMessages(channelId, options = {}) {
 					const processedMatch = messageXml.match(/<processed>([^<]+)<\/processed>/);
 					const processed = processedMatch ? processedMatch[1] === 'true' : false;
 
+					// Extract connector message details
+					const connectorMessageMatch = messageXml.match(
+						/<connectorMessage>([\s\S]*?)<\/connectorMessage>/
+					);
+					let connectorName = 'Unknown';
+					let connectorType = 'Unknown';
+					let errorCode = null;
+					let sendAttempts = 0;
+					let chainId = 0;
+					let orderId = 0;
+
+					if (connectorMessageMatch) {
+						const connectorXml = connectorMessageMatch[1];
+
+						// Extract connector name
+						const connectorNameMatch = connectorXml.match(
+							/<connectorName>([^<]*)<\/connectorName>/
+						);
+						connectorName = connectorNameMatch ? connectorNameMatch[1] : 'Unknown';
+
+						// Extract error code
+						const errorCodeMatch = connectorXml.match(/<errorCode>([^<]+)<\/errorCode>/);
+						errorCode = errorCodeMatch ? errorCodeMatch[1] : null;
+
+						// Extract send attempts
+						const sendAttemptsMatch = connectorXml.match(/<sendAttempts>([^<]+)<\/sendAttempts>/);
+						sendAttempts = sendAttemptsMatch ? parseInt(sendAttemptsMatch[1]) : 0;
+
+						// Extract chain ID
+						const chainIdMatch = connectorXml.match(/<chainId>([^<]+)<\/chainId>/);
+						chainId = chainIdMatch ? parseInt(chainIdMatch[1]) : 0;
+
+						// Extract order ID
+						const orderIdMatch = connectorXml.match(/<orderId>([^<]+)<\/orderId>/);
+						orderId = orderIdMatch ? parseInt(orderIdMatch[1]) : 0;
+					}
+
+					// Extract content maps
+					const sourceMapMatch = messageXml.match(
+						/<sourceMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const rawContent = sourceMapMatch ? sourceMapMatch[1].trim() : null;
+
+					const transformedMapMatch = messageXml.match(
+						/<connectorMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const transformedContent = transformedMapMatch ? transformedMapMatch[1].trim() : null;
+
+					const encodedMapMatch = messageXml.match(
+						/<channelMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const encodedContent = encodedMapMatch ? encodedMapMatch[1].trim() : null;
+
+					const responseMapMatch = messageXml.match(
+						/<responseMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const responseContent = responseMapMatch ? responseMapMatch[1].trim() : null;
+
+					// Extract error content
+					const processingErrorMatch = messageXml.match(
+						/<processingErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const processingErrorContent = processingErrorMatch
+						? processingErrorMatch[1].trim()
+						: null;
+
+					const postProcessorErrorMatch = messageXml.match(
+						/<postProcessorErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const postProcessorErrorContent = postProcessorErrorMatch
+						? postProcessorErrorMatch[1].trim()
+						: null;
+
+					const responseErrorMatch = messageXml.match(
+						/<responseErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
+					);
+					const responseErrorContent = responseErrorMatch ? responseErrorMatch[1].trim() : null;
+
+					// Extract metadata
+					const metaDataMatch = messageXml.match(/<metaDataMap>([\s\S]*?)<\/metaDataMap>/);
+					const metaDataMap = metaDataMatch ? metaDataMatch[1].trim() : null;
+
 					return {
 						id,
 						channelId,
@@ -618,18 +1002,37 @@ export async function getChannelMessages(channelId, options = {}) {
 						receivedDate,
 						processed,
 						status,
-						connectorName: 'Unknown',
-						connectorType: 'Unknown',
-						content: null,
-						raw: null,
-						transformed: null,
-						encoded: null,
-						response: null,
-						responseTransformed: null,
-						responseEncoded: null,
-						error: null,
-						correlationId: null,
-						sequenceId: null
+
+						// Basic Message Information
+						serverId,
+
+						// Connector Information
+						connectorName,
+						connectorType,
+						errorCode,
+						sendAttempts,
+						chainId,
+						orderId,
+
+						// Message Content
+						content: rawContent,
+						raw: rawContent,
+						transformed: transformedContent,
+						encoded: encodedContent,
+						response: responseContent,
+						responseTransformed: null, // Not directly available in XML
+						responseEncoded: null, // Not directly available in XML
+
+						// Processing Details
+						processingErrorContent,
+						postProcessorErrorContent,
+						responseErrorContent,
+						metaDataMap,
+
+						// Additional fields
+						error: processingErrorContent || responseErrorContent,
+						correlationId: null, // Not directly available in XML
+						sequenceId: null // Not directly available in XML
 					};
 				});
 			} else {

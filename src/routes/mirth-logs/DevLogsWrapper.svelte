@@ -86,16 +86,16 @@
 </script>
 
 {#if showSpinner}
-	<div class="flex min-h-[60vh] items-center justify-center">
+	<div class="flex min-h-[40vh] items-center justify-center">
 		<div class="text-center">
 			<div
-				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500"
+				class="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500"
 			></div>
 			<p class="text-gray-600">Loading days…</p>
 		</div>
 	</div>
 {:else}
-	<div class="mb-6 rounded bg-white p-4 shadow">
+	<div class="mb-4 rounded bg-white p-3 shadow">
 		<DayButtons
 			selectedDay={selectedDayFromUrl()}
 			todaysLiveEntries={[]}
@@ -114,14 +114,14 @@
 		}}
 	/>
 
-	<div class="mb-6 rounded bg-white p-4 shadow">
+	<div class="mb-4 rounded bg-white p-3 shadow">
 		<MirthActivityTimeline
 			entries={logStore.timelineDevLogs}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
 			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 		/>
 	</div>
-	<div class="rounded bg-white p-4 shadow">
+	<div class="rounded bg-white p-3 shadow">
 		<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

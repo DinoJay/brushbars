@@ -96,141 +96,76 @@
 	};
 </script>
 
-<div class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-	<div class="mb-4 flex items-center justify-between">
-		<h3 class="text-lg font-semibold text-gray-900">Filters</h3>
-		<button
-			onclick={clearFilters}
-			class="rounded-md bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-		>
-			Clear All
-		</button>
+<div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+	<div class="mb-3 flex items-center justify-between">
+		<div class="flex items-center space-x-4">
+			<h3 class="text-sm font-medium text-gray-900">Filters</h3>
+			<span class="text-xs text-gray-500">Total: {totalCount.toLocaleString()}</span>
+		</div>
+		{#if selectedLevel || selectedChannel}
+			<button onclick={clearFilters} class="text-xs text-blue-600 hover:text-blue-800">
+				Clear all
+			</button>
+		{/if}
 	</div>
 
-	<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-		<!-- Level Filter List (scrollable list, sticky header) -->
-		<div class="flex max-h-[360px] flex-col overflow-auto">
-			<h4
-				class="sticky top-0 z-10 mb-3 bg-white/95 py-1 text-sm font-medium text-gray-700 backdrop-blur"
-			>
-				Log Level
-			</h4>
-			<div class="space-y-2">
-				<!-- All Levels Option -->
+	<div class="flex flex-wrap gap-3">
+		<!-- Level Filter -->
+		<div class="flex items-center space-x-2">
+			<label class="text-xs font-medium text-gray-700">Level:</label>
+			<div class="flex space-x-1">
 				<button
 					onclick={() => setLevel(null)}
-					class="flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all {selectedLevel ===
-					null
-						? 'border-blue-500 bg-blue-50 text-blue-900'
-						: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}"
+					class="rounded px-2 py-1 text-xs font-medium transition-colors {!selectedLevel
+						? 'bg-blue-100 text-blue-800'
+						: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
 				>
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-medium">All Levels</span>
-					</div>
-					<span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-						{totalCount}
-					</span>
+					All ({totalCount.toLocaleString()})
 				</button>
-
-				<!-- Individual Level Options -->
 				{#each availableLevels as level}
 					<button
-						onclick={() => setLevel(level as LogLevel)}
-						class="flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all {selectedLevel ===
-						level
-							? 'border-blue-500 bg-blue-50 text-blue-900'
-							: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}"
+						onclick={() => setLevel(level as any)}
+						class="rounded px-2 py-1 text-xs font-medium transition-colors {selectedLevel === level
+							? levelColors[level] || 'bg-blue-100 text-blue-800'
+							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
 					>
-						<div class="flex items-center gap-2">
-							<span class="text-sm font-medium">{level}</span>
-						</div>
-						<span
-							class="rounded-full px-2 py-1 text-xs font-semibold {selectedLevel === level
-								? 'bg-blue-200 text-blue-900'
-								: levelColors[level] || 'bg-gray-100 text-gray-700'}"
-						>
-							{levelCounts[level] || 0}
-						</span>
+						{level} ({levelCounts[level]?.toLocaleString() || 0})
 					</button>
 				{/each}
 			</div>
 		</div>
 
-		<!-- Channel Filter List (scrollable list, sticky header) -->
-		<div class="flex max-h-[360px] flex-col overflow-auto">
-			<h4
-				class="sticky top-0 z-10 mb-3 bg-white/95 py-1 text-sm font-medium text-gray-700 backdrop-blur"
-			>
-				Channel
-			</h4>
-			<div class="space-y-2">
-				<!-- All Channels Option -->
-				<button
-					onclick={() => setChannel(null)}
-					class="flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all {selectedChannel ===
-					null
-						? 'border-blue-500 bg-blue-50 text-blue-900'
-						: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}"
-				>
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-medium">All Channels</span>
-					</div>
-					<span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-						{totalCount}
-					</span>
-				</button>
-
-				<!-- Individual Channel Options -->
-				{#each availableChannels as channel}
+		<!-- Channel Filter -->
+		{#if availableChannels.length > 0}
+			<div class="flex items-center space-x-2">
+				<label class="text-xs font-medium text-gray-700">Channel:</label>
+				<div class="flex space-x-1">
 					<button
-						onclick={() => setChannel(channel)}
-						class="flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all {selectedChannel ===
-						channel
-							? 'border-blue-500 bg-blue-50 text-blue-900'
-							: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'}"
+						onclick={() => setChannel(null)}
+						class="rounded px-2 py-1 text-xs font-medium transition-colors {!selectedChannel
+							? 'bg-blue-100 text-blue-800'
+							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
 					>
-						<div class="flex items-center gap-2">
-							<span class="text-sm font-medium">{channel}</span>
-						</div>
-						<span
-							class="rounded-full px-2 py-1 text-xs font-semibold {selectedChannel === channel
-								? 'bg-blue-200 text-blue-900'
-								: 'bg-gray-100 text-gray-700'}"
-						>
-							{channelCounts[channel] || 0}
-						</span>
+						All
 					</button>
-				{/each}
+					{#each availableChannels.slice(0, 10) as channel}
+						<button
+							onclick={() => setChannel(channel)}
+							class="rounded px-2 py-1 text-xs font-medium transition-colors {selectedChannel ===
+							channel
+								? 'bg-blue-100 text-blue-800'
+								: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+						>
+							{channel} ({channelCounts[channel]?.toLocaleString() || 0})
+						</button>
+					{/each}
+					{#if availableChannels.length > 10}
+						<span class="px-2 py-1 text-xs text-gray-500">
+							+{availableChannels.length - 10} more
+						</span>
+					{/if}
+				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
-
-	<!-- Active Filters Summary -->
-	{#if selectedLevel || selectedChannel}
-		<div class="mt-4 rounded-lg bg-blue-50 p-3">
-			<div class="flex items-center gap-2">
-				<span class="text-sm font-medium text-blue-900">Active Filters:</span>
-				{#if selectedLevel}
-					<span
-						class="inline-flex items-center rounded-full bg-blue-200 px-2 py-1 text-xs font-medium text-blue-900"
-					>
-						Level: {selectedLevel}
-						<button onclick={() => setLevel(null)} class="ml-1 text-blue-600 hover:text-blue-800">
-							×
-						</button>
-					</span>
-				{/if}
-				{#if selectedChannel}
-					<span
-						class="inline-flex items-center rounded-full bg-blue-200 px-2 py-1 text-xs font-medium text-blue-900"
-					>
-						Channel: {selectedChannel}
-						<button onclick={() => setChannel(null)} class="ml-1 text-blue-600 hover:text-blue-800">
-							×
-						</button>
-					</span>
-				{/if}
-			</div>
-		</div>
-	{/if}
 </div>

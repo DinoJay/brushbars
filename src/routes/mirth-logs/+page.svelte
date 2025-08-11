@@ -243,24 +243,23 @@
 	}
 </script>
 
-<main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-6 font-sans">
-	<div class="mb-6 rounded bg-white p-4 shadow">
-		<div class="flex items-center justify-between">
-			<h1 class="text-2xl font-bold text-gray-900">Mirth Logs</h1>
-			{#if isLoadingData}
-				<div class="flex items-center text-blue-600">
-					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
-					<span class="text-sm">Loading...</span>
-				</div>
-			{/if}
-		</div>
-	</div>
-
+<main class="mx-auto min-h-screen max-w-screen-2xl bg-gray-50 p-4 font-sans">
 	<Tabs value={currentTab} on:change={(e) => handleTabChange(e.detail as 'logs' | 'channels')}>
-		<TabsList class="mb-6 p-2">
-			<TabsTrigger value="logs">Logs</TabsTrigger>
-			<TabsTrigger value="channels">Channels</TabsTrigger>
-		</TabsList>
+		<div class="mb-4 flex items-center justify-between rounded bg-white p-3 shadow">
+			<TabsList class="p-1">
+				<TabsTrigger value="logs">Logs</TabsTrigger>
+				<TabsTrigger value="channels">Channels</TabsTrigger>
+			</TabsList>
+			<div class="flex items-center space-x-4">
+				<h1 class="text-lg font-semibold text-gray-900">Mirth Logs</h1>
+				{#if isLoadingData}
+					<div class="flex items-center text-blue-600">
+						<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600"></div>
+						<span class="text-sm">Loading...</span>
+					</div>
+				{/if}
+			</div>
+		</div>
 
 		<TabsContent value="logs">
 			<DevLogsWrapper />

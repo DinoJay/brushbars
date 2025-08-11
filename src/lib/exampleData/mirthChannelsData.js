@@ -222,13 +222,19 @@ export function generateChannelMessages(channelId, days = 30) {
 				receivedDate: timestamp.toISOString(),
 				processed: success,
 				status: success ? 'SENT' : 'ERROR',
+
+				// Basic Message Information
+				serverId: `96f0532e-8b4d-4086-ae72-622f90f7381d`,
+
+				// Connector Information
 				connectorName: success ? 'Destination 1' : 'Source Connector',
 				connectorType: success ? 'DATABASE_WRITER' : 'HTTP_LISTENER',
-				correlationId: `CORR_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-				sequenceId: i + 1,
-				error: success
-					? null
-					: pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)],
+				errorCode: success ? null : Math.floor(Math.random() * 10) + 1,
+				sendAttempts: success ? 1 : Math.floor(Math.random() * 3) + 1,
+				chainId: Math.floor(Math.random() * 5),
+				orderId: Math.floor(Math.random() * 1000),
+
+				// Message Content
 				content: success
 					? `${pattern.contentTypes[0]}|${Math.random().toString(36).substr(2, 8)}`
 					: null,
@@ -241,7 +247,32 @@ export function generateChannelMessages(channelId, days = 30) {
 				encoded: success ? `encoded_${Math.random().toString(36).substr(2, 6)}` : null,
 				response: success ? 'ACK' : 'NACK',
 				responseTransformed: success ? '{"acknowledgment": "AA"}' : '{"acknowledgment": "AE"}',
-				responseEncoded: success ? 'encoded_response' : 'encoded_error'
+				responseEncoded: success ? 'encoded_response' : 'encoded_error',
+
+				// Processing Details
+				processingErrorContent: success
+					? null
+					: `Error processing message: ${pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)]}`,
+				postProcessorErrorContent: success
+					? null
+					: Math.random() < 0.3
+						? `Post-processor failed: ${pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)]}`
+						: null,
+				responseErrorContent: success
+					? null
+					: Math.random() < 0.2
+						? `Response error: ${pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)]}`
+						: null,
+				metaDataMap: success
+					? `{"source": "HIS", "priority": "normal", "batchId": "B${Math.random().toString(36).substr(2, 6).toUpperCase()}"}`
+					: null,
+
+				// Additional fields
+				correlationId: `CORR_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+				sequenceId: i + 1,
+				error: success
+					? null
+					: pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)]
 			};
 
 			messages.push(message);
