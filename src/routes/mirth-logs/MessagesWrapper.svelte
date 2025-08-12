@@ -154,6 +154,12 @@
 
 		return filtered;
 	});
+
+	// Entries for LogFilters: merged (stored + live) and restricted to the selected day via store helper
+	const filterEntriesForSelectedDay = $derived.by(() => {
+		const day = selectedDayFromUrl();
+		return day ? (logStore as any).getMessageFilterEntriesForDay(day) : ([] as any[]);
+	});
 </script>
 
 <div
@@ -172,7 +178,7 @@
 
 {#if !(props.loading || isFetchingDay)}
 	<LogFilters
-		entries={logStore.allMessages}
+		entries={filterEntriesForSelectedDay}
 		onFiltersChange={(l, c) => {
 			logStore.setSelectedLevel(l as any);
 			logStore.setSelectedChannel(c);

@@ -394,7 +394,7 @@ if (IS_ATHOME) {
 	}
 
 	// Periodically send small bursts of new logs (every 6 seconds)
-	const LOG_INTERVAL_MS = Number(process.env.SYNTH_LOG_INTERVAL_MS || 6000);
+	const LOG_INTERVAL_MS = Number(process.env.SYNTH_LOG_INTERVAL_MS || 1000);
 	const LOG_BURST_MIN = 3;
 	const LOG_BURST_MAX = 15;
 
@@ -406,7 +406,7 @@ if (IS_ATHOME) {
 	}, LOG_INTERVAL_MS);
 
 	// Periodically send small bursts of new channel messages (every 4 seconds)
-	const MESSAGE_INTERVAL_MS = Number(process.env.SYNTH_MESSAGE_INTERVAL_MS || 4000);
+	const MESSAGE_INTERVAL_MS = Number(process.env.SYNTH_MESSAGE_INTERVAL_MS || 1000);
 	const MESSAGE_BURST_MIN = 2;
 	const MESSAGE_BURST_MAX = 8;
 

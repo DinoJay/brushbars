@@ -39,6 +39,36 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return date ? date.toISOString().split('T')[0] : null;
 	}
 
+	// Utility: check if a timestamp falls on an ISO day (YYYY-MM-DD)
+	function isOnDay(timestamp: string, day: string): boolean {
+		try {
+			const d = new Date(timestamp).toISOString().split('T')[0];
+			return d === day;
+		} catch {
+			return false;
+		}
+	}
+
+	// Channel normalization utilities (case-insensitive; strip trailing counts like "MAIN (6)")
+	function normalizeChannelName(name: string | null | undefined): string {
+		if (!name) return '';
+		const cleaned = String(name)
+			.trim()
+			.replace(/\s*\([^)]*\)\s*$/, '');
+		return cleaned.toUpperCase();
+	}
+
+	function getEntryChannel(entry: any): string | null {
+		return (entry?.channel ?? entry?.channelName ?? null) as string | null;
+	}
+
+	function channelMatches(entry: any, selected: string | null): boolean {
+		if (!selected) return true;
+		const entryNorm = normalizeChannelName(getEntryChannel(entry));
+		const selectedNorm = normalizeChannelName(selected);
+		return entryNorm !== '' && entryNorm === selectedNorm;
+	}
+
 	// Reactive state using Svelte 5 runes
 	let liveDevLogEntries = $state<LogEntry[]>([]); // Live dev logs streamed via WebSocket
 	let liveMessages = $state<LogEntry[]>([]); // Live channel messages streamed via WebSocket
@@ -66,10 +96,76 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return [...(devLogs || []), ...(liveDevLogEntries || [])];
 	});
 
-	// All messages without any filters (no live WS for messages yet)
+	// All messages without any filters: merge stored + live, de-duplicate by id
 	let allMessages = $derived.by(() => {
-		return [...(messages || [])];
+		const list = [...(messages || []), ...(liveMessages || [])];
+		const seen = new Set<string | number>();
+		const deduped: LogEntry[] = [];
+		for (const m of list) {
+			const id =
+				(m as any)?.id ?? `${(m as any)?.timestamp}|${(m as any)?.channel}|${(m as any)?.message}`;
+			if (!seen.has(id)) {
+				seen.add(id);
+				deduped.push(m);
+			}
+		}
+		return deduped;
 	});
+
+	// Helpers for LogFilters: merged day-specific entries (deduplicated)
+	function dedupeById(list: LogEntry[]): LogEntry[] {
+		const seen = new Set<string | number>();
+		const out: LogEntry[] = [];
+		for (const e of list) {
+			const id =
+				(e as any)?.id ?? `${(e as any)?.timestamp}|${(e as any)?.channel}|${(e as any)?.message}`;
+			if (!seen.has(id)) {
+				seen.add(id);
+				out.push(e);
+			}
+		}
+		return out;
+	}
+
+	function getDevFilterEntriesForDay(day: string): LogEntry[] {
+		if (!day) return [] as LogEntry[];
+		const merged = [...(devLogs || []), ...(liveDevLogEntries || [])];
+		const dayOnly = merged.filter((e: any) => isOnDay((e as any)?.timestamp, day));
+		return dedupeById(dayOnly);
+	}
+
+	function getMessageFilterEntriesForDay(day: string): LogEntry[] {
+		if (!day) return [] as LogEntry[];
+		const merged = [...(messages || []), ...(liveMessages || [])];
+		const dayOnly = merged.filter((e: any) => isOnDay((e as any)?.timestamp, day));
+		return dedupeById(dayOnly);
+	}
+
+	// Timeline helpers (merged + filtered by current selected filters)
+	function applyLevelAndChannelFilters(list: LogEntry[]): LogEntry[] {
+		let filtered = list;
+		if (selectedLevel) {
+			filtered = filtered.filter((e: any) => e?.level === selectedLevel);
+		}
+		if (selectedChannel) {
+			filtered = filtered.filter((e: any) => channelMatches(e as any, selectedChannel));
+		}
+		return filtered;
+	}
+
+	function getTimelineDevEntriesForDay(day: string): LogEntry[] {
+		if (!day) return [] as LogEntry[];
+		const merged = [...(devLogs || []), ...(liveDevLogEntries || [])];
+		const dayOnly = merged.filter((e: any) => isOnDay((e as any)?.timestamp, day));
+		return applyLevelAndChannelFilters(dedupeById(dayOnly));
+	}
+
+	function getTimelineMessageEntriesForDay(day: string): LogEntry[] {
+		if (!day) return [] as LogEntry[];
+		const merged = [...(messages || []), ...(liveMessages || [])];
+		const dayOnly = merged.filter((e: any) => isOnDay((e as any)?.timestamp, day));
+		return applyLevelAndChannelFilters(dedupeById(dayOnly));
+	}
 
 	// All dev log entries (without brush filter - for timeline)
 	let timelineDevLogs = $derived.by(() => {
@@ -82,7 +178,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 		// Apply channel filter
 		if (selectedChannel) {
-			filtered = filtered.filter((log) => log.channel === selectedChannel);
+			filtered = filtered.filter((log) => channelMatches(log as any, selectedChannel));
 		}
 
 		return filtered;
@@ -131,39 +227,39 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	});
 
 	// All dev log entries (with all filters including brush - for table)
-	let filteredDevLogs = $derived.by(() => {
-		// Early return if no brush filter
-		if (!selectedRange || selectedRange.length !== 2) {
-			return timelineDevLogs;
-		}
+	// let filteredDevLogs = $derived.by(() => {
+	// 	// Early return if no brush filter
+	// 	if (!selectedRange || selectedRange.length !== 2) {
+	// 		return timelineDevLogs;
+	// 	}
 
-		const [start, end] = selectedRange;
-		if (
-			!(start instanceof Date) ||
-			isNaN(start.getTime()) ||
-			!(end instanceof Date) ||
-			isNaN(end.getTime())
-		) {
-			return [] as LogEntry[];
-		}
-		const startMs = start.getTime();
-		const endMs = end.getTime();
+	// 	const [start, end] = selectedRange;
+	// 	if (
+	// 		!(start instanceof Date) ||
+	// 		isNaN(start.getTime()) ||
+	// 		!(end instanceof Date) ||
+	// 		isNaN(end.getTime())
+	// 	) {
+	// 		return [] as LogEntry[];
+	// 	}
+	// 	const startMs = start.getTime();
+	// 	const endMs = end.getTime();
 
-		const arr = sortedTimelineDevLogs;
-		if (arr.length === 0) {
-			return arr;
-		}
+	// 	const arr = sortedTimelineDevLogs;
+	// 	if (arr.length === 0) {
+	// 		return arr;
+	// 	}
 
-		const i0 = lowerBoundByTimestamp(arr, startMs);
-		const i1 = upperBoundByTimestamp(arr, endMs);
+	// 	const i0 = lowerBoundByTimestamp(arr, startMs);
+	// 	const i1 = upperBoundByTimestamp(arr, endMs);
 
-		if (i0 >= i1) {
-			return [] as LogEntry[];
-		}
+	// 	if (i0 >= i1) {
+	// 		return [] as LogEntry[];
+	// 	}
 
-		const result = arr.slice(i0, i1);
-		return result;
-	});
+	// 	const result = arr.slice(i0, i1);
+	// 	return result;
+	// });
 
 	// All message entries (without brush filter - for timeline)
 	let timelineMessageEntries = $derived.by(() => {
@@ -177,7 +273,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 		// Apply channel filter
 		if (selectedChannel) {
-			filtered = filtered.filter((log) => log.channel === selectedChannel);
+			filtered = filtered.filter((log) => channelMatches(log as any, selectedChannel));
 		}
 
 		return filtered;
@@ -239,7 +335,8 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			return selectedRange;
 		},
 		get filteredDevLogs() {
-			let filtered = devLogs;
+			// Base on allDevLogs so live WS entries are included
+			let filtered = allDevLogs;
 
 			// Apply level filter
 			if (selectedLevel) {
@@ -248,7 +345,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 			// Apply channel filter
 			if (selectedChannel) {
-				filtered = filtered.filter((log) => log.channel === selectedChannel);
+				filtered = filtered.filter((log) => channelMatches(log as any, selectedChannel));
 			}
 
 			return filtered;
@@ -264,7 +361,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 			// Apply channel filter
 			if (selectedChannel) {
-				filtered = filtered.filter((log) => log.channel === selectedChannel);
+				filtered = filtered.filter((log) => channelMatches(log as any, selectedChannel));
 			}
 
 			return filtered;
@@ -292,7 +389,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 			// Apply channel filter
 			if (selectedChannel) {
-				filtered = filtered.filter((message) => message.channel === selectedChannel);
+				filtered = filtered.filter((message) => channelMatches(message as any, selectedChannel));
 			}
 
 			return filtered;
@@ -379,7 +476,15 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		},
 		setErrorDays(error: string | null) {
 			errorDays = error;
-		}
+		},
+
+		// For LogFilters consumers
+		getDevFilterEntriesForDay,
+		getMessageFilterEntriesForDay,
+
+		// For Timeline consumers
+		getTimelineDevEntriesForDay,
+		getTimelineMessageEntriesForDay
 	};
 }
 

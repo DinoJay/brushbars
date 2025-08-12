@@ -3,32 +3,48 @@
 	import type { LogLevel } from '$stores/logStore.svelte';
 	import type { TimelineEntry } from '$lib/types';
 
-	// Use only provided entries; no store fallback
-	const {
-		entries,
-		onFiltersChange = null,
-		onFiltered = null
-	} = $props<{
+	// Keep reactivity by using a single props object (Svelte 5 runes)
+	const props = $props<{
 		entries: TimelineEntry[];
 		onFiltersChange?: (level: LogLevel | null, channel: string | null) => void;
 		onFiltered?: (filtered: TimelineEntry[]) => void;
 	}>();
 
-	const effectiveEntries = $derived(entries);
+	const effectiveEntries = $derived(props.entries || []);
 
 	let selectedLevel = $state<LogLevel | null>(null);
-	let selectedChannel = $state<string | null>(null);
+	let selectedChannel = $state<string | null>(null); // stores NORMALIZED channel value
+
+	// Channel normalization helpers (keep in sync with store logic)
+	function normalizeChannelName(name: string | null | undefined): string {
+		if (!name) return '';
+		return String(name)
+			.trim()
+			.replace(/\s*\([^)]*\)\s*$/, '')
+			.toUpperCase();
+	}
+
+	function getEntryChannel(entry: any): string | null {
+		return (entry?.channel ?? entry?.channelName ?? null) as string | null;
+	}
+
+	function channelMatches(entry: any, selected: string | null): boolean {
+		if (!selected) return true;
+		const entryNorm = normalizeChannelName(getEntryChannel(entry));
+		const selectedNorm = normalizeChannelName(selected);
+		return entryNorm !== '' && entryNorm === selectedNorm;
+	}
 
 	// Apply filters locally and expose filtered entries
 	let filteredEntries = $derived.by(() => {
 		let list = effectiveEntries || [];
 		if (selectedLevel) list = list.filter((e: any) => e.level === selectedLevel);
-		if (selectedChannel) list = list.filter((e: any) => e.channel === selectedChannel);
+		if (selectedChannel) list = list.filter((e: any) => channelMatches(e, selectedChannel));
 		return list;
 	});
 
 	$effect(() => {
-		if (onFiltered) onFiltered(filteredEntries);
+		if (props.onFiltered) props.onFiltered(filteredEntries);
 	});
 
 	// Available levels and channels (from selected day data only)
@@ -41,11 +57,13 @@
 	});
 
 	let availableChannels = $derived.by(() => {
-		const channels = new Set<string>();
+		const counts: Record<string, number> = {};
 		effectiveEntries.forEach((entry: any) => {
-			if (entry.channel) channels.add(entry.channel);
+			const norm = normalizeChannelName(getEntryChannel(entry));
+			if (!norm) return;
+			counts[norm] = (counts[norm] || 0) + 1;
 		});
-		return Array.from(channels).sort();
+		return Object.keys(counts).sort();
 	});
 
 	// Count entries for each level (from selected day data only)
@@ -61,7 +79,9 @@
 	let channelCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
 		effectiveEntries.forEach((entry: any) => {
-			counts[entry.channel] = (counts[entry.channel] || 0) + 1;
+			const norm = normalizeChannelName(getEntryChannel(entry));
+			if (!norm) return;
+			counts[norm] = (counts[norm] || 0) + 1;
 		});
 		return counts;
 	});
@@ -74,12 +94,12 @@
 
 	function setLevel(level: LogLevel | null) {
 		selectedLevel = level;
-		if (onFiltersChange) onFiltersChange(selectedLevel, selectedChannel);
+		if (props.onFiltersChange) props.onFiltersChange(selectedLevel, selectedChannel);
 	}
 
 	function setChannel(channel: string | null) {
-		selectedChannel = channel;
-		if (onFiltersChange) onFiltersChange(selectedLevel, selectedChannel);
+		selectedChannel = channel ? normalizeChannelName(channel) : null;
+		if (props.onFiltersChange) props.onFiltersChange(selectedLevel, selectedChannel);
 	}
 
 	function clearFilters() {

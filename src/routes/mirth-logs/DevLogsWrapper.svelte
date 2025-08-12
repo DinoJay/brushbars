@@ -54,6 +54,13 @@
 		}
 	}
 
+	const normalizeChannelName = (name: string | null | undefined) =>
+		name
+			? String(name)
+					.trim()
+					.replace(/\s*\([^)]*\)\s*$/, '')
+					.toUpperCase()
+			: '';
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
@@ -64,59 +71,10 @@
 			props.loading || logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
 
-	// Smart timeline data source that automatically merges stored data with live data for today
+	// Smart timeline data sourced from store (merged stored + live, filtered by level/channel)
 	const timelineDataForSelectedDay = $derived.by(() => {
-		const selectedDay = selectedDayFromUrl();
-
-		if (!selectedDay) return logStore.timelineDevLogs;
-
-		const today = new Date().toISOString().split('T')[0];
-
-		if (selectedDay === today) {
-			// For today: merge stored timeline logs for today with live WebSocket entries
-			const liveTodayLogs = logStore.liveDevLogEntries.filter((log) => {
-				try {
-					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-					return logDate === today;
-				} catch {
-					return false;
-				}
-			});
-
-			const storedTodayLogs = logStore.timelineDevLogs.filter((log) => {
-				try {
-					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-					return logDate === today;
-				} catch {
-					return false;
-				}
-			});
-
-			// Merge live and stored logs, avoiding duplicates
-			const allTodayLogs = [...storedTodayLogs];
-			const existingIds = new Set(storedTodayLogs.map((log) => log.id));
-
-			for (const log of liveTodayLogs) {
-				if (!existingIds.has(log.id)) {
-					allTodayLogs.push(log);
-				}
-			}
-
-			console.log(
-				`🔄 Timeline for today: ${liveTodayLogs.length} live + ${storedTodayLogs.length} stored = ${allTodayLogs.length} total`
-			);
-			return allTodayLogs;
-		} else {
-			// For other days: use stored data only
-			return logStore.timelineDevLogs.filter((log) => {
-				try {
-					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-					return logDate === selectedDay;
-				} catch {
-					return false;
-				}
-			});
-		}
+		const day = selectedDayFromUrl();
+		return day ? (logStore as any).getTimelineDevEntriesForDay(day) : ([] as any[]);
 	});
 
 	// Filter logs based on selected day and time range
@@ -152,6 +110,12 @@
 
 		return filtered;
 	});
+
+	// Entries used by LogFilters: merged (stored + live) but restricted to the selected day
+	const filterEntriesForSelectedDay = $derived.by(() => {
+		const day = selectedDayFromUrl();
+		return day ? (logStore as any).getDevFilterEntriesForDay(day) : ([] as any[]);
+	});
 </script>
 
 <div
@@ -168,49 +132,51 @@
 	/>
 </div>
 
-{#if !(props.loading || isFetchingDay)}
-	<LogFilters
-		entries={logStore.allDevLogs}
-		onFiltersChange={(l, c) => {
-			logStore.setSelectedLevel(l as any);
-			logStore.setSelectedChannel(c);
-		}}
-	/>
-{/if}
+<div class="flex flex-1 flex-col">
+	{#if !(props.loading || isFetchingDay)}
+		<LogFilters
+			entries={filterEntriesForSelectedDay}
+			onFiltersChange={(l, c) => {
+				logStore.setSelectedLevel(l as any);
+				logStore.setSelectedChannel(c);
+			}}
+		/>
+	{/if}
 
-{#if daysLoading}
-	<div
-		class="flex min-h-[480px] items-center justify-center rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		<LoadingSpinner label="Loading days…" size={48} />
-	</div>
-{:else}
-	<div
-		class="mb-4 rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		{#if showSpinner || props.loading || isFetchingDay}
-			<div class="flex min-h-[260px] w-full items-center justify-center">
-				<LoadingSpinner label="Loading timeline…" size={44} />
-			</div>
-		{:else}
-			<div class="w-full">
-				<MirthActivityTimeline
-					entries={timelineDataForSelectedDay}
-					onRangeChange={(r) => logStore.setSelectedRange(r)}
-					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
-				/>
-			</div>
-		{/if}
-	</div>
-
-	{#if !(showSpinner || props.loading || isFetchingDay)}
+	{#if daysLoading}
 		<div
-			class="rounded p-3 shadow"
+			class="flex min-h-[480px] items-center justify-center rounded p-3 shadow"
 			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
 		>
-			<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
+			<LoadingSpinner label="Loading days…" size={48} />
 		</div>
+	{:else}
+		<div
+			class="mb-4 rounded p-3 shadow"
+			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		>
+			{#if showSpinner || props.loading || isFetchingDay}
+				<div class="flex min-h-[260px] w-full items-center justify-center">
+					<LoadingSpinner label="Loading timeline…" size={44} />
+				</div>
+			{:else}
+				<div class="w-full">
+					<MirthActivityTimeline
+						entries={timelineDataForSelectedDay}
+						onRangeChange={(r) => logStore.setSelectedRange(r)}
+						resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
+					/>
+				</div>
+			{/if}
+		</div>
+
+		{#if !(showSpinner || props.loading || isFetchingDay)}
+			<div
+				class="rounded p-3 shadow"
+				style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+			>
+				<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
+			</div>
+		{/if}
 	{/if}
-{/if}
+</div>

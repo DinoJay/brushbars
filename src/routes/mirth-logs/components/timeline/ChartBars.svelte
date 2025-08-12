@@ -109,25 +109,23 @@
 	}
 </script>
 
-{#key rerenderKey}
-	{#each barPositions as barPosition}
-		{#each getStackedLevels(barPosition.bar, barPosition) as bar}
-			<rect
-				x={bar.x}
-				y={bar.y}
-				width={bar.width}
-				height={bar.height}
-				fill={levelColor(bar.level)}
-				fill-opacity={barOpacity(bar.level, bar.x, bar.width)}
-				rx="2"
-				ry="2"
-				class="animate-timeline-enter cursor-pointer transition-all duration-300 ease-out hover:opacity-80"
-				role="button"
-				tabindex="0"
-				aria-label={`Filter level ${bar.level}`}
-				onclick={() => handleBarClick(bar.level)}
-				onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleBarClick(bar.level)}
-			/>
-		{/each}
+{#each barPositions as barPosition}
+	{#each getStackedLevels(barPosition.bar, barPosition) as bar (bar.level)}
+		<rect
+			x={bar.x}
+			y={bar.y}
+			width={bar.width}
+			height={bar.height}
+			fill={levelColor(bar.level)}
+			fill-opacity={barOpacity(bar.level, bar.x, bar.width)}
+			rx="2"
+			ry="2"
+			class="animate-timeline-enter cursor-pointer transition-all duration-300 ease-out hover:opacity-80"
+			role="button"
+			tabindex="0"
+			aria-label={`Filter level ${bar.level}`}
+			onclick={() => handleBarClick(bar.level)}
+			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleBarClick(bar.level)}
+		/>
 	{/each}
-{/key}
+{/each}
