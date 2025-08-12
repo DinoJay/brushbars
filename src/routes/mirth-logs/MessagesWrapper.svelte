@@ -30,15 +30,8 @@
 		});
 
 		// Check if selected date is today
-		const today = new Date().toISOString().split('T')[0];
-		if (date === today) {
-			// If today is selected, use live messages from WebSocket
-			console.log('📅 Today selected for messages, using live WebSocket data');
-			logStore.updateMessages(logStore.liveMessages);
-		} else {
-			// Fetch data for the selected day from API
-			await fetchDataForDay(date);
-		}
+		// Always fetch stored data for the selected day as base
+		await fetchDataForDay(date);
 	}
 
 	// Fetch data for a specific day
@@ -177,13 +170,15 @@
 	/>
 </div>
 
-<LogFilters
-	entries={logStore.allMessages}
-	onFiltersChange={(l, c) => {
-		logStore.setSelectedLevel(l as any);
-		logStore.setSelectedChannel(c);
-	}}
-/>
+{#if !(props.loading || isFetchingDay)}
+	<LogFilters
+		entries={logStore.allMessages}
+		onFiltersChange={(l, c) => {
+			logStore.setSelectedLevel(l as any);
+			logStore.setSelectedChannel(c);
+		}}
+	/>
+{/if}
 
 {#if daysLoading}
 	<div

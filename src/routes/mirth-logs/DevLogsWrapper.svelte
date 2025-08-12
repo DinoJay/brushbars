@@ -29,15 +29,7 @@
 			keepFocus: true
 		});
 
-		// Check if selected date is today
-		const today = new Date().toISOString().split('T')[0];
-		if (date === today) {
-			// If today is selected, the timeline will automatically use live WebSocket data
-			console.log('📅 Today selected, timeline will show live WebSocket updates');
-		} else {
-			// Fetch data for the selected day from API
-			await fetchDataForDay(date);
-		}
+		await fetchDataForDay(date);
 	}
 
 	// Fetch data for a specific day
@@ -72,7 +64,7 @@
 			props.loading || logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
 
-	// Smart timeline data source that automatically switches between stored and live data
+	// Smart timeline data source that automatically merges stored data with live data for today
 	const timelineDataForSelectedDay = $derived.by(() => {
 		const selectedDay = selectedDayFromUrl();
 
@@ -81,7 +73,7 @@
 		const today = new Date().toISOString().split('T')[0];
 
 		if (selectedDay === today) {
-			// For today: use live WebSocket data + any stored data for today
+			// For today: merge stored timeline logs for today with live WebSocket entries
 			const liveTodayLogs = logStore.liveDevLogEntries.filter((log) => {
 				try {
 					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
@@ -104,11 +96,11 @@
 			const allTodayLogs = [...storedTodayLogs];
 			const existingIds = new Set(storedTodayLogs.map((log) => log.id));
 
-			liveTodayLogs.forEach((log) => {
+			for (const log of liveTodayLogs) {
 				if (!existingIds.has(log.id)) {
 					allTodayLogs.push(log);
 				}
-			});
+			}
 
 			console.log(
 				`🔄 Timeline for today: ${liveTodayLogs.length} live + ${storedTodayLogs.length} stored = ${allTodayLogs.length} total`
@@ -176,13 +168,15 @@
 	/>
 </div>
 
-<LogFilters
-	entries={logStore.allDevLogs}
-	onFiltersChange={(l, c) => {
-		logStore.setSelectedLevel(l as any);
-		logStore.setSelectedChannel(c);
-	}}
-/>
+{#if !(props.loading || isFetchingDay)}
+	<LogFilters
+		entries={logStore.allDevLogs}
+		onFiltersChange={(l, c) => {
+			logStore.setSelectedLevel(l as any);
+			logStore.setSelectedChannel(c);
+		}}
+	/>
+{/if}
 
 {#if daysLoading}
 	<div

@@ -91,11 +91,20 @@
 			? (props.todaysLiveEntries as TimelineEntry[])
 			: ([] as TimelineEntry[]);
 
-		// Calculate stats from live entries
+		// Calculate stats from live + stored entries for today
 		let info = 0;
 		let warn = 0;
 		let error = 0;
 		let debug = 0;
+
+		// Union of stored today's stats (if present) + live entries
+		const storedToday = list.find((d) => normalizeDate(d?.date) === today);
+		if (storedToday) {
+			info += storedToday.stats?.INFO || 0;
+			warn += storedToday.stats?.WARN || 0;
+			error += storedToday.stats?.ERROR || 0;
+			debug += storedToday.stats?.DEBUG || 0;
+		}
 
 		for (const entry of live) {
 			const raw = String((entry as any).level || '').toUpperCase();
@@ -126,7 +135,13 @@
 				// Return updated today with live stats
 				return {
 					...day,
-					stats: { total: live.length, INFO: info, ERROR: error, WARN: warn, DEBUG: debug }
+					stats: {
+						total: info + warn + error + debug,
+						INFO: info,
+						ERROR: error,
+						WARN: warn,
+						DEBUG: debug
+					}
 				};
 			}
 			return day;
@@ -137,7 +152,13 @@
 			updatedList.push({
 				date: today,
 				formattedDate: today,
-				stats: { total: live.length, INFO: info, ERROR: error, WARN: warn, DEBUG: debug }
+				stats: {
+					total: info + warn + error + debug,
+					INFO: info,
+					ERROR: error,
+					WARN: warn,
+					DEBUG: debug
+				}
 			});
 		}
 
