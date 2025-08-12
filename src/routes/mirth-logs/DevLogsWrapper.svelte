@@ -19,6 +19,18 @@
 		return $page.url.searchParams.get('day');
 	}
 
+	// Reset filters/brush when day changes
+	let prevDay = $state<string | null>(null);
+	$effect(() => {
+		const day = selectedDayFromUrl();
+		if (day && day !== prevDay) {
+			prevDay = day;
+			logStore.setSelectedLevel(null);
+			logStore.setSelectedChannel(null);
+			logStore.setSelectedRange(null);
+		}
+	});
+
 	async function handleSelectDay(date: string) {
 		// Update URL directly - selectedDay will automatically update via $derived
 		const url = new URL(window.location.href);
@@ -28,6 +40,11 @@
 			noScroll: true,
 			keepFocus: true
 		});
+
+		// Clear filters and brush immediately on day change
+		logStore.setSelectedLevel(null);
+		logStore.setSelectedChannel(null);
+		logStore.setSelectedRange(null);
 
 		await fetchDataForDay(date);
 	}
@@ -119,17 +136,19 @@
 </script>
 
 <div
-	class="mb-4 rounded p-3 shadow"
+	class="mb-4 flex overflow-auto rounded p-3 shadow"
 	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
 >
-	<DayButtons
-		selectedDay={selectedDayFromUrl()}
-		todaysLiveEntries={logStore.liveDevLogEntries}
-		days={logStore.devLogDays}
-		loading={logStore.loadingDays}
-		error={logStore.errorDays}
-		onSelectDay={handleSelectDay}
-	/>
+	<div class="flex overflow-auto">
+		<DayButtons
+			selectedDay={selectedDayFromUrl()}
+			todaysLiveEntries={logStore.liveDevLogEntries}
+			days={logStore.devLogDays}
+			loading={logStore.loadingDays}
+			error={logStore.errorDays}
+			onSelectDay={handleSelectDay}
+		/>
+	</div>
 </div>
 
 <div class="flex flex-1 flex-col">
@@ -143,40 +162,29 @@
 		/>
 	{/if}
 
-	{#if daysLoading}
-		<div
-			class="flex min-h-[480px] items-center justify-center rounded p-3 shadow"
-			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-		>
-			<LoadingSpinner label="Loading days…" size={48} />
-		</div>
-	{:else}
-		<div
-			class="mb-4 rounded p-3 shadow"
-			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-		>
-			{#if showSpinner || props.loading || isFetchingDay}
-				<div class="flex min-h-[260px] w-full items-center justify-center">
-					<LoadingSpinner label="Loading timeline…" size={44} />
-				</div>
-			{:else}
-				<div class="w-full">
-					<MirthActivityTimeline
-						entries={timelineDataForSelectedDay}
-						onRangeChange={(r) => logStore.setSelectedRange(r)}
-						resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
-					/>
-				</div>
-			{/if}
-		</div>
-
-		{#if !(showSpinner || props.loading || isFetchingDay)}
-			<div
-				class="rounded p-3 shadow"
-				style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-			>
-				<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
+	<div
+		class="mb-4 flex flex-1 flex-col rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
+		{#if showSpinner || props.loading || isFetchingDay}
+			<LoadingSpinner class="m-auto" label="Loading timeline…" size={44} />
+		{:else}
+			<div class="w-full">
+				<MirthActivityTimeline
+					entries={timelineDataForSelectedDay}
+					onRangeChange={(r) => logStore.setSelectedRange(r)}
+					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
+				/>
 			</div>
 		{/if}
+	</div>
+
+	{#if !(showSpinner || props.loading || isFetchingDay)}
+		<div
+			class="rounded p-3 shadow"
+			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		>
+			<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
+		</div>
 	{/if}
 </div>

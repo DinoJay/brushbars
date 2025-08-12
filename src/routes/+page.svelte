@@ -45,19 +45,13 @@
 				if (!selectedDay) {
 					selectedDay = new Date().toISOString().split('T')[0];
 				}
-				logStore.setSelectedDay(selectedDay);
+				// logStore.setSelectedDay(selectedDay);
 			} catch (e) {
 				statusText = 'Proceeding to dashboard...';
 			} finally {
 				logStore.setLoadingDays(false);
 				// Ensure we navigate with a ?day= param set to the chosen day
-				const search = typeof window !== 'undefined' ? window.location.search : '';
-				const params = new URLSearchParams(search);
-				if (!params.get('day') && logStore.selectedDay) {
-					params.set('day', logStore.selectedDay);
-				}
-				const qs = params.toString();
-				goto(`/mirth-logs${qs ? `?${qs}` : ''}`);
+				goto(`/mirth-logs`);
 			}
 		})();
 		return () => controller.abort();

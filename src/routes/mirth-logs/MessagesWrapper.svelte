@@ -19,6 +19,18 @@
 		return $page.url.searchParams.get('day') || new Date().toISOString().split('T')[0];
 	}
 
+	// Reset filters/brush when day changes
+	let prevDay = $state<string | null>(null);
+	$effect(() => {
+		const day = selectedDayFromUrl();
+		if (day && day !== prevDay) {
+			prevDay = day;
+			logStore.setSelectedLevel(null);
+			logStore.setSelectedChannel(null);
+			logStore.setSelectedRange(null);
+		}
+	});
+
 	async function handleSelectDay(date: string) {
 		// Update URL directly - selectedDay will automatically update via $derived
 		const url = new URL(window.location.href);
@@ -29,7 +41,11 @@
 			keepFocus: true
 		});
 
-		// Check if selected date is today
+		// Clear filters and brush immediately on day change
+		logStore.setSelectedLevel(null);
+		logStore.setSelectedChannel(null);
+		logStore.setSelectedRange(null);
+
 		// Always fetch stored data for the selected day as base
 		await fetchDataForDay(date);
 	}

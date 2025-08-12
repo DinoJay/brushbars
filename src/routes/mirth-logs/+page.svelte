@@ -286,10 +286,14 @@
 </script>
 
 <main
-	class="mx-auto min-h-screen max-w-screen-2xl p-8 font-sans"
+	class="mx-auto flex min-h-screen max-w-screen-2xl flex-col p-8 font-sans"
 	style="background-color: var(--color-bg-primary); color: var(--color-text-primary);"
 >
-	<Tabs value={currentTab} onChange={(tab) => handleTabChange(tab as 'logs' | 'channels')}>
+	<Tabs
+		value={currentTab}
+		class="flex flex-1 flex-col"
+		onChange={(tab) => handleTabChange(tab as 'logs' | 'channels')}
+	>
 		<div
 			class="mb-6 flex items-center justify-between rounded-2xl p-3"
 			style="background-color: var(--color-bg-secondary); box-shadow: var(--shadow-md); border: 1px solid var(--color-border);"
@@ -343,24 +347,26 @@
 			</button>
 		</div>
 
-		<TabsContent value="logs">
-			{#if showGlobalSpinner}
-				<div class="flex min-h-[60vh] items-center justify-center">
-					<LoadingSpinner label="Loading…" size={46} />
-				</div>
-			{:else}
-				<DevLogsWrapper loading={false} />
-			{/if}
+		<TabsContent value="logs" class="flex flex-1 flex-col">
+			<div class="flex flex-1 flex-col">
+				{#if showGlobalSpinner}
+					<LoadingSpinner class="m-auto" label="Loading…" size={46} />
+				{:else}
+					<DevLogsWrapper loading={false} />
+				{/if}
+			</div>
 		</TabsContent>
 
 		<TabsContent value="channels">
-			{#if showGlobalSpinner}
-				<div class="flex min-h-[60vh] items-center justify-center">
-					<LoadingSpinner label="Loading…" size={46} />
-				</div>
-			{:else}
-				<MessagesWrapper loading={false} />
-			{/if}
+			<div class="flex flex-1 flex-col">
+				{#if showGlobalSpinner}
+					<div class="flex min-h-[60vh] items-center justify-center">
+						<LoadingSpinner label="Loading…" size={46} />
+					</div>
+				{:else}
+					<MessagesWrapper loading={false} />
+				{/if}
+			</div>
 		</TabsContent>
 	</Tabs>
 </main>
