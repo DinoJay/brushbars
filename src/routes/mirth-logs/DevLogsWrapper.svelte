@@ -9,6 +9,11 @@
 	import { logStore } from '$stores/logStore.svelte';
 	import LoadingSpinner from '$components/LoadingSpinner.svelte';
 
+	const props = $props<{ loading?: boolean }>();
+
+	// Local loading flag when fetching a specific day inside this wrapper
+	let isFetchingDay = $state(false);
+
 	// Get selected day directly from URL
 	function selectedDayFromUrl() {
 		return $page.url.searchParams.get('day');
@@ -40,6 +45,7 @@
 		if (!day) return;
 
 		try {
+			isFetchingDay = true;
 			console.log('🔄 Fetching dev logs for day:', day);
 			const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
 			if (res.ok) {
@@ -51,11 +57,19 @@
 			}
 		} catch (error) {
 			console.warn('Failed to fetch dev logs for day:', day, error);
+		} finally {
+			isFetchingDay = false;
 		}
 	}
 
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
+	);
+
+	// When days are loading, replace the entire lower half (timeline + table)
+	const daysLoading = $derived.by(
+		() =>
+			props.loading || logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
 
 	// Smart timeline data source that automatically switches between stored and live data
@@ -148,47 +162,61 @@
 	});
 </script>
 
-{#if showSpinner}
-	<div class="flex min-h-[60vh] items-center justify-center">
-		<LoadingSpinner label="Loading days…" size={40} />
+<div
+	class="mb-4 rounded p-3 shadow"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+>
+	<DayButtons
+		selectedDay={selectedDayFromUrl()}
+		todaysLiveEntries={logStore.liveDevLogEntries}
+		days={logStore.devLogDays}
+		loading={logStore.loadingDays}
+		error={logStore.errorDays}
+		onSelectDay={handleSelectDay}
+	/>
+</div>
+
+<LogFilters
+	entries={logStore.allDevLogs}
+	onFiltersChange={(l, c) => {
+		logStore.setSelectedLevel(l as any);
+		logStore.setSelectedChannel(c);
+	}}
+/>
+
+{#if daysLoading}
+	<div
+		class="flex min-h-[480px] items-center justify-center rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
+		<LoadingSpinner label="Loading days…" size={48} />
 	</div>
 {:else}
 	<div
 		class="mb-4 rounded p-3 shadow"
 		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
 	>
-		<DayButtons
-			selectedDay={selectedDayFromUrl()}
-			todaysLiveEntries={logStore.liveDevLogEntries}
-			days={logStore.devLogDays}
-			loading={logStore.loadingDays}
-			error={logStore.errorDays}
-			onSelectDay={handleSelectDay}
-		/>
+		{#if showSpinner || props.loading || isFetchingDay}
+			<div class="flex min-h-[260px] w-full items-center justify-center">
+				<LoadingSpinner label="Loading timeline…" size={44} />
+			</div>
+		{:else}
+			<div class="w-full">
+				<MirthActivityTimeline
+					entries={timelineDataForSelectedDay}
+					onRangeChange={(r) => logStore.setSelectedRange(r)}
+					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
+				/>
+			</div>
+		{/if}
 	</div>
 
-	<LogFilters
-		entries={logStore.allDevLogs}
-		onFiltersChange={(l, c) => {
-			logStore.setSelectedLevel(l as any);
-			logStore.setSelectedChannel(c);
-		}}
-	/>
-
-	<div
-		class="mb-4 rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		<MirthActivityTimeline
-			entries={timelineDataForSelectedDay}
-			onRangeChange={(r) => logStore.setSelectedRange(r)}
-			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
-		/>
-	</div>
-	<div
-		class="rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
-	</div>
+	{#if !(showSpinner || props.loading || isFetchingDay)}
+		<div
+			class="rounded p-3 shadow"
+			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		>
+			<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
+		</div>
+	{/if}
 {/if}

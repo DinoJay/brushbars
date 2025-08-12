@@ -6,6 +6,7 @@
 	import DevLogsWrapper from './DevLogsWrapper.svelte';
 	import MessagesWrapper from './MessagesWrapper.svelte';
 	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/tabs';
+	import LoadingSpinner from '$components/LoadingSpinner.svelte';
 	import { logStore } from '$stores/logStore.svelte';
 	import { isDark, themeStore } from '$stores/themeStore.svelte';
 	import type { PageData } from './$types';
@@ -30,6 +31,15 @@
 	// Get selectedDay from URL - always in sync
 	const selectedDay = $derived.by(() => {
 		return $page.url.searchParams.get('day');
+	});
+
+	// Global spinner condition: show a single centered spinner and hide wrappers
+	const showGlobalSpinner = $derived.by(() => {
+		const daysLoaded =
+			currentTab === 'logs'
+				? !!(logStore.devLogDays && logStore.devLogDays.length)
+				: !!(logStore.messageDays && logStore.messageDays.length);
+		return isLoadingData || logStore.loadingDays || !hasLoadedInitialData || !daysLoaded;
 	});
 
 	// (removed page-level tab spinner state)
@@ -89,6 +99,8 @@
 	async function loadInitialDaysData() {
 		try {
 			console.log('🔄 Loading initial days data...');
+			// Mark global days loading so UI shows overall spinner and hides placeholder "today"
+			logStore.setLoadingDays(true);
 
 			// Load dev log days
 			const devLogsRes = await fetch('/mirth-logs/api/devLogs/days');
@@ -111,6 +123,9 @@
 			}
 		} catch (error) {
 			console.warn('Failed to load initial days data:', error);
+		} finally {
+			// Done loading day lists for both tabs
+			logStore.setLoadingDays(false);
 		}
 	}
 
@@ -329,11 +344,23 @@
 		</div>
 
 		<TabsContent value="logs">
-			<DevLogsWrapper />
+			{#if showGlobalSpinner}
+				<div class="flex min-h-[60vh] items-center justify-center">
+					<LoadingSpinner label="Loading…" size={46} />
+				</div>
+			{:else}
+				<DevLogsWrapper loading={false} />
+			{/if}
 		</TabsContent>
 
 		<TabsContent value="channels">
-			<MessagesWrapper />
+			{#if showGlobalSpinner}
+				<div class="flex min-h-[60vh] items-center justify-center">
+					<LoadingSpinner label="Loading…" size={46} />
+				</div>
+			{:else}
+				<MessagesWrapper loading={false} />
+			{/if}
 		</TabsContent>
 	</Tabs>
 </main>

@@ -9,9 +9,14 @@
 	import { logStore } from '$stores/logStore.svelte';
 	import LoadingSpinner from '$components/LoadingSpinner.svelte';
 
-	// Get selected day directly from URL
+	const props = $props<{ loading?: boolean }>();
+
+	// Local loading flag when fetching a specific day inside this wrapper
+	let isFetchingDay = $state(false);
+
+	// Get selected day from URL; default to today to avoid stale/non-today flashes
 	function selectedDayFromUrl() {
-		return $page.url.searchParams.get('day');
+		return $page.url.searchParams.get('day') || new Date().toISOString().split('T')[0];
 	}
 
 	async function handleSelectDay(date: string) {
@@ -41,6 +46,7 @@
 		if (!day) return;
 
 		try {
+			isFetchingDay = true;
 			console.log('🔄 Fetching messages for day:', day);
 			const res = await fetch(`/mirth-logs/api/messages/${day}`);
 			if (res.ok) {
@@ -52,11 +58,19 @@
 			}
 		} catch (error) {
 			console.warn('Failed to fetch messages for day:', day, error);
+		} finally {
+			isFetchingDay = false;
 		}
 	}
 
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.messageDays && logStore.messageDays.length)
+	);
+	const daysLoading = $derived.by(
+		() =>
+			props.loading ||
+			logStore.loadingDays ||
+			!(logStore.messageDays && logStore.messageDays.length)
 	);
 
 	// Smart timeline data source that automatically switches between stored and live data
@@ -149,47 +163,61 @@
 	});
 </script>
 
-{#if showSpinner}
-	<div class="flex min-h-[60vh] items-center justify-center">
-		<LoadingSpinner label="Loading days…" size={40} />
+<div
+	class="mb-4 rounded p-3 shadow"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+>
+	<DayButtons
+		selectedDay={selectedDayFromUrl()}
+		todaysLiveEntries={logStore.liveMessages}
+		days={logStore.messageDays}
+		loading={logStore.loadingDays}
+		error={logStore.errorDays}
+		onSelectDay={handleSelectDay}
+	/>
+</div>
+
+<LogFilters
+	entries={logStore.allMessages}
+	onFiltersChange={(l, c) => {
+		logStore.setSelectedLevel(l as any);
+		logStore.setSelectedChannel(c);
+	}}
+/>
+
+{#if daysLoading}
+	<div
+		class="flex min-h-[480px] items-center justify-center rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
+		<LoadingSpinner label="Loading days…" size={48} />
 	</div>
 {:else}
 	<div
 		class="mb-4 rounded p-3 shadow"
 		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
 	>
-		<DayButtons
-			selectedDay={selectedDayFromUrl()}
-			todaysLiveEntries={logStore.liveMessages}
-			days={logStore.messageDays}
-			loading={logStore.loadingDays}
-			error={logStore.errorDays}
-			onSelectDay={handleSelectDay}
-		/>
+		{#if showSpinner || props.loading || isFetchingDay}
+			<div class="flex min-h-[260px] w-full items-center justify-center">
+				<LoadingSpinner label="Loading timeline…" size={44} />
+			</div>
+		{:else}
+			<div class="w-full">
+				<MirthActivityTimeline
+					entries={timelineDataForSelectedDay}
+					onRangeChange={(r) => logStore.setSelectedRange(r)}
+					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
+				/>
+			</div>
+		{/if}
 	</div>
 
-	<LogFilters
-		entries={logStore.allMessages}
-		onFiltersChange={(l, c) => {
-			logStore.setSelectedLevel(l as any);
-			logStore.setSelectedChannel(c);
-		}}
-	/>
-
-	<div
-		class="mb-4 rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		<MirthActivityTimeline
-			entries={timelineDataForSelectedDay}
-			onRangeChange={(r) => logStore.setSelectedRange(r)}
-			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
-		/>
-	</div>
-	<div
-		class="rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
-		<LogTable entries={filteredMessagesForSelectedDay} selectedRange={logStore.selectedRange} />
-	</div>
+	{#if !(showSpinner || props.loading || isFetchingDay)}
+		<div
+			class="rounded p-3 shadow"
+			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		>
+			<LogTable entries={filteredMessagesForSelectedDay} selectedRange={logStore.selectedRange} />
+		</div>
+	{/if}
 {/if}
