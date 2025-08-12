@@ -41,6 +41,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// Reactive state using Svelte 5 runes
 	let liveDevLogEntries = $state<LogEntry[]>([]); // Live dev logs streamed via WebSocket
+	let liveMessages = $state<LogEntry[]>([]); // Live channel messages streamed via WebSocket
 	// Channel and level selection
 	let selectedChannel = $state<string | null>(null);
 	let selectedLevel = $state<LogLevel | null>(null);
@@ -72,7 +73,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// All dev log entries (without brush filter - for timeline)
 	let timelineDevLogs = $derived.by(() => {
-		let filtered = allDevLogs;
+		let filtered = devLogs;
 
 		// Apply level filter
 		if (selectedLevel) {
@@ -238,7 +239,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			return selectedRange;
 		},
 		get filteredDevLogs() {
-			let filtered = allDevLogs;
+			let filtered = devLogs;
 
 			// Apply level filter
 			if (selectedLevel) {
@@ -254,7 +255,7 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		},
 		get timelineDevLogs() {
 			// Apply level and channel filters to dev logs
-			let filtered = allDevLogs;
+			let filtered = devLogs;
 
 			// Apply level filter
 			if (selectedLevel) {
@@ -315,6 +316,9 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get liveDevLogEntries() {
 			return liveDevLogEntries;
 		},
+		get liveMessages() {
+			return liveMessages;
+		},
 
 		get devLogDays() {
 			return devLogDays;
@@ -344,6 +348,11 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			console.log('📡 logStore.updateLiveDevLogEntries called with:', newEntries.length, 'entries');
 			liveDevLogEntries = newEntries;
 			console.log('✅ logStore.liveDevLogEntries updated, new length:', liveDevLogEntries.length);
+		},
+		updateLiveMessages(newMessages: LogEntry[]) {
+			console.log('📡 logStore.updateLiveMessages called with:', newMessages.length, 'messages');
+			liveMessages = newMessages;
+			console.log('✅ logStore.liveMessages updated, new length:', liveMessages.length);
 		},
 		updateDevLogs(newLogs: LogEntry[]) {
 			console.log('📊 logStore.updateDevLogs called with:', newLogs?.length || 0, 'logs');

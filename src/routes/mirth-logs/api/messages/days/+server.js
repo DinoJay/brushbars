@@ -167,17 +167,22 @@ export async function GET({ url }) {
 				target.stats.INFO += 1; // Default to INFO for unknown levels
 			}
 
-			target.messages.push(channelResult.transformedMessage);
+			// Enforce per-day limit of 1200 messages while aggregating
+			if (target.messages.length < 1200) {
+				target.messages.push(channelResult.transformedMessage);
+			}
 		}
 
 		// Convert map to sorted array and sort messages within each day
 		const daysList = Array.from(dayMap.values())
 			.map((day) => ({
 				...day,
-				messages: day.messages.sort(
-					(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
-						new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-				)
+				messages: day.messages
+					.sort(
+						(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
+							new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+					)
+					.slice(0, 1200) // safety slice to max 1200 per day
 			}))
 			.sort((/** @type {{ date: string }} */ a, /** @type {{ date: string }} */ b) =>
 				a.date.localeCompare(b.date)

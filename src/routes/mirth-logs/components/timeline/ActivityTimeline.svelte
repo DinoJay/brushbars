@@ -198,11 +198,33 @@
 	let clearBrush_last: string | number | null | undefined = undefined;
 </script>
 
-<div class="rounded-xl bg-white p-6 dark:bg-gray-800">
+<div
+	class="rounded-xl p-6"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+>
 	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
 				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
+				<defs>
+					<style>
+						/* Smooth bar entrance on dataset change */
+						.animate-timeline-enter {
+							opacity: 0;
+							transform: scaleY(0.85);
+							transform-origin: bottom;
+						}
+						.animate-timeline-enter {
+							animation: barIn 220ms ease-out forwards;
+						}
+						@keyframes barIn {
+							to {
+								opacity: 1;
+								transform: scaleY(1);
+							}
+						}
+					</style>
+				</defs>
 				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} {visualRange} />
 				<ChartBrush
 					{xScale}
@@ -262,7 +284,8 @@
 			<div class="pointer-events-auto absolute top-2 right-2">
 				<button
 					onclick={clearBrush}
-					class="rounded-lg bg-white/90 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-white dark:bg-gray-700/90 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-3 py-1.5 text-xs transition-colors"
+					style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary); border: 1px solid var(--color-border);"
 				>
 					Clear brush
 				</button>
@@ -271,7 +294,7 @@
 			<div class="flex h-full items-center justify-center">
 				<div class="text-center">
 					<div class="mb-2 text-4xl">📊</div>
-					<div class="text-gray-500 dark:text-gray-400">No data to display</div>
+					<div style="color: var(--color-text-secondary);">No data to display</div>
 				</div>
 			</div>
 		{/if}

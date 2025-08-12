@@ -44,7 +44,8 @@ function generateExampleLogs() {
 }
 
 // Log parsing function (shared across all API endpoints)
-export function parseLogLines(logText) {
+// Internal shared parser that adapts behavior by mode
+function coreParseLogLines(logText, mode = 'dev') {
 	const result = [];
 	const lines = logText
 		.split(/\r?\n/)
@@ -54,36 +55,47 @@ export function parseLogLines(logText) {
 	let counter = 0;
 	let filteredCount = 0;
 
-	// Enhanced regex to capture more detailed information from Mirth logs
-	const regex =
+	const mainRegex =
 		/^(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([^\]]+)]\s+(\w+):\s+(.*)$/;
 
 	for (const line of lines) {
-		const match = line.match(regex);
-		if (match) {
-			const [, level, timestamp, context, logger, message] = match;
+		const m = line.match(mainRegex);
+		const useAlt = !m;
+		const altRegex =
+			/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+\[([^\]]+)]\s+(.*)$/;
 
-			// Extract rich information from the context
-			const contextInfo = parseContext(context);
+		if (m || (useAlt && altRegex.test(line))) {
+			const [, tsA, lvlA, ctxA, loggerOrMsgA, msgMaybe] = m
+				? [null, m[2], m[1], m[3], m[4], m[5]]
+				: [
+						null,
+						line.match(altRegex)[1],
+						line.match(altRegex)[2],
+						line.match(altRegex)[3],
+						null,
+						line.match(altRegex)[4]
+					];
 
-			// Extract additional information from the message
-			const messageInfo = parseMessage(message, level);
+			const levelRaw = (m ? lvlA : lvlA).toUpperCase();
+			const timestamp = tsA.includes('.') ? tsA : tsA + '.000';
+			const contextInfo = parseContext(ctxA);
+			const messageInfo = parseMessage(msgMaybe, levelRaw);
 
-			// Normalize timestamp format (add .000 if milliseconds missing)
-			let normalizedTimestamp = timestamp;
-			if (!timestamp.includes('.')) {
-				normalizedTimestamp = timestamp + '.000';
-			}
+			// Derive final level per mode (messages prefer status mapping)
+			const levelFinal =
+				mode === 'messages'
+					? String(messageInfo.status || levelRaw || 'INFO').toUpperCase()
+					: levelRaw;
 
 			result.push({
 				id: counter++,
-				level: level.toUpperCase(),
-				timestamp: normalizedTimestamp,
+				level: levelFinal,
+				timestamp,
 				channel: contextInfo.channel,
-				message: message,
+				message: msgMaybe,
 				status: messageInfo.status,
 
-				// Extended Log Details
+				// Extended, channel, processing, perf, network, error fields unchanged
 				threadId: contextInfo.threadId,
 				userId: contextInfo.userId,
 				sessionId: contextInfo.sessionId,
@@ -91,7 +103,6 @@ export function parseLogLines(logText) {
 				sourceIp: contextInfo.sourceIp,
 				destinationIp: contextInfo.destinationIp,
 
-				// Channel-Specific Information
 				channelName: contextInfo.channelName,
 				channelVersion: contextInfo.channelVersion,
 				connectorType: contextInfo.connectorType,
@@ -99,7 +110,6 @@ export function parseLogLines(logText) {
 				channelId: contextInfo.channelId,
 				channelStatus: contextInfo.channelStatus,
 
-				// Processing Context
 				messageId: messageInfo.messageId,
 				processingTime: messageInfo.processingTime,
 				queueSize: messageInfo.queueSize,
@@ -107,7 +117,6 @@ export function parseLogLines(logText) {
 				cpuUsage: messageInfo.cpuUsage,
 				processingStatus: messageInfo.processingStatus,
 
-				// Performance Metrics
 				responseTime: messageInfo.responseTime,
 				throughput: messageInfo.throughput,
 				queueLatency: messageInfo.queueLatency,
@@ -115,7 +124,6 @@ export function parseLogLines(logText) {
 				avgProcessingTime: messageInfo.avgProcessingTime,
 				peakMemoryUsage: messageInfo.peakMemoryUsage,
 
-				// Network Information
 				protocol: messageInfo.protocol,
 				sourcePort: messageInfo.sourcePort,
 				destinationPort: messageInfo.destinationPort,
@@ -123,7 +131,6 @@ export function parseLogLines(logText) {
 				networkLatency: messageInfo.networkLatency,
 				connectionType: messageInfo.connectionType,
 
-				// Error Context
 				exceptionType: messageInfo.exceptionType,
 				stackTrace: messageInfo.stackTrace,
 				errorCode: messageInfo.errorCode,
@@ -131,7 +138,6 @@ export function parseLogLines(logText) {
 				lastError: messageInfo.lastError,
 				errorDetails: messageInfo.errorDetails,
 
-				// Additional extracted fields
 				processingType: contextInfo.processingType,
 				destinationNumber: contextInfo.destinationNumber,
 				sqlQuery: messageInfo.sqlQuery,
@@ -139,108 +145,27 @@ export function parseLogLines(logText) {
 				hl7Message: messageInfo.hl7Message
 			});
 		} else {
-			// Try alternative regex patterns for different log formats
-			const altRegex1 =
-				/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+\[([^\]]+)]\s+(.*)$/;
-			const altMatch1 = line.match(altRegex1);
-
-			if (altMatch1) {
-				const [, timestamp, level, context, message] = altMatch1;
-				const contextInfo = parseContext(context);
-				const messageInfo = parseMessage(message, level);
-
-				let normalizedTimestamp = timestamp;
-				if (!timestamp.includes('.')) {
-					normalizedTimestamp = timestamp + '.000';
-				}
-
-				result.push({
-					id: counter++,
-					level: level.toUpperCase(),
-					timestamp: normalizedTimestamp,
-					channel: contextInfo.channel,
-					message: message,
-					status: messageInfo.status,
-
-					// Extended Log Details
-					threadId: contextInfo.threadId,
-					userId: contextInfo.userId,
-					sessionId: contextInfo.sessionId,
-					correlationId: contextInfo.correlationId,
-					sourceIp: contextInfo.sourceIp,
-					destinationIp: contextInfo.destinationIp,
-
-					// Channel-Specific Information
-					channelName: contextInfo.channelName,
-					channelVersion: contextInfo.channelVersion,
-					connectorType: contextInfo.connectorType,
-					connectorName: contextInfo.connectorName,
-					channelId: contextInfo.channelId,
-					channelStatus: contextInfo.channelStatus,
-
-					// Processing Context
-					messageId: messageInfo.messageId,
-					processingTime: messageInfo.processingTime,
-					queueSize: messageInfo.queueSize,
-					memoryUsage: messageInfo.memoryUsage,
-					cpuUsage: messageInfo.cpuUsage,
-					processingStatus: messageInfo.processingStatus,
-
-					// Performance Metrics
-					responseTime: messageInfo.responseTime,
-					throughput: messageInfo.throughput,
-					queueLatency: messageInfo.queueLatency,
-					resourceUtilization: messageInfo.resourceUtilization,
-					avgProcessingTime: messageInfo.avgProcessingTime,
-					peakMemoryUsage: messageInfo.peakMemoryUsage,
-
-					// Network Information
-					protocol: messageInfo.protocol,
-					sourcePort: messageInfo.sourcePort,
-					destinationPort: messageInfo.destinationPort,
-					connectionStatus: messageInfo.connectionStatus,
-					networkLatency: messageInfo.networkLatency,
-					connectionType: messageInfo.connectionType,
-
-					// Error Context
-					exceptionType: messageInfo.exceptionType,
-					stackTrace: messageInfo.stackTrace,
-					errorCode: messageInfo.errorCode,
-					retryCount: messageInfo.retryCount,
-					lastError: messageInfo.lastError,
-					errorDetails: messageInfo.errorDetails,
-
-					// Additional extracted fields
-					processingType: contextInfo.processingType,
-					destinationNumber: contextInfo.destinationNumber,
-					sqlQuery: messageInfo.sqlQuery,
-					patientInfo: messageInfo.patientInfo,
-					hl7Message: messageInfo.hl7Message
-				});
-			} else {
-				// Skip lines that don't match any pattern
-				filteredCount++;
-				if (filteredCount <= 5) {
-					console.warn('⚠️ Skipping malformed log line:', line.substring(0, 100));
-				}
+			filteredCount++;
+			if (filteredCount <= 5) {
+				console.warn('⚠️ Skipping malformed log line:', line.substring(0, 100));
 			}
 		}
 	}
+	return result;
+}
 
-	// Filter out any entries with empty timestamps (defensive)
-	const validEntries = result.filter((entry) => {
-		if (!entry.timestamp || entry.timestamp.trim() === '') {
-			filteredCount++;
-			return false;
-		}
-		return true;
-	});
+// Dedicated entry points
+export function parseDevLogLines(logText) {
+	return coreParseLogLines(logText, 'dev');
+}
 
-	if (filteredCount > 0) {
-		console.log(`📊 Filtered out ${filteredCount} entries with invalid/missing timestamps`);
-	}
+export function parseMessageLogLines(logText) {
+	return coreParseLogLines(logText, 'messages');
+}
 
-	return validEntries;
+// Backward-compatible wrapper (default to dev logs)
+export function parseLogLines(logText, kind = 'dev') {
+	return kind === 'messages' ? parseMessageLogLines(logText) : parseDevLogLines(logText);
 }
 
 // Enhanced context parsing function
@@ -591,45 +516,6 @@ function makeHttpRequest(options, postData = null) {
 }
 
 // Helper function to authenticate with Mirth Connect API
-async function authenticateMirth() {
-	try {
-		console.log('🔐 Authenticating with Mirth Connect...');
-
-		const postData = stringify({
-			username: MIRTH_CONFIG.username,
-			password: MIRTH_CONFIG.password
-		});
-
-		const options = {
-			hostname: MIRTH_CONFIG.hostname,
-			port: MIRTH_CONFIG.port,
-			path: '/api/users/_login',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'Content-Length': Buffer.byteLength(postData)
-			}
-		};
-
-		const { statusCode, headers, body } = await makeHttpRequest(options, postData);
-		console.log(`🔍 Login response - Status: ${statusCode}`);
-		console.log(`🔍 Login response - Headers:`, Object.keys(headers));
-		console.log(`🔍 Login response - Body:`, body.substring(0, 200));
-
-		const cookieHeader = headers['set-cookie'];
-		if (!cookieHeader) {
-			console.log('⚠️ No set-cookie header found in response');
-			console.log('🔍 Available headers:', Object.keys(headers));
-			throw new Error('No session cookie found in response');
-		}
-		sessionCookie = cookieHeader[0].split(';')[0];
-		console.log('✅ Authentication successful');
-		return true;
-	} catch (error) {
-		console.error('❌ Mirth authentication failed:', error);
-		return false;
-	}
-}
 
 // Helper function to make authenticated requests to Mirth API
 async function mirthApiRequest(endpoint, options = {}) {

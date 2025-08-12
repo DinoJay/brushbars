@@ -6,7 +6,7 @@ let counter = 0;
 // WebSocket client
 let socket = null;
 
-export function initLogSocket(onLogFull, onLogUpdate) {
+export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 	if (socket || typeof window === 'undefined') return;
 
 	const isDev = import.meta.env.DEV;
@@ -34,7 +34,30 @@ export function initLogSocket(onLogFull, onLogUpdate) {
 
 		if (data.type === 'log-update') {
 			const parsed = data.logs;
+			console.log('📡 WebSocket log-update received:', parsed.length, 'logs');
+			if (parsed.length > 0) {
+				console.log('📊 Sample log:', parsed[0]);
+				console.log('🕐 Timestamp:', parsed[0].timestamp);
+				console.log('🏷️ Level:', parsed[0].level);
+			}
 			onLogUpdate(parsed);
+		}
+
+		if (data.type === 'message-update') {
+			const parsed = data.messages;
+			console.log('📡 WebSocket message-update received:', parsed.length, 'messages');
+			if (parsed.length > 0) {
+				console.log('📊 Sample message:', parsed[0]);
+				console.log('🕐 Timestamp:', parsed[0].timestamp);
+				console.log('🏷️ Status:', parsed[0].status);
+			}
+			// Use separate callback for messages if provided
+			if (onMessageUpdate) {
+				onMessageUpdate(parsed);
+			} else {
+				// Fallback to log update if no message callback provided
+				onLogUpdate(parsed);
+			}
 		}
 	};
 

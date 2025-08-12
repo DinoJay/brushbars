@@ -99,17 +99,22 @@ export async function GET({ params }) {
 			(/** @type {{ timestamp: string }} */ a, /** @type {{ timestamp: string }} */ b) =>
 				new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
 		);
+		// Enforce max 1200 per day (newest first)
+		const originalTotal = allMessages.length;
+		const limitedMessages = allMessages.slice(0, 1200);
 
 		const endTime = Date.now();
 		console.log(
-			`📦 Served ${allMessages.length} messages for ${date} from API in ${endTime - startTime}ms`
+			`📦 Served ${limitedMessages.length}/${originalTotal} messages for ${date} from API in ${endTime - startTime}ms`
 		);
 
 		return json({
 			success: true,
 			date,
-			messages: allMessages,
-			totalMessages: allMessages.length,
+			messages: limitedMessages,
+			totalMessages: limitedMessages.length,
+			originalTotal,
+			limitApplied: true,
 			totalChannels: channels.length,
 			dataSource: 'api',
 			performance: { duration: endTime - startTime, dataSource: 'api' }

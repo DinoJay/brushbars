@@ -1,3 +1,6 @@
+// Lightweight type hints to satisfy TS without full conversions
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import * as d3 from 'd3';
 
 export function formatTick(date, groupUnit, xScale) {
@@ -55,14 +58,26 @@ export function formatTick(date, groupUnit, xScale) {
 	}
 }
 
+// Normalize various status/level strings from logs and channels to a common palette
+function normalizeLevel(level) {
+	const l = String(level || '').toUpperCase();
+	if (['SENT', 'RECEIVED', 'PROCESSED', 'SUCCESS', 'OK', 'ACK'].includes(l)) return 'INFO';
+	if (['WARN', 'WARNING', 'PENDING', 'QUEUED'].includes(l)) return 'WARN';
+	if (['ERROR', 'FAILED', 'FAIL', 'NACK'].includes(l)) return 'ERROR';
+	if (['DEBUG', 'TRACE'].includes(l)) return 'DEBUG';
+	return l || 'INFO';
+}
+
 export function levelColor(level) {
+	// Use app-wide CSS variables so colors match everywhere (light/dark safe)
 	const colors = {
-		DEBUG: '#10b981', // green
-		INFO: '#3b82f6', // blue
-		WARN: '#f59e0b', // yellow
-		ERROR: '#ef4444' // red
+		DEBUG: 'var(--color-success)',
+		INFO: 'var(--color-accent)',
+		WARN: 'var(--color-warning)',
+		ERROR: 'var(--color-error)'
 	};
-	return colors[level] || '#6b7280'; // gray as fallback
+	const norm = normalizeLevel(level);
+	return colors[norm] || colors.INFO;
 }
 
 export function calculateBarWidth(grouped, width, margin) {

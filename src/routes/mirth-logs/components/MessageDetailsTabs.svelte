@@ -13,39 +13,46 @@
 	}
 </script>
 
-<div class="rounded-xl bg-white p-6 dark:bg-gray-800">
+<div
+	class="rounded-xl p-6"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+>
 	<!-- Message Details Tabs -->
 	<div class="mb-6">
-		<div class="border-b border-gray-100 dark:border-gray-700">
-			<nav class="-mb-px flex space-x-8">
+		<div class="border-b" style="border-color: var(--color-border);">
+			<nav class="-mb-px flex space-x-8 overflow-x-auto">
 				<button
-					class="border-b-2 {activeTab === 'overview'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'overview'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => setActiveTab('overview')}
 				>
 					Overview
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'content'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'content'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => setActiveTab('content')}
 				>
 					Content
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'processing'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'processing'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => setActiveTab('processing')}
 				>
 					Processing
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'errors'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'errors'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => setActiveTab('errors')}
 				>
 					Errors

@@ -53,13 +53,6 @@
 
 	// Helper to read current selected day (parent passes a plain string)
 	function selectedDayValue(): string | null | undefined {
-		console.log('🔍 DayButtons selectedDayValue called:', {
-			propsSelectedDay: props.selectedDay,
-			selectedDayType: typeof props.selectedDay,
-			daysLength: props.days?.length,
-			firstDayDate: props.days?.[0]?.date,
-			firstDayDateType: typeof props.days?.[0]?.date
-		});
 		return props.selectedDay ?? null;
 	}
 
@@ -72,6 +65,85 @@
 	function isToday(date: string): boolean {
 		return date === getCurrentDate();
 	}
+
+	// Show month + day (and year only when different from current year)
+	function formatDayTitle(date: string): string {
+		try {
+			const d = new Date(date);
+			if (!isNaN(d.getTime())) {
+				const base = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+				const currentYear = new Date().getFullYear();
+				return d.getFullYear() === currentYear ? base : `${base} ${d.getFullYear()}`;
+			}
+		} catch {
+			// fall through
+		}
+		return date;
+	}
+
+	// Ensure today is present in the list (with zero stats) so user can always select it
+	const effectiveDays = $derived.by(() => {
+		const list = Array.isArray(props.days) ? [...props.days] : ([] as DayData[]);
+		const today = getCurrentDate();
+
+		// Always get live entries for today
+		const live = Array.isArray(props.todaysLiveEntries)
+			? (props.todaysLiveEntries as TimelineEntry[])
+			: ([] as TimelineEntry[]);
+
+		// Calculate stats from live entries
+		let info = 0;
+		let warn = 0;
+		let error = 0;
+		let debug = 0;
+
+		for (const entry of live) {
+			const raw = String((entry as any).level || '').toUpperCase();
+			let norm = raw;
+			if (['SENT', 'RECEIVED', 'PROCESSED', 'SUCCESS', 'OK', 'ACK'].includes(raw)) norm = 'INFO';
+			else if (['WARN', 'WARNING', 'PENDING', 'QUEUED'].includes(raw)) norm = 'WARN';
+			else if (['ERROR', 'FAILED', 'FAIL', 'NACK'].includes(raw)) norm = 'ERROR';
+			else if (['DEBUG', 'TRACE'].includes(raw)) norm = 'DEBUG';
+			switch (norm) {
+				case 'INFO':
+					info += 1;
+					break;
+				case 'WARN':
+					warn += 1;
+					break;
+				case 'ERROR':
+					error += 1;
+					break;
+				case 'DEBUG':
+					debug += 1;
+					break;
+			}
+		}
+
+		// Create a new list with updated today stats
+		const updatedList = list.map((day) => {
+			if (normalizeDate(day.date) === today) {
+				// Return updated today with live stats
+				return {
+					...day,
+					stats: { total: live.length, INFO: info, ERROR: error, WARN: warn, DEBUG: debug }
+				};
+			}
+			return day;
+		});
+
+		// If today doesn't exist, add it
+		if (!updatedList.some((day) => normalizeDate(day.date) === today)) {
+			updatedList.push({
+				date: today,
+				formattedDate: today,
+				stats: { total: live.length, INFO: info, ERROR: error, WARN: warn, DEBUG: debug }
+			});
+		}
+
+		// Keep chronological order so downstream reverse() shows latest first
+		return updatedList.sort((a, b) => a.date.localeCompare(b.date));
+	});
 
 	// Get color for log level
 
@@ -125,66 +197,63 @@
 		<div class="flex justify-center py-6">
 			<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
 		</div>
-	{:else if props.days?.length > 0}
+	{:else if effectiveDays.length > 0}
 		<!-- Days Grid -->
-		<div class="flex gap-4 overflow-x-auto px-2 pb-4">
-			{#each [...props.days].reverse() as day}
+		<div class="flex gap-3 overflow-x-auto px-2 pb-3">
+			{#each [...effectiveDays].reverse() as day}
 				{@const isSelected = isDaySelected(day.date)}
 
 				<button
 					onclick={() => props.onSelectDay?.(day.date)}
 					data-selected={isSelected}
-					class="w-52 flex-shrink-0 rounded-2xl p-5 text-left transition-all duration-300 disabled:opacity-50"
+					class="w-44 flex-shrink-0 rounded-2xl p-4 text-left transition-all duration-300 disabled:opacity-50"
 					style="
 						{isSelected
 						? 'background-color: var(--color-accent-light); border: 2px solid var(--color-accent); box-shadow: var(--shadow-lg);'
 						: 'background-color: var(--color-bg-secondary); border: 2px solid var(--color-border); box-shadow: var(--shadow-sm);'}
 					"
 				>
-					<div class="mb-2 flex items-center justify-between">
+					<div class="mb-1.5 flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<h3
-								class="text-lg font-bold"
+								class="text-base font-bold"
 								style="color: {isSelected
 									? 'var(--color-accent-dark)'
 									: 'var(--color-text-primary)'};"
 							>
-								{day.date}
+								{formatDayTitle(day.date)}
 							</h3>
 							{#if isToday(day.date)}
-								<span
-									class="rounded-full px-3 py-1.5 text-xs font-semibold"
+								<div
+									class="flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
 									style="
-										{isSelected
+                                        {isSelected
 										? 'background-color: var(--color-accent); color: white;'
 										: 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'}
-									"
+                                    "
 								>
-									📡 Live
-								</span>
+									<div class="flex flex-col items-center gap-1">
+										<div>📡</div>
+									</div>
+								</div>
 							{/if}
 						</div>
 					</div>
 
 					<div
-						class="mb-4 text-sm font-medium"
+						class="mb-3 text-xs font-medium"
 						style="color: {isSelected
 							? 'var(--color-accent-dark)'
 							: 'var(--color-text-secondary)'};"
 					>
 						Total: {day.stats.total.toLocaleString()} logs
-						{#if isToday(day.date)}
-							<span class="ml-2 text-xs font-normal" style="color: var(--color-accent);"
-								>(real-time)</span
-							>
-						{/if}
 					</div>
 
 					<!-- Log Level Stats -->
-					<div class="grid grid-cols-2 gap-2">
+					<div class="flex flex-col gap-2">
 						<!-- Always show INFO, WARN, ERROR even if 0 -->
 						<div
-							class="flex items-center justify-between rounded-lg px-3 py-2"
+							class="flex items-center justify-between rounded-lg px-3 py-1.5"
 							style="
 								{isSelected
 								? 'background-color: var(--color-accent-light);'
@@ -198,7 +267,7 @@
 									: 'var(--color-text-secondary)'};">INFO</span
 							>
 							<span
-								class="rounded-full px-2 py-1 text-xs font-bold"
+								class="rounded-full px-2 py-0.5 text-[11px] font-bold"
 								style="
 									{isSelected
 									? 'background-color: var(--color-accent); color: white;'
@@ -210,7 +279,7 @@
 						</div>
 
 						<div
-							class="flex items-center justify-between rounded-lg px-3 py-2"
+							class="flex items-center justify-between rounded-lg px-3 py-1.5"
 							style="
 								{isSelected
 								? 'background-color: var(--color-accent-light);'
@@ -224,7 +293,7 @@
 									: 'var(--color-text-secondary)'};">WARN</span
 							>
 							<span
-								class="rounded-full px-2 py-1 text-xs font-bold"
+								class="rounded-full px-2 py-0.5 text-[11px] font-bold"
 								style="
 									{isSelected
 									? 'background-color: var(--color-accent); color: white;'
@@ -236,7 +305,7 @@
 						</div>
 
 						<div
-							class="flex items-center justify-between rounded-lg px-3 py-2"
+							class="flex items-center justify-between rounded-lg px-3 py-1.5"
 							style="
 								{isSelected
 								? 'background-color: var(--color-accent-light);'
@@ -250,7 +319,7 @@
 									: 'var(--color-text-secondary)'};">ERROR</span
 							>
 							<span
-								class="rounded-full px-2 py-1 text-xs font-bold"
+								class="rounded-full px-2 py-0.5 text-[11px] font-bold"
 								style="
 									{isSelected
 									? 'background-color: var(--color-accent); color: white;'
@@ -265,19 +334,26 @@
 						{#each Object.entries(day.stats) as [level, count]}
 							{#if level !== 'total' && level !== 'INFO' && level !== 'WARN' && level !== 'ERROR' && (count as number) > 0}
 								<div
-									class="flex items-center justify-between rounded px-2 py-1.5 {isSelected
-										? 'bg-blue-50 dark:bg-blue-900/30'
-										: 'bg-gray-50 dark:bg-gray-700'}"
+									class="flex items-center justify-between rounded px-2 py-1.5"
+									style="
+                                        {isSelected
+										? 'background-color: var(--color-accent-light);'
+										: 'background-color: var(--color-bg-tertiary);'}
+                                    "
 								>
 									<span
-										class="text-xs font-medium {isSelected
-											? 'text-blue-800 dark:text-blue-200'
-											: 'text-gray-700 dark:text-gray-300'}">{level}</span
+										class="text-xs font-medium"
+										style="color: {isSelected
+											? 'var(--color-accent-dark)'
+											: 'var(--color-text-secondary)'};">{level}</span
 									>
 									<span
-										class="rounded-full px-1.5 py-0.5 text-xs font-semibold {isSelected
-											? 'bg-blue-500 text-white dark:bg-blue-400 dark:text-gray-900'
-											: 'border border-gray-200 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-600 dark:text-white'}"
+										class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold"
+										style="
+                                            {isSelected
+											? 'background-color: var(--color-accent); color: white;'
+											: 'background-color: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border);'}
+                                        "
 									>
 										{(count as number).toLocaleString()}
 									</span>
@@ -289,7 +365,7 @@
 			{/each}
 		</div>
 	{:else if !props.loading}
-		<div class="py-6 text-center text-gray-500 dark:text-gray-400">
+		<div class="py-6 text-center" style="color: var(--color-text-secondary);">
 			No days found. Make sure the API is working and logs are available.
 		</div>
 	{/if}

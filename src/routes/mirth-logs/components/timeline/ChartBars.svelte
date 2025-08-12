@@ -8,7 +8,17 @@
 	// visualRange can be either date range or pixel coordinates
 	type VisualRange = [Date, Date] | [number, number] | null;
 
+	// Recompute bar positions when inputs change
 	const barPositions = $derived.by(() => calculateBarPositions(grouped, xScale, barWidth, 1));
+
+	// Key signature to remount bars on dataset change (no state writes)
+	const rerenderKey = $derived.by(() => {
+		const g = Array.isArray(grouped) ? grouped : [];
+		const len = g.length;
+		const firstTs = len > 0 ? ((g[0] as any)?.time?.getTime?.() ?? 0) : 0;
+		const lastTs = len > 0 ? ((g[len - 1] as any)?.time?.getTime?.() ?? 0) : 0;
+		return `${len}|${firstTs}|${lastTs}`;
+	});
 
 	type BarData = { count: number; logs?: TimelineEntry[] };
 	type BarPosition = { x: number; width: number; bar?: BarData };
@@ -99,23 +109,25 @@
 	}
 </script>
 
-{#each barPositions as barPosition}
-	{#each getStackedLevels(barPosition.bar, barPosition) as bar}
-		<rect
-			x={bar.x}
-			y={bar.y}
-			width={bar.width}
-			height={bar.height}
-			fill={levelColor(bar.level)}
-			opacity={barOpacity(bar.level, bar.x, bar.width)}
-			rx="2"
-			ry="2"
-			class="cursor-pointer transition-all duration-200 hover:opacity-80"
-			role="button"
-			tabindex="0"
-			aria-label={`Filter level ${bar.level}`}
-			onclick={() => handleBarClick(bar.level)}
-			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleBarClick(bar.level)}
-		/>
+{#key rerenderKey}
+	{#each barPositions as barPosition}
+		{#each getStackedLevels(barPosition.bar, barPosition) as bar}
+			<rect
+				x={bar.x}
+				y={bar.y}
+				width={bar.width}
+				height={bar.height}
+				fill={levelColor(bar.level)}
+				fill-opacity={barOpacity(bar.level, bar.x, bar.width)}
+				rx="2"
+				ry="2"
+				class="animate-timeline-enter cursor-pointer transition-all duration-300 ease-out hover:opacity-80"
+				role="button"
+				tabindex="0"
+				aria-label={`Filter level ${bar.level}`}
+				onclick={() => handleBarClick(bar.level)}
+				onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleBarClick(bar.level)}
+			/>
+		{/each}
 	{/each}
-{/each}
+{/key}

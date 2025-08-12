@@ -53,6 +53,14 @@
 			noScroll: true,
 			keepFocus: true
 		});
+
+		// Check if selected date is today
+		const today = new Date().toISOString().split('T')[0];
+		if (date === today) {
+			// If today is selected, check if we have live message entries
+			// For now, the effect will fetch from API since messages don't have live WebSocket updates
+			console.log('📅 Today selected for messages, will fetch from API');
+		}
 	}
 
 	const showSpinner = $derived.by(() => {

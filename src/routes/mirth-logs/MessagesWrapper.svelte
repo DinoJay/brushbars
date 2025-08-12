@@ -7,6 +7,7 @@
 	import MirthActivityTimeline from '$components/timeline/MirthActivityTimeline.svelte';
 	import LogTable from '$components/LogTable.svelte';
 	import { logStore } from '$stores/logStore.svelte';
+	import LoadingSpinner from '$components/LoadingSpinner.svelte';
 
 	// Get selected day directly from URL
 	function selectedDayFromUrl() {
@@ -23,8 +24,16 @@
 			keepFocus: true
 		});
 
-		// Fetch data for the selected day
-		await fetchDataForDay(date);
+		// Check if selected date is today
+		const today = new Date().toISOString().split('T')[0];
+		if (date === today) {
+			// If today is selected, use live messages from WebSocket
+			console.log('📅 Today selected for messages, using live WebSocket data');
+			logStore.updateMessages(logStore.liveMessages);
+		} else {
+			// Fetch data for the selected day from API
+			await fetchDataForDay(date);
+		}
 	}
 
 	// Fetch data for a specific day
@@ -49,6 +58,61 @@
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.messageDays && logStore.messageDays.length)
 	);
+
+	// Smart timeline data source that automatically switches between stored and live data
+	const timelineDataForSelectedDay = $derived.by(() => {
+		const selectedDay = selectedDayFromUrl();
+
+		if (!selectedDay) return logStore.timelineMessageEntries;
+
+		const today = new Date().toISOString().split('T')[0];
+
+		if (selectedDay === today) {
+			// For today: use live WebSocket data + any stored data for today
+			const liveTodayMessages = logStore.liveMessages.filter((message) => {
+				try {
+					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
+					return messageDate === today;
+				} catch {
+					return false;
+				}
+			});
+
+			const storedTodayMessages = logStore.timelineMessageEntries.filter((message) => {
+				try {
+					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
+					return messageDate === today;
+				} catch {
+					return false;
+				}
+			});
+
+			// Merge live and stored messages, avoiding duplicates
+			const allTodayMessages = [...storedTodayMessages];
+			const existingIds = new Set(storedTodayMessages.map((message) => message.id));
+
+			liveTodayMessages.forEach((message) => {
+				if (!existingIds.has(message.id)) {
+					allTodayMessages.push(message);
+				}
+			});
+
+			console.log(
+				`🔄 Timeline for today: ${liveTodayMessages.length} live + ${storedTodayMessages.length} stored = ${allTodayMessages.length} total`
+			);
+			return allTodayMessages;
+		} else {
+			// For other days: use stored data only
+			return logStore.timelineMessageEntries.filter((message) => {
+				try {
+					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
+					return messageDate === selectedDay;
+				} catch {
+					return false;
+				}
+			});
+		}
+	});
 
 	// Filter messages based on selected day and time range
 	const filteredMessagesForSelectedDay = $derived.by(() => {
@@ -86,19 +150,17 @@
 </script>
 
 {#if showSpinner}
-	<div class="flex min-h-[40vh] items-center justify-center">
-		<div class="text-center">
-			<div
-				class="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500"
-			></div>
-			<p class="text-gray-600">Loading days…</p>
-		</div>
+	<div class="flex min-h-[60vh] items-center justify-center">
+		<LoadingSpinner label="Loading days…" size={40} />
 	</div>
 {:else}
-	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="mb-4 rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<DayButtons
 			selectedDay={selectedDayFromUrl()}
-			todaysLiveEntries={[]}
+			todaysLiveEntries={logStore.liveMessages}
 			days={logStore.messageDays}
 			loading={logStore.loadingDays}
 			error={logStore.errorDays}
@@ -114,14 +176,20 @@
 		}}
 	/>
 
-	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="mb-4 rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<MirthActivityTimeline
-			entries={logStore.timelineMessageEntries}
+			entries={timelineDataForSelectedDay}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
 			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 		/>
 	</div>
-	<div class="rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<LogTable entries={filteredMessagesForSelectedDay} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

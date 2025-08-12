@@ -30,87 +30,100 @@
 	}
 </script>
 
-<div class="rounded-xl bg-white p-6 dark:bg-gray-800">
+<div
+	class="rounded-xl p-6"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+>
 	<!-- Dev Log Details Tabs -->
 	<div class="mb-6">
-		<div class="border-b border-gray-100 dark:border-gray-700">
+		<div class="border-b" style="border-color: var(--color-border);">
 			<nav class="-mb-px flex space-x-8 overflow-x-auto">
 				<button
-					class="border-b-2 {activeTab === 'overview'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'overview'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'overview')}
 				>
 					Overview
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'extended'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'extended'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'extended')}
 				>
 					Extended Details
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'channel'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'channel'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'channel')}
 				>
 					Channel Info
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'processing'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'processing'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'processing')}
 				>
 					Processing
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'performance'
-						? 'border-blue-500 text-blue-600 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'performance'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'performance')}
 				>
 					Performance
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'network'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'network'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'network')}
 				>
 					Network
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'errors'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'errors'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'errors')}
 				>
 					Errors
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'raw'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'raw'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'raw')}
 				>
 					Raw Data
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'sql'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'sql'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'sql')}
 				>
 					SQL & Data
 				</button>
 				<button
-					class="border-b-2 {activeTab === 'hl7'
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} px-1 py-2 text-sm font-medium whitespace-nowrap"
+					class="border-b-2 px-1 py-2 text-sm font-medium whitespace-nowrap"
+					style={activeTab === 'hl7'
+						? 'border-color: var(--color-accent); color: var(--color-accent-dark);'
+						: 'border-color: transparent; color: var(--color-text-secondary);'}
 					onclick={() => (activeTab = 'hl7')}
 				>
 					HL7 Messages

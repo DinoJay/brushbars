@@ -41,24 +41,19 @@
 		return effectiveEntries.filter((log: TimelineEntry) => {
 			switch (searchField) {
 				case 'message':
-					return log.message?.toLowerCase?.()?.includes(query) || false;
+					return (log.message ? String(log.message).toLowerCase() : '').includes(query);
 				case 'channel':
-					return log.channel?.toLowerCase?.()?.includes(query) || false;
+					return (log.channel ? String(log.channel).toLowerCase() : '').includes(query);
 				case 'threadId':
-					return log.threadId?.toLowerCase?.()?.includes(query) || false;
+					return (log.threadId ? String(log.threadId).toLowerCase() : '').includes(query);
 				case 'all':
 				default:
 					return (
-						log.message?.toLowerCase?.()?.includes(query) ||
-						false ||
-						log.channel?.toLowerCase?.()?.includes(query) ||
-						false ||
-						log.threadId?.toLowerCase?.()?.includes(query) ||
-						false ||
-						log.level?.toLowerCase?.()?.includes(query) ||
-						false ||
-						log.status?.toLowerCase?.()?.includes(query) ||
-						false
+						(log.message ? String(log.message).toLowerCase() : '').includes(query) ||
+						(log.channel ? String(log.channel).toLowerCase() : '').includes(query) ||
+						(log.threadId ? String(log.threadId).toLowerCase() : '').includes(query) ||
+						(log.level ? String(log.level).toLowerCase() : '').includes(query) ||
+						(log.status ? String(log.status).toLowerCase() : '').includes(query)
 					);
 			}
 		});
@@ -253,18 +248,24 @@
 	}
 </script>
 
-<div class="log-table-container overflow-hidden rounded-xl bg-white dark:bg-gray-800">
+<div
+	class="log-table-container overflow-hidden rounded-xl"
+	style="background-color: var(--color-bg-secondary);"
+>
 	<!-- Header with Search -->
 	<div
-		class="border-b border-gray-100 bg-gray-50/30 px-6 py-4 dark:border-gray-700 dark:bg-gray-700/30"
+		class="border-b px-6 py-4"
+		style="border-color: var(--color-border); background-color: var(--color-bg-tertiary);"
 	>
 		<div
 			class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
 		>
 			<div class="flex items-center space-x-3">
-				<h3 class="text-base font-semibold text-gray-900 dark:text-white">Log Entries</h3>
+				<h3 class="text-base font-semibold" style="color: var(--color-text-primary);">
+					Log Entries
+				</h3>
 				{#if searchQuery}
-					<span class="text-xs text-gray-500 dark:text-gray-400">
+					<span class="text-xs" style="color: var(--color-text-secondary);">
 						({visibleEntries.length} of {searchFilteredEntries.length} results)
 					</span>
 				{/if}
@@ -275,7 +276,8 @@
 				<!-- Search Field Selector -->
 				<select
 					bind:value={searchField}
-					class="h-8 rounded-lg border-0 bg-white px-3 text-xs text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-700 dark:text-white"
+					class="h-8 rounded-lg border-0 px-3 text-xs shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					style="background-color: var(--color-bg-secondary); color: var(--color-text-primary);"
 				>
 					<option value="all">All Fields</option>
 					<option value="message">Message</option>
@@ -289,7 +291,8 @@
 						bind:value={searchQuery}
 						type="text"
 						placeholder="Search logs..."
-						class="h-8 w-48 rounded-lg border-0 bg-white pr-8 pl-8 text-xs text-gray-900 placeholder-gray-400 shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
+						class="h-8 w-48 rounded-lg border-0 pr-8 pl-8 text-xs shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						style="background-color: var(--color-bg-secondary); color: var(--color-text-primary);"
 					/>
 					<!-- Search Icon -->
 					<div class="absolute top-1/2 left-2.5 -translate-y-1/2">
@@ -326,7 +329,7 @@
 				</div>
 
 				<!-- Total Count -->
-				<span class="text-xs text-gray-500 dark:text-gray-400">
+				<span class="text-xs" style="color: var(--color-text-secondary);">
 					Total: {effectiveEntries.length}
 				</span>
 			</div>
@@ -341,62 +344,74 @@
 				onscroll={handleScroll}
 				class="h-full overflow-x-auto overflow-y-auto"
 			>
-				<table class="min-w-full divide-y divide-gray-50 dark:divide-gray-700">
+				<table class="min-w-full divide-y" style="border-color: var(--color-border);">
 					<thead>
 						<tr>
-							<th class="w-12 bg-gray-50 px-4 py-2 dark:bg-gray-700"></th>
+							<th class="w-12 px-4 py-2" style="background-color: var(--color-bg-tertiary);"></th>
 							<th
 								onclick={() => handleSort('timestamp')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Time {getSortIndicator('timestamp')}
 							</th>
 							<th
 								onclick={() => handleSort('level')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Level {getSortIndicator('level')}
 							</th>
 							<th
 								onclick={() => handleSort('channel')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Channel {getSortIndicator('channel')}
 							</th>
 							<th
 								onclick={() => handleSort('status')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Status {getSortIndicator('status')}
 							</th>
 							<th
 								onclick={() => handleSort('message')}
-								class="cursor-pointer bg-gray-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Message {getSortIndicator('message')}
 							</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-50 bg-white dark:divide-gray-700 dark:bg-gray-800">
+					<tbody
+						class="divide-y"
+						style="border-color: var(--color-border); background-color: var(--color-bg-secondary);"
+					>
 						{#each visibleEntries as log, index}
 							<tr
-								class="transition-colors duration-150 hover:bg-gray-50/50 dark:hover:bg-gray-700/50"
+								class="transition-colors duration-150"
+								style="--hover-bg: var(--color-bg-tertiary);"
 							>
 								<td class="px-4 py-3 whitespace-nowrap">
 									<button
 										onclick={() => toggleRow(log.id)}
-										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-600"
+										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors"
+										style="background-color: transparent;"
+										aria-label={isExpanded(log.id) ? 'Collapse row' : 'Expand row'}
 										title={isExpanded(log.id) ? 'Collapse' : 'Expand'}
 									>
 										{#if isExpanded(log.id)}
-											<span class="text-sm text-gray-600 dark:text-gray-300">−</span>
+											<span class="text-sm" style="color: var(--color-text-secondary);">−</span>
 										{:else}
-											<span class="text-sm text-gray-600 dark:text-gray-300">+</span>
+											<span class="text-sm" style="color: var(--color-text-secondary);">+</span>
 										{/if}
 									</button>
 								</td>
 								<td
-									class="px-4 py-3 font-mono text-sm whitespace-nowrap text-gray-900 dark:text-white"
+									class="px-4 py-3 font-mono text-sm whitespace-nowrap"
+									style="color: var(--color-text-primary);"
 								>
 									{formatTime(log.timestamp)}
 								</td>
@@ -406,12 +421,12 @@
 											log.level as keyof typeof levelStyles
 										]?.bg} {levelStyles[log.level as keyof typeof levelStyles]?.text}"
 									>
-										{levelStyles[log.level as keyof typeof levelStyles]?.icon}
 										{log.level}
 									</span>
 								</td>
 								<td
-									class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white"
+									class="px-4 py-3 text-sm font-medium whitespace-nowrap"
+									style="color: var(--color-text-primary);"
 								>
 									{log.channel || '—'}
 								</td>
@@ -429,7 +444,7 @@
 										{log.status || '—'}
 									</span>
 								</td>
-								<td class="px-4 py-3 text-sm text-gray-900 dark:text-white">
+								<td class="px-4 py-3 text-sm" style="color: var(--color-text-primary);">
 									<div
 										class="max-w-lg {isExpanded(log.id) ? '' : 'truncate'}"
 										title={isExpanded(log.id) ? '' : log.message}
@@ -439,7 +454,7 @@
 								</td>
 							</tr>
 							{#if isExpanded(log.id)}
-								<tr class="bg-gray-50/50 dark:bg-gray-700/50" data-log-id={log.id}>
+								<tr style="background-color: var(--color-bg-tertiary);" data-log-id={log.id}>
 									<td></td>
 									<td colspan="5" class="px-4 py-3">
 										<MessageDetailsTabs {log} />
@@ -453,10 +468,12 @@
 							<tr>
 								<td colspan="6" class="px-4 py-3 text-center">
 									<div
-										class="flex items-center justify-center space-x-2 text-gray-500 dark:text-gray-400"
+										class="flex items-center justify-center space-x-2"
+										style="color: var(--color-text-secondary);"
 									>
 										<div
-											class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400"
+											class="h-4 w-4 animate-spin rounded-full border-2"
+											style="border-color: var(--color-border); border-top-color: var(--color-accent);"
 										></div>
 										<span class="text-sm">Loading more entries...</span>
 									</div>
@@ -482,15 +499,18 @@
 			</div>
 		{:else}
 			<!-- Empty state placeholder -->
-			<div class="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-800">
+			<div
+				class="flex h-full items-center justify-center"
+				style="background-color: var(--color-bg-tertiary);"
+			>
 				<div class="text-center">
-					<div class="mb-4 text-6xl text-gray-300 dark:text-gray-600">
+					<div class="mb-4 text-6xl" style="color: var(--color-border);">
 						{searchQuery ? '🔍' : '📋'}
 					</div>
-					<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-white">
+					<h3 class="mb-2 text-lg font-medium" style="color: var(--color-text-primary);">
 						{searchQuery ? 'No search results found' : 'No log data available'}
 					</h3>
-					<p class="text-sm text-gray-500 dark:text-gray-400">
+					<p class="text-sm" style="color: var(--color-text-secondary);">
 						{searchQuery
 							? `No logs match "${searchQuery}" in ${searchField === 'all' ? 'any field' : searchField}`
 							: 'No log entries are currently available for the selected criteria'}
@@ -498,7 +518,8 @@
 					{#if searchQuery}
 						<button
 							onclick={clearSearch}
-							class="mt-3 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-800"
+							class="mt-3 inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors"
+							style="background-color: var(--color-accent);"
 						>
 							Clear Search
 						</button>

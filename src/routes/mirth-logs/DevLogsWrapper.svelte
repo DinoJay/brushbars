@@ -7,6 +7,7 @@
 	import MirthActivityTimeline from '$components/timeline/MirthActivityTimeline.svelte';
 	import LogTable from '$components/LogTable.svelte';
 	import { logStore } from '$stores/logStore.svelte';
+	import LoadingSpinner from '$components/LoadingSpinner.svelte';
 
 	// Get selected day directly from URL
 	function selectedDayFromUrl() {
@@ -23,8 +24,15 @@
 			keepFocus: true
 		});
 
-		// Fetch data for the selected day
-		await fetchDataForDay(date);
+		// Check if selected date is today
+		const today = new Date().toISOString().split('T')[0];
+		if (date === today) {
+			// If today is selected, the timeline will automatically use live WebSocket data
+			console.log('📅 Today selected, timeline will show live WebSocket updates');
+		} else {
+			// Fetch data for the selected day from API
+			await fetchDataForDay(date);
+		}
 	}
 
 	// Fetch data for a specific day
@@ -49,6 +57,61 @@
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
+
+	// Smart timeline data source that automatically switches between stored and live data
+	const timelineDataForSelectedDay = $derived.by(() => {
+		const selectedDay = selectedDayFromUrl();
+
+		if (!selectedDay) return logStore.timelineDevLogs;
+
+		const today = new Date().toISOString().split('T')[0];
+
+		if (selectedDay === today) {
+			// For today: use live WebSocket data + any stored data for today
+			const liveTodayLogs = logStore.liveDevLogEntries.filter((log) => {
+				try {
+					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+					return logDate === today;
+				} catch {
+					return false;
+				}
+			});
+
+			const storedTodayLogs = logStore.timelineDevLogs.filter((log) => {
+				try {
+					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+					return logDate === today;
+				} catch {
+					return false;
+				}
+			});
+
+			// Merge live and stored logs, avoiding duplicates
+			const allTodayLogs = [...storedTodayLogs];
+			const existingIds = new Set(storedTodayLogs.map((log) => log.id));
+
+			liveTodayLogs.forEach((log) => {
+				if (!existingIds.has(log.id)) {
+					allTodayLogs.push(log);
+				}
+			});
+
+			console.log(
+				`🔄 Timeline for today: ${liveTodayLogs.length} live + ${storedTodayLogs.length} stored = ${allTodayLogs.length} total`
+			);
+			return allTodayLogs;
+		} else {
+			// For other days: use stored data only
+			return logStore.timelineDevLogs.filter((log) => {
+				try {
+					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+					return logDate === selectedDay;
+				} catch {
+					return false;
+				}
+			});
+		}
+	});
 
 	// Filter logs based on selected day and time range
 	const filteredLogsForSelectedDay = $derived.by(() => {
@@ -86,19 +149,17 @@
 </script>
 
 {#if showSpinner}
-	<div class="flex min-h-[40vh] items-center justify-center">
-		<div class="text-center">
-			<div
-				class="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500"
-			></div>
-			<p class="text-gray-600">Loading days…</p>
-		</div>
+	<div class="flex min-h-[60vh] items-center justify-center">
+		<LoadingSpinner label="Loading days…" size={40} />
 	</div>
 {:else}
-	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="mb-4 rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<DayButtons
 			selectedDay={selectedDayFromUrl()}
-			todaysLiveEntries={[]}
+			todaysLiveEntries={logStore.liveDevLogEntries}
 			days={logStore.devLogDays}
 			loading={logStore.loadingDays}
 			error={logStore.errorDays}
@@ -114,14 +175,20 @@
 		}}
 	/>
 
-	<div class="mb-4 rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="mb-4 rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<MirthActivityTimeline
-			entries={logStore.timelineDevLogs}
+			entries={timelineDataForSelectedDay}
 			onRangeChange={(r) => logStore.setSelectedRange(r)}
 			resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 		/>
 	</div>
-	<div class="rounded bg-white p-3 shadow dark:bg-gray-800">
+	<div
+		class="rounded p-3 shadow"
+		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	>
 		<LogTable entries={filteredLogsForSelectedDay} selectedRange={logStore.selectedRange} />
 	</div>
 {/if}

@@ -171,6 +171,8 @@ export function generateChannelMessages(channelId, days = 30) {
 	const pattern = patterns[channel.name] || patterns['ADT_QRY19'];
 	let messageId = 1;
 
+	const MAX_PER_DAY = 1200;
+
 	for (let day = 0; day < days; day++) {
 		const date = new Date(now);
 		date.setDate(date.getDate() - day);
@@ -185,8 +187,9 @@ export function generateChannelMessages(channelId, days = 30) {
 		const dayOfWeek = date.getDay();
 		const weekendFactor = dayOfWeek === 0 || dayOfWeek === 6 ? 0.6 : 1.0;
 		const finalDayCount = Math.floor(dayCount * weekendFactor);
+		const cappedDayCount = Math.min(finalDayCount, MAX_PER_DAY);
 
-		for (let i = 0; i < finalDayCount; i++) {
+		for (let i = 0; i < cappedDayCount; i++) {
 			const success = Math.random() < pattern.successRate;
 			const timestamp = new Date(date);
 
@@ -293,7 +296,7 @@ export function generateChannelStats(channelId, days = 30) {
 		date.setDate(date.getDate() - day);
 		const dateStr = date.toISOString().split('T')[0];
 
-		const dayMessages = messages.filter((m) => m.receivedDate.startsWith(dateStr));
+		const dayMessages = messages.filter((m) => m.receivedDate.startsWith(dateStr)).slice(0, 1200); // enforce max 1200 per day in stats as well
 
 		const total = dayMessages.length;
 		const processed = dayMessages.filter((m) => m.processed).length;

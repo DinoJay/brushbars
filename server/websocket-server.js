@@ -2,6 +2,8 @@ import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
 import { WebSocketServer } from 'ws';
+// Import parseLogLines from apiHelpers (includes all necessary parsing functions)
+import { parseLogLines } from '../src/lib/apiHelpers.js';
 
 const PORT = 3001;
 
@@ -28,90 +30,6 @@ const wss = new WebSocketServer({ port: PORT }, () => {
 });
 
 let lastSize = 0;
-
-// Log parsing function
-function parseLogLines(logText) {
-	const result = [];
-	const lines = logText
-		.split(/\r?\n/)
-		.map((l) => l.trim())
-		.filter(Boolean);
-
-	let counter = 0;
-	let filteredCount = 0;
-
-	// Improved regex to handle more log formats
-	const regex =
-		/^(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([^\]]+)]\s+(\w+):\s+(.*)$/;
-
-	for (const line of lines) {
-		const match = line.match(regex);
-		if (match) {
-			const [, level, timestamp, context, message] = match;
-			const channelMatch = context.match(/ on (\S+?) \(/);
-			const channel = channelMatch ? channelMatch[1] : '(unknown)';
-
-			// Normalize timestamp format (add .000 if milliseconds missing)
-			let normalizedTimestamp = timestamp;
-			if (!timestamp.includes('.')) {
-				normalizedTimestamp = timestamp + '.000';
-			}
-
-			result.push({
-				id: counter++,
-				level: level.toUpperCase(),
-				timestamp: normalizedTimestamp,
-				channel,
-				message
-			});
-		} else {
-			// Try alternative regex patterns for different log formats
-			const altRegex1 =
-				/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+(INFO|ERROR|WARN|DEBUG|WARNING|FATAL|TRACE)\s+\[([^\]]+)]\s+(.*)$/;
-			const altMatch1 = line.match(altRegex1);
-
-			if (altMatch1) {
-				const [, timestamp, level, context, message] = altMatch1;
-				const channelMatch = context.match(/ on (\S+?) \(/);
-				const channel = channelMatch ? channelMatch[1] : '(unknown)';
-
-				let normalizedTimestamp = timestamp;
-				if (!timestamp.includes('.')) {
-					normalizedTimestamp = timestamp + '.000';
-				}
-
-				result.push({
-					id: counter++,
-					level: level.toUpperCase(),
-					timestamp: normalizedTimestamp,
-					channel,
-					message
-				});
-			} else {
-				// Skip lines that don't match any pattern instead of creating invalid entries
-				filteredCount++;
-				if (filteredCount <= 5) {
-					console.warn('⚠️ Skipping malformed log line:', line.substring(0, 100));
-				}
-			}
-		}
-	}
-
-	// Filter out any entries with empty timestamps (shouldn't happen now, but just in case)
-	const validEntries = result.filter((entry) => {
-		if (!entry.timestamp || entry.timestamp.trim() === '') {
-			filteredCount++;
-			return false;
-		}
-		return true;
-	});
-
-	if (filteredCount > 0) {
-		console.log(`📊 Filtered out ${filteredCount} entries with invalid/missing timestamps`);
-	}
-
-	return validEntries;
-}
 
 // Get all log files from the directory
 function getLogFiles() {
@@ -263,11 +181,16 @@ async function sendHistoricalLogs(ws) {
 			const currentDayLogs = getCurrentDayLogs(parsedLogs);
 			console.log(`📊 Found ${currentDayLogs.length} logs for current day`);
 
-			// Send current day logs (including morning from rotated files)
-			const logsToSend = currentDayLogs;
+			// Limit to 1200 logs per day (newest first)
+			const limitedLogs = currentDayLogs
+				.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+				.slice(0, 1200);
+
+			// Send limited current day logs
+			const logsToSend = limitedLogs;
 
 			console.log(
-				`📊 Sending ${logsToSend.length} logs (current day including morning from rotated files)`
+				`📊 Sending ${logsToSend.length} logs (current day including morning from rotated files, limited from ${currentDayLogs.length})`
 			);
 
 			// Send current day logs to client
@@ -281,6 +204,8 @@ async function sendHistoricalLogs(ws) {
 						parsedCount: parsedLogs.length,
 						sentCount: logsToSend.length,
 						currentDayCount: currentDayLogs.length,
+						originalCount: currentDayLogs.length,
+						limitApplied: true,
 						dataType: 'current-day-complete'
 					}
 				})
@@ -403,3 +328,93 @@ chokidar
 
 console.log('🚀 WebSocket server ready');
 console.log(`📡 Real-time current day logs will be streamed from: ${LOG_FILE}`);
+
+// In ATHOME mode, synthesize example dev logs periodically to exercise the UI without real files
+if (IS_ATHOME) {
+	console.log('🏠 ATHOME: enabling synthetic devLog stream');
+	const LEVELS = ['INFO', 'WARN', 'ERROR', 'DEBUG'];
+	function makeFakeLog(i) {
+		const level = LEVELS[Math.floor(Math.random() * LEVELS.length)];
+		const now = new Date();
+		// Randomize within current minute for nicer distribution
+		now.setMilliseconds(Math.floor(Math.random() * 1000));
+		return {
+			id: `sim-${now.getTime()}-${i}`,
+			level,
+			timestamp: now.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23),
+			channel: ['MAIN', 'PDF', 'HL7', 'LAB'][Math.floor(Math.random() * 4)],
+			message:
+				level === 'ERROR'
+					? 'Simulated processing error occurred'
+					: level === 'WARN'
+						? 'Simulated warning event'
+						: level === 'DEBUG'
+							? 'Simulated debug details'
+							: 'Simulated info message'
+		};
+	}
+
+	// Channel Message generation
+	const MESSAGE_TYPES = ['INFO', 'WARN', 'ERROR'];
+	const CHANNELS = ['ADT_A01', 'ORU_R01', 'SIU_S12', 'LAB_RESULTS', 'PHARMACY_ORDERS'];
+
+	function makeFakeChannelMessage(i) {
+		const type = MESSAGE_TYPES[Math.floor(Math.random() * MESSAGE_TYPES.length)];
+		const channel = CHANNELS[Math.floor(Math.random() * CHANNELS.length)];
+		const now = new Date();
+		// Randomize within current minute for nicer distribution
+		now.setMilliseconds(now.getMilliseconds() - Math.floor(Math.random() * 1000));
+
+		return {
+			id: `sim-msg-${now.getTime()}-${i}`,
+			level: type, // Use message type as level for consistency
+			timestamp: now.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23),
+			channel,
+			message: `Simulated ${type.toLowerCase()} message for ${channel}`,
+			status: type,
+			messageId: `MSG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+			processingTime: Math.floor(Math.random() * 500) + 50, // 50-550ms
+			queueSize: Math.floor(Math.random() * 100),
+			protocol: ['HL7', 'FHIR', 'X12'][Math.floor(Math.random() * 3)],
+			sourcePort: Math.floor(Math.random() * 65535) + 1024,
+			destinationPort: Math.floor(Math.random() * 65535) + 1024
+		};
+	}
+
+	// Broadcast helper for both types
+	function broadcast(type, data, dataType = 'athome-synthetic') {
+		const msg = JSON.stringify({
+			type,
+			...data,
+			stats: { dataType, count: data.logs?.length || data.messages?.length || 0 }
+		});
+		for (const client of wss.clients) {
+			if (client.readyState === 1) client.send(msg);
+		}
+	}
+
+	// Periodically send small bursts of new logs (every 6 seconds)
+	const LOG_INTERVAL_MS = Number(process.env.SYNTH_LOG_INTERVAL_MS || 6000);
+	const LOG_BURST_MIN = 3;
+	const LOG_BURST_MAX = 15;
+
+	setInterval(() => {
+		const n = Math.floor(Math.random() * (LOG_BURST_MIN - LOG_BURST_MAX + 1)) + LOG_BURST_MIN;
+		const logs = Array.from({ length: n }, (_, i) => makeFakeLog(i));
+		broadcast('log-update', { logs }, 'athome-synthetic-logs');
+		console.log(`📡 Generated ${logs.length} synthetic dev logs`);
+	}, LOG_INTERVAL_MS);
+
+	// Periodically send small bursts of new channel messages (every 4 seconds)
+	const MESSAGE_INTERVAL_MS = Number(process.env.SYNTH_MESSAGE_INTERVAL_MS || 4000);
+	const MESSAGE_BURST_MIN = 2;
+	const MESSAGE_BURST_MAX = 8;
+
+	setInterval(() => {
+		const n =
+			Math.floor(Math.random() * (MESSAGE_BURST_MIN - MESSAGE_BURST_MAX + 1)) + MESSAGE_BURST_MIN;
+		const messages = Array.from({ length: n }, (_, i) => makeFakeChannelMessage(i));
+		broadcast('message-update', { messages }, 'athome-synthetic-messages');
+		console.log(`📡 Generated ${messages.length} synthetic channel messages`);
+	}, MESSAGE_INTERVAL_MS);
+}

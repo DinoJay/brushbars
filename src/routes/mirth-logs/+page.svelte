@@ -32,6 +32,8 @@
 		return $page.url.searchParams.get('day');
 	});
 
+	// (removed page-level tab spinner state)
+
 	// Initialize store with server data only once on component mount
 	$effect(() => {
 		if (hasInitializedStore) {
@@ -81,20 +83,6 @@
 	// Debug theme changes
 	$effect(() => {
 		console.log('🎨 Component: Theme changed to:', $isDark ? 'dark' : 'light');
-	});
-
-	// Debug CSS custom properties
-	$effect(() => {
-		if (browser) {
-			const root = document.documentElement;
-			const computedStyle = getComputedStyle(root);
-			console.log('🎨 CSS Variables:', {
-				bgPrimary: computedStyle.getPropertyValue('--color-bg-primary'),
-				bgSecondary: computedStyle.getPropertyValue('--color-bg-secondary'),
-				textPrimary: computedStyle.getPropertyValue('--color-text-primary'),
-				hasDarkClass: root.classList.contains('dark')
-			});
-		}
 	});
 
 	// Load initial days data for both tabs
@@ -147,31 +135,23 @@
 		}
 	});
 
-	// If no ?day is present, jump to the latest available day once days are loaded
-	// Only run this effect once when days are first loaded, not on every change
+	// If no ?day is present, set it to TODAY (always treat today as latest)
+	// Only run this effect once when first loaded
 	let hasSetInitialDay = $state(false);
 	$effect(() => {
 		if (typeof window === 'undefined' || hasSetInitialDay) return;
 		const hasDayParam = !!$page.url.searchParams.get('day');
 		if (hasDayParam) return;
 
-		const daysList = currentTab === 'logs' ? logStore.devLogDays : logStore.messageDays;
-		if (daysList && daysList.length) {
-			const latest = daysList.reduce(
-				(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
-				''
-			);
-			if (latest) {
-				hasSetInitialDay = true;
-				const url = new URL(window.location.href);
-				url.searchParams.set('day', latest);
-				goto(url.pathname + '?' + url.searchParams.toString(), {
-					replaceState: true,
-					noScroll: true,
-					keepFocus: true
-				});
-			}
-		}
+		const today = new Date().toISOString().split('T')[0];
+		hasSetInitialDay = true;
+		const url = new URL(window.location.href);
+		url.searchParams.set('day', today);
+		goto(url.pathname + '?' + url.searchParams.toString(), {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
 	});
 
 	// Remove manual history syncing; URL is the source of truth via $page
@@ -186,6 +166,10 @@
 			(parsedLogs: any[]) => {
 				const current = logStore.liveDevLogEntries;
 				logStore.updateLiveDevLogEntries([...current, ...parsedLogs]);
+			},
+			(parsedMessages: any[]) => {
+				const current = logStore.liveMessages;
+				logStore.updateLiveMessages([...current, ...parsedMessages]);
 			}
 		);
 
@@ -263,33 +247,26 @@
 	async function handleTabChange(tab: 'logs' | 'channels') {
 		console.log('🔄 Tab changed to:', tab);
 
-		// Determine latest available day for the target tab from store
-		const daysList = tab === 'logs' ? logStore.devLogDays : logStore.messageDays;
-		if (!daysList || daysList.length === 0) {
-			console.warn('⚠️ No days available for tab:', tab);
-			return;
-		}
+		// Always treat today as the latest day
+		const today = new Date().toISOString().split('T')[0];
 
-		const latestDay = daysList.reduce(
-			(acc: string, d: { date: string }) => (!acc || d.date > acc ? d.date : acc),
-			''
-		);
-		if (!latestDay) {
-			console.warn('⚠️ Could not determine latest day for tab:', tab);
-			return;
-		}
+		// Clear any active brush selection when switching tabs
+		logStore.setSelectedRange(null);
 
 		// Navigate to keep selectedDay in the URL and trigger reactivity
 		const url = new URL(window.location.href);
 		url.searchParams.set('tab', tab);
-		url.searchParams.set('day', latestDay);
+		url.searchParams.set('day', today);
 		goto(url.pathname + '?' + url.searchParams.toString(), {
 			replaceState: true,
 			noScroll: true,
 			keepFocus: true,
 			invalidateAll: false
 		});
-		console.log('✅ Navigated with latest day for tab:', tab, 'day:', latestDay);
+		console.log('✅ Navigated with latest day for tab:', tab, 'day:', today);
+
+		// Proactively load data for the selected tab/day so timeline updates immediately
+		await fetchDataForDay(today, tab);
 	}
 </script>
 
@@ -299,7 +276,7 @@
 >
 	<Tabs value={currentTab} onChange={(tab) => handleTabChange(tab as 'logs' | 'channels')}>
 		<div
-			class="mb-8 flex items-center justify-between rounded-2xl p-6"
+			class="mb-6 flex items-center justify-between rounded-2xl p-3"
 			style="background-color: var(--color-bg-secondary); box-shadow: var(--shadow-md); border: 1px solid var(--color-border);"
 		>
 			<TabsList class="p-1.5">
@@ -314,14 +291,6 @@
 					<span class="text-3xl">📡</span>
 					Mirth Logs
 				</h1>
-				{#if isLoadingData}
-					<div class="flex items-center text-blue-600 dark:text-blue-400">
-						<div
-							class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-blue-600 dark:border-blue-400"
-						></div>
-						<span class="text-sm">Loading...</span>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Theme Toggle -->
@@ -356,23 +325,6 @@
 						/>
 					</svg>
 				{/if}
-			</button>
-
-			<!-- Test Button -->
-			<button
-				onclick={() => {
-					console.log('🧪 Test button clicked!');
-					document.documentElement.classList.toggle('dark');
-					console.log(
-						'🧪 Dark class toggled:',
-						document.documentElement.classList.contains('dark')
-					);
-				}}
-				class="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 p-3 text-white transition-all duration-200 hover:scale-105 hover:from-blue-600 hover:to-purple-700"
-				style="box-shadow: var(--shadow-md);"
-				title="Test dark mode toggle"
-			>
-				�� Test
 			</button>
 		</div>
 
