@@ -15,7 +15,7 @@
 
 <div
 	class="rounded-xl p-6"
-	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border); color: var(--color-text-primary);"
 >
 	<!-- Message Details Tabs -->
 	<div class="mb-6">
@@ -67,31 +67,43 @@
 			<div class="space-y-4">
 				<!-- Basic Information -->
 				<div>
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Basic Information</h4>
+					<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+						Basic Information
+					</h4>
 					<div class="grid grid-cols-2 gap-4 text-sm">
 						<div>
-							<span class="text-gray-500">Message ID:</span>
-							<span class="ml-2 font-mono text-gray-900">{log.messageId || log.id}</span>
+							<span style="color: var(--color-text-secondary);">Message ID:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
+								>{log.messageId || log.id}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Server ID:</span>
-							<span class="ml-2 font-mono text-gray-900">{log.serverId || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Server ID:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
+								>{log.serverId || '—'}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Channel ID:</span>
-							<span class="ml-2 font-mono text-gray-900">{log.channelId || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Channel ID:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
+								>{log.channelId || '—'}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Status:</span>
-							<span class="ml-2 font-medium text-gray-900">{log.status || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Status:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{log.status || '—'}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Processed:</span>
-							<span class="ml-2 font-medium text-gray-900">{log.processed ? 'Yes' : 'No'}</span>
+							<span style="color: var(--color-text-secondary);">Processed:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{log.processed ? 'Yes' : 'No'}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Received:</span>
-							<span class="ml-2 font-mono text-gray-900"
+							<span style="color: var(--color-text-secondary);">Received:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
 								>{new Date(log.receivedDate || log.timestamp).toLocaleString()}</span
 							>
 						</div>
@@ -100,15 +112,21 @@
 
 				<!-- Connector Information -->
 				<div>
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Connector Information</h4>
+					<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+						Connector Information
+					</h4>
 					<div class="grid grid-cols-2 gap-4 text-sm">
 						<div>
-							<span class="text-gray-500">Connector Name:</span>
-							<span class="ml-2 font-medium text-gray-900">{log.connectorName || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Connector Name:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{log.connectorName || '—'}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Connector Type:</span>
-							<span class="ml-2 font-medium text-gray-900">{log.connectorType || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Connector Type:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{log.connectorType || '—'}</span
+							>
 						</div>
 						<div>
 							<span class="text-gray-500">Error Code:</span>
@@ -134,58 +152,76 @@
 				<!-- Raw Content -->
 				{#if log.rawContent}
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-900">Raw Content</h4>
+						<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+							Raw Content
+						</h4>
 						<pre
-							class="overflow-x-auto rounded bg-gray-50 p-3 font-mono text-xs text-gray-800">{log.rawContent}</pre>
+							class="overflow-x-auto rounded p-3 font-mono text-xs"
+							style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border);">{log.rawContent}</pre>
 					</div>
 				{/if}
 
 				<!-- Transformed Content -->
 				{#if log.transformedContent}
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-900">Transformed Content</h4>
+						<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+							Transformed Content
+						</h4>
 						<pre
-							class="overflow-x-auto rounded bg-gray-50 p-3 font-mono text-xs text-gray-800">{log.transformedContent}</pre>
+							class="overflow-x-auto rounded p-3 font-mono text-xs"
+							style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border);">{log.transformedContent}</pre>
 					</div>
 				{/if}
 
 				<!-- Encoded Content -->
 				{#if log.encodedContent}
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-900">Encoded Content</h4>
+						<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+							Encoded Content
+						</h4>
 						<pre
-							class="overflow-x-auto rounded bg-gray-50 p-3 font-mono text-xs text-gray-800">{log.encodedContent}</pre>
+							class="overflow-x-auto rounded p-3 font-mono text-xs"
+							style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border);">{log.encodedContent}</pre>
 					</div>
 				{/if}
 
 				<!-- Response Content -->
 				{#if log.responseContent}
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-900">Response Content</h4>
+						<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+							Response Content
+						</h4>
 						<pre
-							class="overflow-x-auto rounded bg-gray-50 p-3 font-mono text-xs text-gray-800">{log.responseContent}</pre>
+							class="overflow-x-auto rounded p-3 font-mono text-xs"
+							style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border);">{log.responseContent}</pre>
 					</div>
 				{/if}
 
 				{#if !log.rawContent && !log.transformedContent && !log.encodedContent && !log.responseContent}
-					<div class="text-sm text-gray-500">No content available</div>
+					<div class="text-sm" style="color: var(--color-text-secondary);">
+						No content available
+					</div>
 				{/if}
 			</div>
 		{:else if activeTab === 'processing'}
 			<div class="space-y-4">
 				<!-- Processing Details -->
 				<div>
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Processing Details</h4>
+					<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+						Processing Details
+					</h4>
 					<div class="space-y-2 text-sm">
 						<div>
-							<span class="text-gray-500">Processing Status:</span>
-							<span class="ml-2 font-medium text-gray-900"
+							<span style="color: var(--color-text-secondary);">Processing Status:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
 								>{log.processed ? 'Completed' : 'Pending'}</span
 							>
 						</div>
 						<div>
-							<span class="text-gray-500">Processing Time:</span>
-							<span class="ml-2 font-medium text-gray-900">{log.processingTime || '—'}</span>
+							<span style="color: var(--color-text-secondary);">Processing Time:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{log.processingTime || '—'}</span
+							>
 						</div>
 					</div>
 				</div>
@@ -193,9 +229,12 @@
 				<!-- Metadata -->
 				{#if log.metaDataMap}
 					<div>
-						<h4 class="mb-2 text-sm font-medium text-gray-900">Metadata</h4>
+						<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+							Metadata
+						</h4>
 						<pre
-							class="overflow-x-auto rounded bg-gray-50 p-3 font-mono text-xs text-gray-800">{log.metaDataMap}</pre>
+							class="overflow-x-auto rounded p-3 font-mono text-xs"
+							style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border: 1px solid var(--color-border);">{log.metaDataMap}</pre>
 					</div>
 				{/if}
 			</div>

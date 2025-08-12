@@ -32,7 +32,7 @@
 
 <div
 	class="rounded-xl p-6"
-	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border); color: var(--color-text-primary);"
 >
 	<!-- Dev Log Details Tabs -->
 	<div class="mb-6">
@@ -138,33 +138,45 @@
 			<div class="space-y-4">
 				<!-- Basic Information -->
 				<div>
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Basic Information</h4>
+					<h4 class="mb-2 text-sm font-medium" style="color: var(--color-text-primary);">
+						Basic Information
+					</h4>
 					<div class="grid grid-cols-2 gap-4 text-sm">
 						<div>
-							<span class="text-gray-500">Log ID:</span>
-							<span class="ml-2 font-mono text-gray-900">{formatValue(log.id)}</span>
+							<span style="color: var(--color-text-secondary);">Log ID:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
+								>{formatValue(log.id)}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Timestamp:</span>
-							<span class="ml-2 font-mono text-gray-900"
+							<span style="color: var(--color-text-secondary);">Timestamp:</span>
+							<span class="ml-2 font-mono" style="color: var(--color-text-primary);"
 								>{new Date(log.timestamp).toLocaleString()}</span
 							>
 						</div>
 						<div>
-							<span class="text-gray-500">Level:</span>
-							<span class="ml-2 font-medium text-gray-900">{formatValue(log.level)}</span>
+							<span style="color: var(--color-text-secondary);">Level:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{formatValue(log.level)}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Channel:</span>
-							<span class="ml-2 font-medium text-gray-900">{formatValue(log.channel)}</span>
+							<span style="color: var(--color-text-secondary);">Channel:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{formatValue(log.channel)}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Status:</span>
-							<span class="ml-2 font-medium text-gray-900">{formatValue(log.status)}</span>
+							<span style="color: var(--color-text-secondary);">Status:</span>
+							<span class="ml-2 font-medium" style="color: var(--color-text-primary);"
+								>{formatValue(log.status)}</span
+							>
 						</div>
 						<div>
-							<span class="text-gray-500">Message:</span>
-							<span class="ml-2 text-gray-900">{formatValue(log.message)}</span>
+							<span style="color: var(--color-text-secondary);">Message:</span>
+							<span class="ml-2" style="color: var(--color-text-primary);"
+								>{formatValue(log.message)}</span
+							>
 						</div>
 					</div>
 				</div>
