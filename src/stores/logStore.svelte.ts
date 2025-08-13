@@ -67,9 +67,21 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 
 	// Note: messages are populated by updateMessages()
 
-	// All dev logs without any filters (selected day + live WS)
+	// All dev logs without any filters: merge stored + live, de-duplicate by id
 	let allDevLogs = $derived.by(() => {
-		return [...(devLogs || []), ...(liveDevLogEntries || [])];
+		const list = [...(devLogs || []), ...(liveDevLogEntries || [])];
+		const seen = new Set<string | number>();
+		const deduped: LogEntry[] = [];
+		for (const log of list) {
+			const id =
+				(log as any)?.id ??
+				`${(log as any)?.timestamp}|${(log as any)?.level}|${(log as any)?.message}`;
+			if (!seen.has(id)) {
+				seen.add(id);
+				deduped.push(log);
+			}
+		}
+		return deduped;
 	});
 
 	// All messages without any filters: merge stored + live, de-duplicate by id
@@ -88,16 +100,16 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return deduped;
 	});
 
-	// Enhanced day data that includes live entries
-	let enhancedDevLogDays = $derived.by(() => {
-		if (!devLogDays || devLogDays.length === 0) return devLogDays;
-
+	const helperEnhancedDays = (entries: DayData[], liveEntries: LogEntry[]) => {
 		const today = new Date().toISOString().split('T')[0];
+		let todayInside = false;
 
-		return devLogDays.map((day) => {
+		const newDays = [];
+		entries.forEach((day) => {
 			if (day.date === today) {
+				todayInside = true;
 				// For today, compute delta stats from live entries and add to base stats (slim days)
-				const liveTodayLogs = liveDevLogEntries.filter((log) => {
+				const liveTodayEntries = liveEntries.filter((log) => {
 					try {
 						const logDate = new Date(log.timestamp).toISOString().split('T')[0];
 
@@ -118,82 +130,56 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 					FATAL: 0,
 					TRACE: 0
 				};
-				const deltaStats = calculateStats(liveTodayLogs);
+				const deltaStats = calculateStats(liveTodayEntries);
 				const stats = addStats(baseStats, deltaStats);
 
 				console.log('   Dev today base stats:', baseStats);
 				console.log('   Dev today delta (live) stats:', deltaStats);
 				console.log('   Dev today combined stats:', stats);
 
-				return {
+				newDays.push({
 					...day,
 					stats,
 					formattedDate: formatDateForDisplay(day.date)
-				};
+				});
+			} else {
+				newDays.push({
+					...day,
+					formattedDate: formatDateForDisplay(day.date)
+				});
 			}
-			return {
-				...day,
-				formattedDate: formatDateForDisplay(day.date)
-			};
 		});
+
+		if (!todayInside) {
+			const liveTodayEntries = liveEntries.filter((log) => {
+				try {
+					const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+					return logDate === today;
+				} catch (error) {
+					console.error('   Error parsing log timestamp:', log.timestamp, error);
+					return false;
+				}
+			});
+
+			const liveStats = calculateStats(liveTodayEntries);
+			newDays.push({
+				date: today,
+				formattedDate: formatDateForDisplay(today),
+				stats: liveStats
+			});
+		}
+
+		return newDays;
+	};
+	// Enhanced day data that includes live entries
+	let enhancedDevLogDays = $derived.by(() => {
+		if (!devLogDays || devLogDays.length === 0) return devLogDays;
+		return helperEnhancedDays(devLogDays, liveDevLogEntries);
 	});
 
 	let enhancedMessageDays = $derived.by(() => {
 		if (!messageDays || messageDays.length === 0) return messageDays;
-
-		const today = new Date().toISOString().split('T')[0];
-
-		console.log('🔍 liveMessages:', liveMessages);
-		return messageDays.map((day) => {
-			if (day.date === today) {
-				console.log('🔍 today:', day);
-				// For today, compute delta stats from live entries and add to base stats
-				const liveTodayMessages = liveMessages.filter((message) => {
-					try {
-						const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
-						console.log(
-							'   Comparing message date:',
-							messageDate,
-							'with today:',
-							today,
-							'match:',
-							messageDate === today
-						);
-						return messageDate === today;
-					} catch (error) {
-						console.error('   Error parsing message timestamp:', message.timestamp, error);
-						return false;
-					}
-				});
-
-				const baseStats = day.stats ?? {
-					total: 0,
-					INFO: 0,
-					ERROR: 0,
-					WARN: 0,
-					DEBUG: 0,
-					WARNING: 0,
-					FATAL: 0,
-					TRACE: 0
-				};
-				const deltaStats = calculateStats(liveTodayMessages);
-				const stats = addStats(baseStats, deltaStats);
-
-				console.log('   Today base stats:', baseStats);
-				console.log('   Today delta (live) stats:', deltaStats);
-				console.log('   Today combined stats:', stats);
-
-				return {
-					...day,
-					stats,
-					formattedDate: formatDateForDisplay(day.date)
-				};
-			}
-			return {
-				...day,
-				formattedDate: formatDateForDisplay(day.date)
-			};
-		});
+		return helperEnhancedDays(messageDays, liveMessages);
 	});
 
 	// Helper function to format date as "25 JUN 2025"
@@ -276,16 +262,6 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return out;
 	}
 
-	function getDevFilterEntriesForDay(day: string): LogEntry[] {
-		// Slim mode: current selected day's dev logs live in `devLogs`
-		return devLogs || [];
-	}
-
-	function getMessageFilterEntriesForDay(day: string): LogEntry[] {
-		// Simplified: current day's messages are held in `messages`
-		return messages || [];
-	}
-
 	// Timeline helpers (merged + filtered by current selected filters)
 	function applyLevelAndChannelFilters(list: LogEntry[]): LogEntry[] {
 		let filtered = list;
@@ -322,49 +298,59 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		return filtered;
 	}
 
+	// Helper function to share logic for filtering entries by day and applying level/channel filters
+	function getTimelineEntriesForDay(
+		day: string,
+		storedEntries: LogEntry[],
+		liveEntries: LogEntry[]
+	): LogEntry[] {
+		// Merge stored and live entries, filter by day, then apply level/channel filters
+		const allEntries = [...(storedEntries || []), ...(liveEntries || [])];
+		const dayFiltered = allEntries.filter((entry) => {
+			try {
+				const entryDate = new Date(entry.timestamp).toISOString().split('T')[0];
+				return entryDate === day;
+			} catch (error) {
+				console.error('Error parsing entry timestamp:', entry.timestamp, error);
+				return false;
+			}
+		});
+		return applyLevelAndChannelFilters(dayFiltered);
+	}
+
+	// Helper function to share logic for getting filter entries by day (without level/channel filters)
+	function getFilterEntriesForDay(
+		day: string,
+		storedEntries: LogEntry[],
+		liveEntries: LogEntry[]
+	): LogEntry[] {
+		// Merge stored and live entries, filter by day only (no level/channel filters)
+		const allEntries = [...(storedEntries || []), ...(liveEntries || [])];
+		return allEntries.filter((entry) => {
+			try {
+				const entryDate = new Date(entry.timestamp).toISOString().split('T')[0];
+				return entryDate === day;
+			} catch (error) {
+				console.error('Error parsing entry timestamp:', entry.timestamp, error);
+				return false;
+			}
+		});
+	}
+
 	function getTimelineDevEntriesForDay(day: string): LogEntry[] {
-		// Slim mode: use current `devLogs`
-		return applyLevelAndChannelFilters(devLogs || []);
+		return getTimelineEntriesForDay(day, allDevLogs || [], liveDevLogEntries || []);
 	}
 
 	function getTimelineMessageEntriesForDay(day: string): LogEntry[] {
-		// Simplified: use current `messages` state
-		return applyLevelAndChannelFilters(messages || []);
+		return getTimelineEntriesForDay(day, messages || [], liveMessages || []);
 	}
 
-	// Binary search helpers
-	function lowerBoundByTimestamp(entries: LogEntry[], targetMs: number): number {
-		let lo = 0;
-		let hi = entries.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >>> 1;
-			const midMs = (entries[mid] as any).timestampMs as number;
-			if (midMs < targetMs) lo = mid + 1;
-			else hi = mid;
-		}
-		return lo;
-	}
-	function upperBoundByTimestamp(entries: LogEntry[], targetMs: number): number {
-		let lo = 0;
-		let hi = entries.length;
-		while (lo < hi) {
-			const mid = (lo + hi) >>> 1;
-			const midMs = (entries[mid] as any).timestampMs as number;
-			if (midMs <= targetMs) lo = mid + 1;
-			else hi = mid;
-		}
-		return lo;
+	function getDevFilterEntriesForDay(day: string): LogEntry[] {
+		return getFilterEntriesForDay(day, allDevLogs || [], liveDevLogEntries || []);
 	}
 
-	// Ensure numeric timestamp on entries
-	function withTimestampMs(list: LogEntry[]): LogEntry[] {
-		for (let i = 0; i < list.length; i++) {
-			const e: any = list[i];
-			if (typeof e.timestampMs !== 'number') {
-				e.timestampMs = new Date((e as any).timestamp).getTime();
-			}
-		}
-		return list;
+	function getMessageFilterEntriesForDay(day: string): LogEntry[] {
+		return getFilterEntriesForDay(day, messages || [], liveMessages || []);
 	}
 
 	// Return public API
@@ -379,44 +365,12 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		get selectedRange() {
 			return selectedRange;
 		},
-		get filteredDevLogs() {
-			// Base on allDevLogs so live WS entries are included
-			let filtered = allDevLogs;
-
-			// Apply level filter
-			if (selectedLevel) {
-				filtered = filtered.filter((log) => log.level === selectedLevel);
-			}
-
-			// Apply channel filter
-			if (selectedChannel) {
-				filtered = filtered.filter((log) => channelMatches(log as any, selectedChannel));
-			}
-
-			return filtered;
-		},
 		// (removed unused getters: timelineDevLogs, allDevLogs, allMessages)
 		get devLogs() {
 			return devLogs;
 		},
 		get messages() {
 			return messages;
-		},
-		get filteredMessages() {
-			// Apply level and channel filters to messages
-			let filtered = allMessages;
-
-			// Apply level filter
-			if (selectedLevel) {
-				filtered = filtered.filter((message) => message.level === selectedLevel);
-			}
-
-			// Apply channel filter
-			if (selectedChannel) {
-				filtered = filtered.filter((message) => channelMatches(message as any, selectedChannel));
-			}
-
-			return filtered;
 		},
 		// (removed unused getter: timelineMessageEntries)
 
@@ -559,109 +513,6 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			const today = new Date().toISOString().split('T')[0];
 			const todayDay = enhancedMessageDays.find((d) => d.date === today);
 			return todayDay?.messages || [];
-		},
-
-		// Helper function to create day-based structure from messages
-		updateMessageDaysFromMessages(newMessages: LogEntry[]) {
-			console.log('🔄 updateMessageDaysFromMessages called with:', newMessages.length, 'messages');
-
-			// Group incoming messages by date
-			const incomingByDay = new Map<string, LogEntry[]>();
-			for (const message of newMessages) {
-				try {
-					const date = new Date(message.timestamp).toISOString().split('T')[0];
-					if (!incomingByDay.has(date)) incomingByDay.set(date, []);
-					incomingByDay.get(date)!.push(message);
-				} catch (error) {
-					console.error('Error parsing message timestamp:', (message as any)?.timestamp, error);
-				}
-			}
-
-			// Build a map of existing days for quick lookup
-			const existingByDate = new Map<string, DayData>(messageDays.map((d) => [d.date, d]));
-
-			// Merge incoming day groups into existing days
-			for (const [date, messagesForDate] of incomingByDay.entries()) {
-				const existing = existingByDate.get(date);
-				if (existing) {
-					const existingMessages = existing.messages || [];
-					const merged = [...existingMessages];
-					const seen = new Set(
-						existingMessages.map((m: any) => m.id ?? `${m.timestamp}|${m.channel}|${m.message}`)
-					);
-					for (const m of messagesForDate) {
-						const id =
-							(m as any)?.id ??
-							`${(m as any)?.timestamp}|${(m as any)?.channel}|${(m as any)?.message}`;
-						if (!seen.has(id)) {
-							merged.push(m);
-							seen.add(id);
-						}
-					}
-					existingByDate.set(date, {
-						...existing,
-						messages: merged,
-						stats: calculateStats(merged),
-						formattedDate: formatDateForDisplay(date)
-					});
-				} else {
-					existingByDate.set(date, {
-						date,
-						formattedDate: formatDateForDisplay(date),
-						stats: calculateStats(messagesForDate),
-						messages: messagesForDate
-					});
-				}
-			}
-
-			// Reconstruct the array preserving any days that were not in the incoming batch
-			const mergedDays = Array.from(existingByDate.values()).sort((a, b) =>
-				a.date.localeCompare(b.date)
-			);
-			messageDays = mergedDays;
-		},
-
-		// Update a specific day with its messages (for when we fetch individual day data)
-		updateDayWithMessages(dayDate: string, messages: LogEntry[]) {
-			console.log(
-				'🔄 updateDayWithMessages called for day:',
-				dayDate,
-				'with',
-				messages.length,
-				'messages'
-			);
-
-			// Find the existing day
-			const existingDayIndex = messageDays.findIndex((d) => d.date === dayDate);
-
-			if (existingDayIndex >= 0) {
-				// Update existing day with messages and recalculate stats
-				const updatedDay = {
-					...messageDays[existingDayIndex],
-					messages,
-					stats: calculateStats(messages)
-				};
-
-				// Create new array to trigger reactivity
-				messageDays = [
-					...messageDays.slice(0, existingDayIndex),
-					updatedDay,
-					...messageDays.slice(existingDayIndex + 1)
-				];
-
-				console.log('✅ Updated existing day:', dayDate, 'with', messages.length, 'messages');
-			} else {
-				// Create new day entry
-				const newDay: DayData = {
-					date: dayDate,
-					formattedDate: formatDateForDisplay(dayDate),
-					stats: calculateStats(messages),
-					messages
-				};
-
-				messageDays = [...messageDays, newDay];
-				console.log('✅ Created new day:', dayDate, 'with', messages.length, 'messages');
-			}
 		}
 	};
 }

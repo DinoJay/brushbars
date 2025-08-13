@@ -84,7 +84,7 @@
 
 	// Timeline should reflect the store's `messages` for the selected day
 	const timelineDataForSelectedDay = $derived.by(() =>
-		logStore.getTimelineMessageEntriesForDay('')
+		logStore.getTimelineMessageEntriesForDay(selectedDayFromUrl())
 	);
 
 	// Filter messages for table directly from store `messages` (store already holds selected day)

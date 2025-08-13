@@ -91,7 +91,7 @@
 	// Smart timeline data sourced from store (merged stored + live, filtered by level/channel)
 	const timelineDataForSelectedDay = $derived.by(() => {
 		const day = selectedDayFromUrl();
-		return day ? (logStore as any).getTimelineDevEntriesForDay(day) : ([] as any[]);
+		return day ? logStore.getTimelineDevEntriesForDay(day) : ([] as any[]);
 	});
 
 	// Filter logs based on selected day and time range - use the same data source as DayButtons
