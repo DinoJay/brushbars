@@ -303,8 +303,8 @@ function parseMessage(message, level) {
 
 		// Extract error information for ERROR level logs
 		if (level === 'ERROR') {
-			// Extract Java exception type
-			const exceptionMatch = message.match(/JavaException: ([^:]+)/);
+			// Extract Java exception type (multiple patterns)
+			const exceptionMatch = message.match(/(?:JavaException|Java\.sql\.\w+Exception): ([^:]+)/);
 			if (exceptionMatch) {
 				result.exceptionType = exceptionMatch[1];
 			}
@@ -321,6 +321,19 @@ function parseMessage(message, level) {
 			const sqlErrorMatch = message.match(/\[SQL(\d+)\]/);
 			if (sqlErrorMatch) {
 				result.errorCode = `SQL${sqlErrorMatch[1]}`;
+			}
+
+			// Extract error description after the error code
+			const errorDescMatch = message.match(/\[SQL\d+\]\s*(.+?)(?:\s|$)/);
+			if (errorDescMatch) {
+				result.errorDetails = errorDescMatch[1];
+			}
+
+			// Extract full exception message
+			const fullExceptionMatch = message.match(/(?:JavaException|Java\.sql\.\w+Exception):\s*(.+)/);
+			if (fullExceptionMatch) {
+				result.exceptionType = fullExceptionMatch[1].split(':')[0];
+				result.errorDetails = fullExceptionMatch[1].split(':').slice(1).join(':').trim();
 			}
 		}
 

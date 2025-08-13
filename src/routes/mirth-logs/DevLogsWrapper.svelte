@@ -94,38 +94,10 @@
 		return day ? (logStore as any).getTimelineDevEntriesForDay(day) : ([] as any[]);
 	});
 
-	// Filter logs based on selected day and time range
+	// Filter logs based on selected day and time range - use the same data source as DayButtons
 	const filteredLogsForSelectedDay = $derived.by(() => {
 		const selectedDay = selectedDayFromUrl();
-
-		if (!selectedDay) return logStore.filteredDevLogs;
-
-		// First filter by selected day
-		let filtered = logStore.filteredDevLogs.filter((log) => {
-			const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-			return logDate === selectedDay;
-		});
-
-		// Then apply time range filter if present
-		if (logStore.selectedRange && logStore.selectedRange.length === 2) {
-			const [start, end] = logStore.selectedRange;
-			if (
-				start instanceof Date &&
-				end instanceof Date &&
-				!isNaN(start.getTime()) &&
-				!isNaN(end.getTime())
-			) {
-				const startMs = start.getTime();
-				const endMs = end.getTime();
-
-				filtered = filtered.filter((log) => {
-					const logMs = new Date(log.timestamp).getTime();
-					return logMs >= startMs && logMs <= endMs;
-				});
-			}
-		}
-
-		return filtered;
+		return logStore.getFilteredLogsForDay(selectedDay, true);
 	});
 
 	// Entries used by LogFilters: merged (stored + live) but restricted to the selected day
@@ -142,7 +114,6 @@
 	<div class="flex overflow-auto">
 		<DayButtons
 			selectedDay={selectedDayFromUrl()}
-			todaysLiveEntries={logStore.liveDevLogEntries}
 			days={logStore.devLogDays}
 			loading={logStore.loadingDays}
 			error={logStore.errorDays}

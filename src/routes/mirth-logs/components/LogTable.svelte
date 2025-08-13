@@ -400,12 +400,19 @@
 										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors"
 										style="background-color: transparent;"
 										aria-label={isExpanded(log.id) ? 'Collapse row' : 'Expand row'}
-										title={isExpanded(log.id) ? 'Collapse' : 'Expand'}
 									>
 										{#if isExpanded(log.id)}
-											<span class="text-sm" style="color: var(--color-text-secondary);">−</span>
+											<span
+												class="text-sm"
+												style="color: var(--color-text-secondary);"
+												aria-hidden="true">−</span
+											>
 										{:else}
-											<span class="text-sm" style="color: var(--color-text-secondary);">+</span>
+											<span
+												class="text-sm"
+												style="color: var(--color-text-secondary);"
+												aria-hidden="true">+</span
+											>
 										{/if}
 									</button>
 								</td>

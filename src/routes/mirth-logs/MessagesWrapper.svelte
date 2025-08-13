@@ -82,93 +82,14 @@
 			!(logStore.messageDays && logStore.messageDays.length)
 	);
 
-	// Smart timeline data source that automatically switches between stored and live data
-	const timelineDataForSelectedDay = $derived.by(() => {
-		const selectedDay = selectedDayFromUrl();
+	// Timeline should reflect the store's `messages` for the selected day
+	const timelineDataForSelectedDay = $derived.by(() =>
+		logStore.getTimelineMessageEntriesForDay('')
+	);
 
-		if (!selectedDay) return logStore.timelineMessageEntries;
-
-		const today = new Date().toISOString().split('T')[0];
-
-		if (selectedDay === today) {
-			// For today: use live WebSocket data + any stored data for today
-			const liveTodayMessages = logStore.liveMessages.filter((message) => {
-				try {
-					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
-					return messageDate === today;
-				} catch {
-					return false;
-				}
-			});
-
-			const storedTodayMessages = logStore.timelineMessageEntries.filter((message) => {
-				try {
-					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
-					return messageDate === today;
-				} catch {
-					return false;
-				}
-			});
-
-			// Merge live and stored messages, avoiding duplicates
-			const allTodayMessages = [...storedTodayMessages];
-			const existingIds = new Set(storedTodayMessages.map((message) => message.id));
-
-			liveTodayMessages.forEach((message) => {
-				if (!existingIds.has(message.id)) {
-					allTodayMessages.push(message);
-				}
-			});
-
-			console.log(
-				`🔄 Timeline for today: ${liveTodayMessages.length} live + ${storedTodayMessages.length} stored = ${allTodayMessages.length} total`
-			);
-			return allTodayMessages;
-		} else {
-			// For other days: use stored data only
-			return logStore.timelineMessageEntries.filter((message) => {
-				try {
-					const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
-					return messageDate === selectedDay;
-				} catch {
-					return false;
-				}
-			});
-		}
-	});
-
-	// Filter messages based on selected day and time range
+	// Filter messages for table directly from store `messages` (store already holds selected day)
 	const filteredMessagesForSelectedDay = $derived.by(() => {
-		const selectedDay = selectedDayFromUrl();
-
-		if (!selectedDay) return logStore.filteredMessages;
-
-		// First filter by selected day
-		let filtered = logStore.filteredMessages.filter((message) => {
-			const messageDate = new Date(message.timestamp).toISOString().split('T')[0];
-			return messageDate === selectedDay;
-		});
-
-		// Then apply time range filter if present
-		if (logStore.selectedRange && logStore.selectedRange.length === 2) {
-			const [start, end] = logStore.selectedRange;
-			if (
-				start instanceof Date &&
-				end instanceof Date &&
-				!isNaN(start.getTime()) &&
-				!isNaN(end.getTime())
-			) {
-				const startMs = start.getTime();
-				const endMs = end.getTime();
-
-				filtered = filtered.filter((message) => {
-					const messageMs = new Date(message.timestamp).getTime();
-					return messageMs >= startMs && messageMs <= endMs;
-				});
-			}
-		}
-
-		return filtered;
+		return logStore.getFilteredMessagesForDay(null, true);
 	});
 
 	// Entries for LogFilters: merged (stored + live) and restricted to the selected day via store helper
@@ -184,11 +105,11 @@
 >
 	<DayButtons
 		selectedDay={selectedDayFromUrl()}
-		todaysLiveEntries={logStore.liveMessages}
-		days={logStore.messageDays}
+		days={logStore.getEnhancedMessageDays()}
 		loading={logStore.loadingDays}
 		error={logStore.errorDays}
 		onSelectDay={handleSelectDay}
+		type="messages"
 	/>
 </div>
 

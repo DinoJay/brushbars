@@ -1,7 +1,5 @@
 <!-- runes -->
 <script lang="ts">
-	import type { TimelineEntry } from '$lib/types';
-
 	interface DayData {
 		date: string;
 		formattedDate: string;
@@ -21,35 +19,13 @@
 
 	// Props object (keeps reactivity in Svelte 5)
 	const props = $props<{
-		todaysLiveEntries?: TimelineEntry[];
 		onSelectDay?: (date: string) => void;
 		days?: DayData[];
 		loading?: boolean;
 		error?: string | null;
 		selectedDay?: string | null;
+		type?: 'devLogs' | 'messages';
 	}>();
-
-	// Helper to normalize dates for comparison
-	function normalizeDate(date: string | null | undefined): string | null {
-		if (!date) return null;
-
-		// If it's already in YYYY-MM-DD format, return as is
-		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			return date;
-		}
-
-		// Try to parse and convert to YYYY-MM-DD
-		try {
-			const parsed = new Date(date);
-			if (!isNaN(parsed.getTime())) {
-				return parsed.toISOString().split('T')[0];
-			}
-		} catch (e) {
-			console.warn('Failed to parse date:', date, e);
-		}
-
-		return date;
-	}
 
 	// Helper to read current selected day (parent passes a plain string)
 	function selectedDayValue(): string | null | undefined {
@@ -66,104 +42,10 @@
 		return date === getCurrentDate();
 	}
 
-	// Show month + day (and year only when different from current year)
-	function formatDayTitle(date: string): string {
-		try {
-			const d = new Date(date);
-			if (!isNaN(d.getTime())) {
-				const base = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-				const currentYear = new Date().getFullYear();
-				return d.getFullYear() === currentYear ? base : `${base} ${d.getFullYear()}`;
-			}
-		} catch {
-			// fall through
-		}
-		return date;
-	}
-
-	// Ensure today is present in the list (with zero stats) so user can always select it
+	// Use days passed via props directly
 	const effectiveDays = $derived.by(() => {
 		const list = Array.isArray(props.days) ? [...props.days] : ([] as DayData[]);
-		const today = getCurrentDate();
-
-		// Always get live entries for today
-		const live = Array.isArray(props.todaysLiveEntries)
-			? (props.todaysLiveEntries as TimelineEntry[])
-			: ([] as TimelineEntry[]);
-
-		// Calculate stats from live + stored entries for today
-		let info = 0;
-		let warn = 0;
-		let error = 0;
-		let debug = 0;
-
-		// Union of stored today's stats (if present) + live entries
-		const storedToday = list.find((d) => normalizeDate(d?.date) === today);
-		if (storedToday) {
-			info += storedToday.stats?.INFO || 0;
-			warn += storedToday.stats?.WARN || 0;
-			error += storedToday.stats?.ERROR || 0;
-			debug += storedToday.stats?.DEBUG || 0;
-		}
-
-		for (const entry of live) {
-			const raw = String((entry as any).level || '').toUpperCase();
-			let norm = raw;
-			if (['SENT', 'RECEIVED', 'PROCESSED', 'SUCCESS', 'OK', 'ACK'].includes(raw)) norm = 'INFO';
-			else if (['WARN', 'WARNING', 'PENDING', 'QUEUED'].includes(raw)) norm = 'WARN';
-			else if (['ERROR', 'FAILED', 'FAIL', 'NACK'].includes(raw)) norm = 'ERROR';
-			else if (['DEBUG', 'TRACE'].includes(raw)) norm = 'DEBUG';
-			switch (norm) {
-				case 'INFO':
-					info += 1;
-					break;
-				case 'WARN':
-					warn += 1;
-					break;
-				case 'ERROR':
-					error += 1;
-					break;
-				case 'DEBUG':
-					debug += 1;
-					break;
-			}
-		}
-
-		// Create a new list with updated today stats
-		const updatedList = list.map((day) => {
-			if (normalizeDate(day.date) === today) {
-				// Return updated today with live stats
-				return {
-					...day,
-					stats: {
-						total: info + warn + error + debug,
-						INFO: info,
-						ERROR: error,
-						WARN: warn,
-						DEBUG: debug
-					}
-				};
-			}
-			return day;
-		});
-
-		// If today doesn't exist, add it
-		if (!updatedList.some((day) => normalizeDate(day.date) === today)) {
-			updatedList.push({
-				date: today,
-				formattedDate: today,
-				stats: {
-					total: info + warn + error + debug,
-					INFO: info,
-					ERROR: error,
-					WARN: warn,
-					DEBUG: debug
-				}
-			});
-		}
-
-		// Keep chronological order so downstream reverse() shows latest first
-		return updatedList.sort((a, b) => a.date.localeCompare(b.date));
+		return list.sort((a, b) => a.date.localeCompare(b.date));
 	});
 
 	// Get color for log level
@@ -181,9 +63,8 @@
 
 	// Helper function to check if a day is selected
 	function isDaySelected(dayDate: string): boolean {
-		const normalizedSelectedDay = normalizeDate(selectedDayValue());
-		const normalizedDayDate = normalizeDate(dayDate);
-		return normalizedSelectedDay === normalizedDayDate;
+		const selectedDay = selectedDayValue();
+		return selectedDay === dayDate;
 	}
 
 	$effect(() => {
@@ -242,7 +123,7 @@
 									? 'var(--color-accent-dark)'
 									: 'var(--color-text-primary)'};"
 							>
-								{formatDayTitle(day.date)}
+								{day.formattedDate || day.date}
 							</h3>
 							{#if isToday(day.date)}
 								<div

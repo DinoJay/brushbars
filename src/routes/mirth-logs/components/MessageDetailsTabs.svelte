@@ -240,6 +240,56 @@
 			</div>
 		{:else if activeTab === 'errors'}
 			<div class="space-y-4">
+				<!-- Error Status -->
+				{#if log.level === 'ERROR' || log.status === 'ERROR'}
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-red-900">Error Status</h4>
+						<div class="rounded bg-red-50 p-3 text-sm text-red-800">
+							<div class="font-medium">Level: {log.level}</div>
+							<div class="font-medium">Status: {log.status}</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Error Code -->
+				{#if log.errorCode}
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-red-900">Error Code</h4>
+						<div class="rounded bg-red-50 p-3 font-mono text-sm text-red-800">
+							{log.errorCode}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Exception Type -->
+				{#if log.exceptionType}
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-red-900">Exception Type</h4>
+						<div class="rounded bg-red-50 p-3 font-mono text-sm text-red-800">
+							{log.exceptionType}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Error Details -->
+				{#if log.errorDetails && log.errorDetails !== log.message}
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-red-900">Error Details</h4>
+						<div class="rounded bg-red-50 p-3 font-mono text-sm text-red-800">
+							{log.errorDetails}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Main Error Message (only if not already shown in Error Details) -->
+				{#if log.message && (log.level === 'ERROR' || log.status === 'ERROR') && log.errorDetails !== log.message}
+					<div>
+						<h4 class="mb-2 text-sm font-medium text-red-900">Error Message</h4>
+						<pre
+							class="overflow-x-auto rounded bg-red-50 p-3 font-mono text-xs text-red-800">{log.message}</pre>
+					</div>
+				{/if}
+
 				<!-- Processing Errors -->
 				{#if log.processingErrorContent}
 					<div>
@@ -267,7 +317,7 @@
 					</div>
 				{/if}
 
-				{#if !log.processingErrorContent && !log.postProcessorErrorContent && !log.responseErrorContent}
+				{#if !log.level && !log.status && !log.errorCode && !log.exceptionType && !log.errorDetails && !log.message && !log.processingErrorContent && !log.postProcessorErrorContent && !log.responseErrorContent}
 					<div class="text-sm text-gray-500">No errors recorded</div>
 				{/if}
 			</div>

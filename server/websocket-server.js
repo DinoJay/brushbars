@@ -547,7 +547,7 @@ if (IS_ATHOME) {
 		return {
 			id: `sim-${now.getTime()}-${i}`,
 			level,
-			timestamp: now.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23),
+			timestamp: now.toISOString(),
 			channel: ['MAIN', 'PDF', 'HL7', 'LAB'][Math.floor(Math.random() * 4)],
 			message:
 				level === 'ERROR'
@@ -574,7 +574,7 @@ if (IS_ATHOME) {
 		return {
 			id: `sim-msg-${now.getTime()}-${i}`,
 			level: type, // Use message type as level for consistency
-			timestamp: now.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23),
+			timestamp: now.toISOString(),
 			channel,
 			message: `Simulated ${type.toLowerCase()} message for ${channel}`,
 			status: type,

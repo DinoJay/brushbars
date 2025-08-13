@@ -46,16 +46,20 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 		if (data.type === 'message-update') {
 			const parsed = data.messages;
 			console.log('📡 WebSocket message-update received:', parsed.length, 'messages');
+			console.log('📡 Full message data:', data);
 			if (parsed.length > 0) {
 				console.log('📊 Sample message:', parsed[0]);
 				console.log('🕐 Timestamp:', parsed[0].timestamp);
+				console.log('🕐 Timestamp type:', typeof parsed[0].timestamp);
 				console.log('🏷️ Status:', parsed[0].status);
 			}
 			// Use separate callback for messages if provided
 			if (onMessageUpdate) {
+				console.log('📡 Calling onMessageUpdate with:', parsed.length, 'messages');
 				onMessageUpdate(parsed);
 			} else {
 				// Fallback to log update if no message callback provided
+				console.log('📡 No onMessageUpdate callback, falling back to onLogUpdate');
 				onLogUpdate(parsed);
 			}
 		}

@@ -70,7 +70,7 @@
 
 			// Load initial data into store
 			if (data.tab === 'channels' && Array.isArray(data.messages)) {
-				logStore.updateMessages(data.messages);
+				logStore.applyMessagesUpdate({ day: data.day, messages: data.messages, source: 'api' });
 				console.log('✅ Initial messages loaded from server:', data.messages.length);
 			} else if (data.tab === 'logs' && Array.isArray(data.logs)) {
 				logStore.updateDevLogs(data.logs);
@@ -183,8 +183,7 @@
 				logStore.updateLiveDevLogEntries([...current, ...parsedLogs]);
 			},
 			(parsedMessages: any[]) => {
-				const current = logStore.liveMessages;
-				logStore.updateLiveMessages([...current, ...parsedMessages]);
+				logStore.applyMessagesUpdate({ messages: parsedMessages, source: 'ws' });
 			}
 		);
 
@@ -221,7 +220,8 @@
 					const data = await res.json();
 					console.log('📊 Messages API response:', data);
 					if (data.success && Array.isArray(data.messages)) {
-						logStore.updateMessages(data.messages);
+						logStore.applyMessagesUpdate({ day, messages: data.messages, source: 'api' });
+						// Keep day data in sync for subcomponents
 						console.log('✅ Fast update: Loaded messages:', data.messages.length);
 					} else {
 						console.warn('⚠️ Messages API returned invalid data:', data);
