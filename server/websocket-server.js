@@ -19,6 +19,12 @@ if (IS_ATHOME) {
 
 const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
 
+// Message API polling configuration
+const MESSAGES_API_BASE_URL = process.env.MESSAGES_API_URL || 'http://localhost:5173';
+const MESSAGES_POLL_INTERVAL = 2000; // 2 seconds
+let messagesPollingInterval = null;
+let lastMessagesData = null;
+
 // Output file for all logs
 
 // Performance settings
@@ -122,6 +128,168 @@ function getCurrentDayLogs(logs) {
 		const logDate = new Date(log.timestamp).toISOString().split('T')[0];
 		return logDate === todayString;
 	});
+}
+
+// Fetch messages from the messages API
+async function fetchMessagesFromAPI() {
+	try {
+		const today = new Date().toISOString().split('T')[0];
+		const response = await fetch(`${MESSAGES_API_BASE_URL}/mirth-logs/api/messages/${today}`);
+		if (response.ok) {
+			const data = await response.json();
+			return data;
+		}
+	} catch (error) {
+		console.error('Error fetching messages from API:', error);
+	}
+	return null;
+}
+
+// Broadcast messages to all connected clients
+function broadcastMessages(data) {
+	wss.clients.forEach((client) => {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(
+				JSON.stringify({
+					type: 'messages-update',
+					data: data
+				})
+			);
+		}
+	});
+}
+
+// Start polling for messages
+function startMessagesPolling() {
+	// Only poll messages API when not in ATHOME mode
+	if (IS_ATHOME) {
+		console.log('🏠 ATHOME mode: skipping message API polling (using synthetic data)');
+		return;
+	}
+
+	if (messagesPollingInterval) return;
+
+	messagesPollingInterval = setInterval(async () => {
+		try {
+			const data = await fetchMessagesFromAPI();
+			if (data && data.success && data.messages) {
+				// Check if we have new data
+				const currentData = JSON.stringify(data.messages);
+				if (currentData !== lastMessagesData) {
+					lastMessagesData = currentData;
+					broadcastMessages(data.messages);
+					console.log(
+						`📡 Broadcasted ${data.messages.length} messages to ${wss.clients.size} clients`
+					);
+				}
+			}
+		} catch (error) {
+			console.error('❌ Error in message polling:', error);
+			// Broadcast error to clients
+			wss.clients.forEach((client) => {
+				if (client.readyState === WebSocket.OPEN) {
+					client.send(
+						JSON.stringify({
+							type: 'messages-error',
+							error: 'Failed to fetch messages from API'
+						})
+					);
+				}
+			});
+		}
+	}, MESSAGES_POLL_INTERVAL);
+
+	console.log('🚀 Started messages polling');
+}
+
+// Send example messages for ATHOME mode
+function sendExampleMessages() {
+	if (!IS_ATHOME) return;
+
+	// Generate realistic example messages
+	const exampleMessages = [
+		{
+			id: 'msg-001',
+			timestamp: new Date().toISOString(),
+			level: 'INFO',
+			channel: 'ADT_A01',
+			message: 'Patient admission message processed successfully',
+			status: 'PROCESSED',
+			messageId: 'MSG-ADT001',
+			processingTime: 150,
+			queueSize: 5,
+			protocol: 'HL7',
+			sourcePort: 8080,
+			destinationPort: 9090
+		},
+		{
+			id: 'msg-002',
+			timestamp: new Date(Date.now() - 30000).toISOString(), // 30 seconds ago
+			level: 'WARN',
+			channel: 'ORU_R01',
+			message: 'Lab results message queued due to high volume',
+			status: 'QUEUED',
+			messageId: 'MSG-ORU001',
+			processingTime: 0,
+			queueSize: 25,
+			protocol: 'HL7',
+			sourcePort: 8081,
+			destinationPort: 9091
+		},
+		{
+			id: 'msg-003',
+			timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
+			level: 'ERROR',
+			channel: 'SIU_S12',
+			message: 'Failed to process scheduling message - invalid format',
+			status: 'FAILED',
+			messageId: 'MSG-SIU001',
+			processingTime: 50,
+			queueSize: 12,
+			protocol: 'HL7',
+			sourcePort: 8082,
+			destinationPort: 9092
+		},
+		{
+			id: 'msg-004',
+			timestamp: new Date(Date.now() - 90000).toISOString(), // 1.5 minutes ago
+			level: 'INFO',
+			channel: 'LAB_RESULTS',
+			message: 'Laboratory results message sent to downstream system',
+			status: 'SENT',
+			messageId: 'MSG-LAB001',
+			processingTime: 200,
+			queueSize: 3,
+			protocol: 'FHIR',
+			sourcePort: 8083,
+			destinationPort: 9093
+		}
+	];
+
+	// Broadcast example messages to all connected clients
+	wss.clients.forEach((client) => {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(
+				JSON.stringify({
+					type: 'messages-update',
+					data: exampleMessages
+				})
+			);
+		}
+	});
+
+	console.log(
+		`🏠 ATHOME mode: sent ${exampleMessages.length} example messages to ${wss.clients.size} clients`
+	);
+}
+
+// Stop polling for messages
+function stopMessagesPolling() {
+	if (messagesPollingInterval) {
+		clearInterval(messagesPollingInterval);
+		messagesPollingInterval = null;
+		console.log('🛑 Stopped messages polling');
+	}
 }
 
 async function sendHistoricalLogs(ws) {
@@ -297,8 +465,27 @@ wss.on('connection', (ws) => {
 	console.log('🔌 Client connected');
 	ws.send(JSON.stringify({ type: 'welcome', message: 'Connected to Mirth log stream' }));
 
+	// Start polling when first client connects (only if not in ATHOME mode)
+	if (wss.clients.size === 1 && !IS_ATHOME) {
+		startMessagesPolling();
+	}
+
+	// Send example messages immediately when in ATHOME mode
+	if (IS_ATHOME) {
+		sendExampleMessages();
+	}
+
 	// Send current day historical logs
 	sendHistoricalLogs(ws);
+
+	// Handle client disconnection
+	ws.on('close', () => {
+		console.log('🔌 Client disconnected');
+		// Stop polling when last client disconnects (only if not in ATHOME mode)
+		if (wss.clients.size === 0 && !IS_ATHOME) {
+			stopMessagesPolling();
+		}
+	});
 });
 
 // Handle client messages
@@ -328,6 +515,25 @@ chokidar
 
 console.log('🚀 WebSocket server ready');
 console.log(`📡 Real-time current day logs will be streamed from: ${LOG_FILE}`);
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+	console.log('\n🛑 Shutting down WebSocket server...');
+	stopMessagesPolling();
+	wss.close(() => {
+		console.log('✅ WebSocket server closed');
+		process.exit(0);
+	});
+});
+
+process.on('SIGTERM', () => {
+	console.log('\n🛑 Shutting down WebSocket server...');
+	stopMessagesPolling();
+	wss.close(() => {
+		console.log('✅ WebSocket server closed');
+		process.exit(0);
+	});
+});
 
 // In ATHOME mode, synthesize example dev logs periodically to exercise the UI without real files
 if (IS_ATHOME) {
@@ -417,4 +623,11 @@ if (IS_ATHOME) {
 		broadcast('message-update', { messages }, 'athome-synthetic-messages');
 		console.log(`📡 Generated ${messages.length} synthetic channel messages`);
 	}, MESSAGE_INTERVAL_MS);
+
+	// Periodically send example messages for ATHOME mode (every 5 seconds)
+	setInterval(() => {
+		if (IS_ATHOME && wss.clients.size > 0) {
+			sendExampleMessages();
+		}
+	}, 5000);
 }
