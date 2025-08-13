@@ -89,7 +89,7 @@
 
 	// Filter messages for table directly from store `messages` (store already holds selected day)
 	const filteredMessagesForSelectedDay = $derived.by(() => {
-		return logStore.getFilteredMessagesForDay(null, true);
+		return logStore.getFilteredMessagesForDay(selectedDayFromUrl());
 	});
 
 	// Entries for LogFilters: merged (stored + live) and restricted to the selected day via store helper
@@ -142,7 +142,7 @@
 		{:else}
 			<div class="w-full">
 				<MirthActivityTimeline
-					entries={timelineDataForSelectedDay}
+					entries={logStore.getTimelineMessageEntries(selectedDayFromUrl())}
 					onRangeChange={(r) => logStore.setSelectedRange(r)}
 					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 				/>
@@ -155,7 +155,10 @@
 			class="rounded p-3 shadow"
 			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
 		>
-			<LogTable entries={filteredMessagesForSelectedDay} selectedRange={logStore.selectedRange} />
+			<LogTable
+				entries={logStore.getFilteredFullMessagesEntries(selectedDayFromUrl())}
+				selectedRange={logStore.selectedRange}
+			/>
 		</div>
 	{/if}
 {/if}

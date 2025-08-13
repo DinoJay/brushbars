@@ -82,22 +82,22 @@
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
 
-	// When days are loading, replace the entire lower half (timeline + table)
+	/* // When days are loading, replace the entire lower half (timeline + table)
 	const daysLoading = $derived.by(
 		() =>
 			props.loading || logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
-	);
+	); */
 
 	// Smart timeline data sourced from store (merged stored + live, filtered by level/channel)
 	const timelineDataForSelectedDay = $derived.by(() => {
 		const day = selectedDayFromUrl();
-		return day ? logStore.getTimelineDevEntriesForDay(day) : ([] as any[]);
+		return day ? logStore.getTimelineDevEntries(day) : ([] as any[]);
 	});
 
 	// Filter logs based on selected day and time range - use the same data source as DayButtons
 	const filteredLogsForSelectedDay = $derived.by(() => {
 		const selectedDay = selectedDayFromUrl();
-		return logStore.getFilteredLogsForDay(selectedDay, true);
+		return selectedDay ? logStore.getFilteredFullDevLogEntries(selectedDay) : ([] as any[]);
 	});
 
 	// Entries used by LogFilters: merged (stored + live) but restricted to the selected day
@@ -125,7 +125,7 @@
 <div class="flex flex-1 flex-col">
 	{#if !(props.loading || isFetchingDay)}
 		<LogFilters
-			entries={filterEntriesForSelectedDay}
+			entries={logStore.getDevLogFilterEntries(selectedDayFromUrl()) || []}
 			onFiltersChange={(l, c) => {
 				logStore.setSelectedLevel(l as any);
 				logStore.setSelectedChannel(c);
@@ -142,7 +142,7 @@
 		{:else}
 			<div class="w-full">
 				<MirthActivityTimeline
-					entries={timelineDataForSelectedDay}
+					entries={logStore.getTimelineDevEntries(selectedDayFromUrl() || '') || []}
 					onRangeChange={(r) => logStore.setSelectedRange(r)}
 					resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 				/>
