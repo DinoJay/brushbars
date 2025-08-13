@@ -84,34 +84,21 @@
 
 	// Timeline should reflect the store's `messages` for the selected day
 	const timelineDataForSelectedDay = $derived.by(() =>
-		logStore.getTimelineMessageEntriesForDay(selectedDayFromUrl())
+		logStore.getTimelineMessageEntries(selectedDayFromUrl() || '')
 	);
 
 	// Filter messages for table directly from store `messages` (store already holds selected day)
 	const filteredMessagesForSelectedDay = $derived.by(() => {
-		return logStore.getFilteredMessagesForDay(selectedDayFromUrl());
+		const day = selectedDayFromUrl();
+		return day ? logStore.getFilteredFullMessagesEntries(day) : ([] as any[]);
 	});
 
 	// Entries for LogFilters: merged (stored + live) and restricted to the selected day via store helper
 	const filterEntriesForSelectedDay = $derived.by(() => {
 		const day = selectedDayFromUrl();
-		return day ? (logStore as any).getMessageFilterEntriesForDay(day) : ([] as any[]);
+		return day ? logStore.getMessageFilterEntriesForDay(day) : ([] as any[]);
 	});
 </script>
-
-<div
-	class="mb-4 rounded p-3 shadow"
-	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
->
-	<DayButtons
-		selectedDay={selectedDayFromUrl()}
-		days={logStore.getEnhancedMessageDays()}
-		loading={logStore.loadingDays}
-		error={logStore.errorDays}
-		onSelectDay={handleSelectDay}
-		type="messages"
-	/>
-</div>
 
 {#if !(props.loading || isFetchingDay)}
 	<LogFilters

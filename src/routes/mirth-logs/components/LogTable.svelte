@@ -347,38 +347,38 @@
 				<table class="min-w-full divide-y" style="border-color: var(--color-border);">
 					<thead>
 						<tr>
-							<th class="w-12 px-4 py-2" style="background-color: var(--color-bg-tertiary);"></th>
+							<th class="w-12 px-3 py-1.5" style="background-color: var(--color-bg-tertiary);"></th>
 							<th
 								onclick={() => handleSort('timestamp')}
-								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								class="cursor-pointer px-3 py-1.5 text-left text-xs font-medium tracking-wider uppercase transition-colors"
 								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Time {getSortIndicator('timestamp')}
 							</th>
 							<th
 								onclick={() => handleSort('level')}
-								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								class="cursor-pointer px-3 py-1.5 text-left text-xs font-medium tracking-wider uppercase transition-colors"
 								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Level {getSortIndicator('level')}
 							</th>
 							<th
 								onclick={() => handleSort('channel')}
-								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								class="cursor-pointer px-3 py-1.5 text-left text-xs font-medium tracking-wider uppercase transition-colors"
 								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Channel {getSortIndicator('channel')}
 							</th>
 							<th
 								onclick={() => handleSort('status')}
-								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								class="cursor-pointer px-3 py-1.5 text-left text-xs font-medium tracking-wider uppercase transition-colors"
 								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Status {getSortIndicator('status')}
 							</th>
 							<th
 								onclick={() => handleSort('message')}
-								class="cursor-pointer px-4 py-2 text-left text-xs font-medium tracking-wider uppercase transition-colors"
+								class="cursor-pointer px-3 py-1.5 text-left text-xs font-medium tracking-wider uppercase transition-colors"
 								style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);"
 							>
 								Message {getSortIndicator('message')}
@@ -394,7 +394,7 @@
 								class="transition-colors duration-150"
 								style="--hover-bg: var(--color-bg-tertiary);"
 							>
-								<td class="px-4 py-3 whitespace-nowrap">
+								<td class="px-3 py-2 whitespace-nowrap">
 									<button
 										onclick={() => toggleRow(log.id)}
 										class="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors"
@@ -417,12 +417,12 @@
 									</button>
 								</td>
 								<td
-									class="px-4 py-3 font-mono text-sm whitespace-nowrap"
+									class="px-3 py-2 font-mono text-sm whitespace-nowrap"
 									style="color: var(--color-text-primary);"
 								>
 									{formatTime(log.timestamp)}
 								</td>
-								<td class="px-4 py-3 whitespace-nowrap">
+								<td class="px-3 py-2 whitespace-nowrap">
 									<span
 										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {levelStyles[
 											log.level as keyof typeof levelStyles
@@ -432,12 +432,12 @@
 									</span>
 								</td>
 								<td
-									class="px-4 py-3 text-sm font-medium whitespace-nowrap"
+									class="px-3 py-2 text-sm font-medium whitespace-nowrap"
 									style="color: var(--color-text-primary);"
 								>
 									{log.channel || '—'}
 								</td>
-								<td class="px-4 py-3 whitespace-nowrap">
+								<td class="px-3 py-2 whitespace-nowrap">
 									<span
 										class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {log.status ===
 										'ERROR'
@@ -451,7 +451,7 @@
 										{log.status || '—'}
 									</span>
 								</td>
-								<td class="px-4 py-3 text-sm" style="color: var(--color-text-primary);">
+								<td class="px-3 py-2 text-sm" style="color: var(--color-text-primary);">
 									<div
 										class="max-w-lg {isExpanded(log.id) ? '' : 'truncate'}"
 										title={isExpanded(log.id) ? '' : log.message}
@@ -463,7 +463,7 @@
 							{#if isExpanded(log.id)}
 								<tr style="background-color: var(--color-bg-tertiary);" data-log-id={log.id}>
 									<td></td>
-									<td colspan="5" class="px-4 py-3">
+									<td colspan="5" class="px-3 py-2">
 										<MessageDetailsTabs {log} />
 									</td>
 								</tr>

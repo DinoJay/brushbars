@@ -2,33 +2,36 @@
 
 /* Light mode (default) - Enhanced design */
 :root {
+	/* Light theme aligned to header’s cleaner, flatter aesthetic */
 	--color-bg-primary: #f8fafc;
 	--color-bg-secondary: #ffffff;
 	--color-bg-tertiary: #f1f5f9;
 	--color-text-primary: #0f172a;
 	--color-text-secondary: #475569;
 	--color-text-muted: #64748b;
-	--color-border: #e2e8f0;
-	--color-border-light: #f1f5f9;
+	--color-border: #e5e7eb; /* subtler borders */
+	--color-border-light: #eef2f7;
 	--color-accent: #3b82f6;
-	--color-accent-light: #dbeafe;
-	--color-accent-dark: #1d4ed8;
-	--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	--color-accent-light: #e8f0fe;
+	--color-accent-dark: #1e40af;
+	/* Softer shadows for flatter look */
+	--shadow-sm: 0 1px 1px 0 rgb(0 0 0 / 0.04);
+	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
 }
 
 /* Dark mode - Enhanced design */
 .dark {
-	--color-bg-primary: #0f172a;
-	--color-bg-secondary: #1e293b;
-	--color-bg-tertiary: #334155;
-	--color-text-primary: #f8fafc;
-	--color-text-secondary: #cbd5e1;
-	--color-text-muted: #94a3b8;
-	--color-border: #334155;
-	--color-border-light: #475569;
-	--color-accent: #60a5fa;
+	/* Dark theme aligned to header (navy surfaces, subtle borders) */
+	--color-bg-primary: #0f172a; /* header background */
+	--color-bg-secondary: #131e35; /* cards/panels just above primary */
+	--color-bg-tertiary: #1b2844; /* subtle elevation */
+	--color-text-primary: #e5ecf9;
+	--color-text-secondary: #c7d2e5;
+	--color-text-muted: #9fb0cc;
+	--color-border: #24324a; /* low-contrast borders like header */
+	--color-border-light: #2c3b57;
+	--color-accent: #60a5fa; /* same accent as header */
 	--color-accent-light: #1e3a8a;
 	--color-accent-dark: #93c5fd;
 }
@@ -44,14 +47,14 @@ body {
 .card {
 	background: var(--color-bg-secondary);
 	border: 1px solid var(--color-border);
-	border-radius: 12px;
+	border-radius: 14px;
 	box-shadow: var(--shadow-sm);
-	transition: all 0.2s ease;
+	transition: all 0.18s ease;
 }
 
 .card:hover {
 	box-shadow: var(--shadow-md);
-	border-color: var(--color-accent);
+	border-color: color-mix(in oklab, var(--color-accent) 35%, var(--color-border));
 }
 
 .card.selected {
@@ -63,8 +66,14 @@ body {
 /* Smooth transitions for theme switching */
 * {
 	transition:
-		background-color 0.2s ease,
-		border-color 0.2s ease,
-		color 0.2s ease,
-		box-shadow 0.2s ease;
+		background-color 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease,
+		box-shadow 120ms ease;
+}
+
+/* Subtle separators to match header’s bottom border */
+.divider {
+	height: 1px;
+	background: var(--color-border);
 }

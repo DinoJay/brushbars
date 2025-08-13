@@ -71,28 +71,9 @@
 		}
 	}
 
-	const normalizeChannelName = (name: string | null | undefined) =>
-		name
-			? String(name)
-					.trim()
-					.replace(/\s*\([^)]*\)\s*$/, '')
-					.toUpperCase()
-			: '';
 	const showSpinner = $derived.by(
 		() => logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
 	);
-
-	/* // When days are loading, replace the entire lower half (timeline + table)
-	const daysLoading = $derived.by(
-		() =>
-			props.loading || logStore.loadingDays || !(logStore.devLogDays && logStore.devLogDays.length)
-	); */
-
-	// Smart timeline data sourced from store (merged stored + live, filtered by level/channel)
-	const timelineDataForSelectedDay = $derived.by(() => {
-		const day = selectedDayFromUrl();
-		return day ? logStore.getTimelineDevEntries(day) : ([] as any[]);
-	});
 
 	// Filter logs based on selected day and time range - use the same data source as DayButtons
 	const filteredLogsForSelectedDay = $derived.by(() => {
@@ -103,24 +84,9 @@
 	// Entries used by LogFilters: merged (stored + live) but restricted to the selected day
 	const filterEntriesForSelectedDay = $derived.by(() => {
 		const day = selectedDayFromUrl();
-		return day ? (logStore as any).getDevFilterEntriesForDay(day) : ([] as any[]);
+		return day ? logStore.getDevLogFilterEntries(day) : ([] as any[]);
 	});
 </script>
-
-<div
-	class="mb-4 flex overflow-auto rounded p-3 shadow"
-	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
->
-	<div class="flex overflow-auto">
-		<DayButtons
-			selectedDay={selectedDayFromUrl()}
-			days={logStore.devLogDays}
-			loading={logStore.loadingDays}
-			error={logStore.errorDays}
-			onSelectDay={handleSelectDay}
-		/>
-	</div>
-</div>
 
 <div class="flex flex-1 flex-col">
 	{#if !(props.loading || isFetchingDay)}

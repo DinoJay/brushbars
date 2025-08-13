@@ -113,24 +113,22 @@
 	}
 </script>
 
-<div class="bg-white p-6 dark:bg-gray-800">
-	<!-- Chart Container -->
-	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
-		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
-			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
-				<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
+<!-- Chart Container -->
+<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
+	{#if xScale && yScale && groupedBars && groupedBars.length > 0}
+		<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">
+			<ChartAxis {xScale} {yScale} {xTicks} {width} {height} {margin} {groupUnit} />
 
-				<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} />
+			<ChartBars grouped={groupedBars} {xScale} {yScale} {barWidth} />
 
-				<ChartBrush {xScale} {yScale} {width} {height} {margin} {onRangeChange} />
-			</svg>
-		{:else}
-			<div class="flex h-full items-center justify-center">
-				<div class="text-center">
-					<div class="mb-2 text-4xl">📊</div>
-					<div class="text-gray-500 dark:text-gray-400">No data to display</div>
-				</div>
+			<ChartBrush {xScale} {yScale} {width} {height} {margin} {onRangeChange} />
+		</svg>
+	{:else}
+		<div class="flex h-full items-center justify-center">
+			<div class="text-center">
+				<div class="mb-2 text-4xl">📊</div>
+				<div class="text-gray-500 dark:text-gray-400">No data to display</div>
 			</div>
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>

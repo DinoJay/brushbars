@@ -449,7 +449,8 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 			return applyAllFilters(filterEntriesByDay(allMessages, selectedDay));
 		},
 		getFilteredFullDevLogEntries(selectedDay: string) {
-			return applyAllFilters(filterEntriesByDay(allMessages, selectedDay));
+			// BUGFIX: use allDevLogs (not allMessages) for dev logs table filtering
+			return applyAllFilters(filterEntriesByDay(allDevLogs, selectedDay));
 		}
 
 		// Function to get filtered logs for a specific day with optional time range
