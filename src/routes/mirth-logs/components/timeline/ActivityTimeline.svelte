@@ -198,10 +198,7 @@
 	let clearBrush_last: string | number | null | undefined = undefined;
 </script>
 
-<div
-	class="rounded-xl p-6"
-	style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
->
+<div class="rounded-xl p-6" style="background-color: var(--color-bg-secondary);">
 	<div bind:this={container} bind:clientWidth={width} class="relative h-[350px] w-full">
 		{#if xScale && yScale && groupedBars && groupedBars.length > 0}
 			<svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} class="overflow-visible">

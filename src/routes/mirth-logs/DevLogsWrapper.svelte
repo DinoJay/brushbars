@@ -100,8 +100,8 @@
 	{/if}
 
 	<div
-		class="mb-4 flex flex-1 flex-col rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		class="mb-4 flex flex-1 flex-col rounded p-3"
+		style="background-color: var(--color-bg-secondary);"
 	>
 		{#if showSpinner || props.loading || isFetchingDay}
 			<LoadingSpinner class="m-auto" label="Loading timeline…" size={44} />

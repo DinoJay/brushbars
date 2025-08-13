@@ -118,10 +118,7 @@
 		<LoadingSpinner label="Loading days…" size={48} />
 	</div>
 {:else}
-	<div
-		class="mb-4 rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-	>
+	<div class="mb-4 rounded p-3" style="background-color: var(--color-bg-secondary);">
 		{#if showSpinner || props.loading || isFetchingDay}
 			<div class="flex min-h-[260px] w-full items-center justify-center">
 				<LoadingSpinner label="Loading timeline…" size={44} />
@@ -138,10 +135,7 @@
 	</div>
 
 	{#if !(showSpinner || props.loading || isFetchingDay)}
-		<div
-			class="rounded p-3 shadow"
-			style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
-		>
+		<div class="rounded p-3" style="background-color: var(--color-bg-secondary);">
 			<LogTable
 				entries={logStore.getFilteredFullMessagesEntries(selectedDayFromUrl())}
 				selectedRange={logStore.selectedRange}

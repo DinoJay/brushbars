@@ -137,8 +137,8 @@
 {:else}
 	<!-- Day Buttons Section - Visible within a tab -->
 	<div
-		class="mb-4 flex overflow-auto rounded p-3 shadow"
-		style="background-color: var(--color-bg-secondary); border: 1px solid var(--color-border);"
+		class="mb-4 flex overflow-auto rounded p-3"
+		style="background-color: var(--color-bg-secondary);"
 	>
 		<div class="flex overflow-auto">
 			<DayButtons
