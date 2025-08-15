@@ -12,63 +12,87 @@ export const load: LayoutLoad = async ({ url, fetch }) => {
 		selectedDay
 	});
 
-	try {
-		let devLogsDaysRes: { success?: boolean; days?: unknown[] } | null = null;
-		let messagesDaysRes: { success?: boolean; days?: unknown[] } | null = null;
-		let devLogsForDay: unknown[] = [];
-		let messagesForDay: unknown[] = [];
+	// Create promises for streaming results
+	const createStreamingPromise = async <T>(
+		fetchFn: () => Promise<T>,
+		label: string
+	): Promise<T> => {
+		console.log(`🔄 Dashboard layout: Starting streaming fetch for ${label}`);
+		try {
+			const result = await fetchFn();
+			console.log(`✅ Dashboard layout: Completed streaming fetch for ${label}`);
+			return result;
+		} catch (error) {
+			console.error(`❌ Dashboard layout: Failed streaming fetch for ${label}:`, error);
+			throw error;
+		}
+	};
 
-		if (isLogsRoute) {
-			console.log('🔄 Dashboard layout: Fetching dev log days...');
+	// Define fetch functions that return promises
+	const fetchDevLogsDays = () =>
+		createStreamingPromise(async () => {
 			const res = await fetch('/mirth-logs/api/devLogs/days');
-			if (res.ok) devLogsDaysRes = await res.json();
+			if (!res.ok) throw new Error(`Failed to fetch dev logs days: ${res.status}`);
+			const data = await res.json();
+			return data?.success ? data.days : [];
+		}, 'dev logs days');
 
-			if (selectedDay) {
-				console.log('🔄 Dashboard layout: Fetching dev logs for day', selectedDay);
-				const dayRes = await fetch(`/mirth-logs/api/devLogs/${selectedDay}`);
-				if (dayRes.ok) {
-					const dayJson = await dayRes.json();
-					if (dayJson?.success && Array.isArray(dayJson.logs)) devLogsForDay = dayJson.logs;
-				}
-			}
-		}
-
-		if (isChannelsRoute) {
-			console.log('🔄 Dashboard layout: Fetching message days...');
+	const fetchMessageDays = () =>
+		createStreamingPromise(async () => {
 			const res = await fetch('/mirth-logs/api/messages/days');
-			if (res.ok) messagesDaysRes = await res.json();
+			if (!res.ok) throw new Error(`Failed to fetch message days: ${res.status}`);
+			const data = await res.json();
+			return data?.success ? data.days : [];
+		}, 'message days');
 
-			if (selectedDay) {
-				console.log('🔄 Dashboard layout: Fetching messages for day', selectedDay);
-				const dayRes = await fetch(`/mirth-logs/api/messages/${selectedDay}`);
-				if (dayRes.ok) {
-					const dayJson = await dayRes.json();
-					if (dayJson?.success && Array.isArray(dayJson.messages))
-						messagesForDay = dayJson.messages;
-				}
-			}
-		}
+	try {
+		// Return promises for streaming results
+		const result = {
+			// Always fetch both types of days data so DayButtons can show the correct data for current tab
+			devLogsDaysPromise: fetchDevLogsDays(),
+			messageDaysPromise: fetchMessageDays(),
 
-		return {
-			devLogsDays: devLogsDaysRes?.success ? devLogsDaysRes.days : [],
-			messageDays: messagesDaysRes?.success ? messagesDaysRes.days : [],
-			devLogsForDay,
-			messagesForDay,
+			// Metadata
 			selectedDay,
 			success: true,
-			routeType: isLogsRoute ? 'logs' : isChannelsRoute ? 'channels' : 'unknown'
+			routeType: isLogsRoute ? 'logs' : isChannelsRoute ? 'channels' : 'unknown',
+
+			// Helper function to get all data when needed
+			getAllData: async () => {
+				const [devLogsDays, messageDays] = await Promise.allSettled([
+					result.devLogsDaysPromise,
+					result.messageDaysPromise
+				]);
+
+				return {
+					devLogsDays: devLogsDays.status === 'fulfilled' ? devLogsDays.value : [],
+					messageDays: messageDays.status === 'fulfilled' ? messageDays.value : [],
+					selectedDay,
+					success: true,
+					routeType: result.routeType
+				};
+			}
 		};
+
+		console.log('🔄 Dashboard layout: Returning streaming promises');
+		return result;
 	} catch (error) {
-		console.warn('Dashboard layout: Failed to load data:', error);
+		console.warn('Dashboard layout: Failed to create streaming promises:', error);
 		return {
-			devLogsDays: [],
-			messageDays: [],
-			devLogsForDay: [],
-			messagesForDay: [],
+			devLogsDaysPromise: Promise.resolve([]),
+			messageDaysPromise: Promise.resolve([]),
 			selectedDay,
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error',
-			routeType: isLogsRoute ? 'logs' : isChannelsRoute ? 'channels' : 'unknown'
+			routeType: isLogsRoute ? 'logs' : isChannelsRoute ? 'channels' : 'unknown',
+			getAllData: async () => ({
+				devLogsDays: [],
+				messageDays: [],
+				selectedDay,
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error',
+				routeType: isLogsRoute ? 'logs' : isChannelsRoute ? 'channels' : 'unknown'
+			})
 		};
 	}
 };

@@ -2,7 +2,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { navigating } from '$app/stores';
 	import { logStore } from '$stores/logStore.svelte';
 	import DayButtons from '../components/DayButtons.svelte';
 	import LoadingSpinner from '../components/LoadingSpinner.svelte';
@@ -29,94 +28,58 @@
 		if (p.includes('/channels')) return 'channels';
 		return '';
 	});
-	let lastTab = $state<string | null>(null);
-	let isTabChanging = $state(false);
-	// Full refresh: show a single global spinner until loader data is hydrated
-	let isInitializing = $state(true);
 
-	// When tab changes, mark as changing
-	$effect(() => {
-		if (lastTab !== null && currentTab && currentTab !== lastTab) {
-			isTabChanging = true;
-		}
-		lastTab = currentTab || lastTab;
-	});
-
-	// Clear tab-changing state once navigation completes
-	$effect(() => {
-		if (isTabChanging && !$navigating) {
-			isTabChanging = false;
-		}
-	});
-
-	// Full-page spinner when tab is changing or no children yet
-	// Also consider in-flight navigation target to detect tab switch immediately
-	const navToTab = $derived.by(() => {
-		const toPath = ($navigating as any)?.to?.url?.pathname as string | undefined;
-		if (!toPath) return '';
-		if (toPath.includes('/logs')) return 'logs';
-		if (toPath.includes('/channels')) return 'channels';
-		return '';
-	});
-	const isTabNav = $derived.by(() => Boolean($navigating && navToTab && navToTab !== currentTab));
-	const showFullSpinner = $derived.by(
-		() => isInitializing || isTabChanging || isTabNav || !props.children
-	);
-	// Local fetch-in-progress for day changes
-	let isFetchingDay = $state(false);
-	// Content-only spinner during day changes/navigation within the same tab
-	const showContentSpinner = $derived.by(() => !showFullSpinner && ($navigating || isFetchingDay));
+	// Store resolved days data to prevent re-running promises
+	let resolvedDevLogsDays = $state<any[]>([]);
+	let resolvedMessageDays = $state<any[]>([]);
+	let resolvedDevLogsForDay = $state<any[]>([]);
+	let resolvedMessagesForDay = $state<any[]>([]);
+	let daysDataLoaded = $state(false);
+	let dayDataLoaded = $state(false);
 
 	// Initialize store with data from layout.ts
 	$effect(() => {
-		if (props.data?.success) {
-			console.log('🔄 Dashboard layout: Initializing store with layout data');
-
-			// Update store with days data
-			if (props.data.devLogsDays && props.data.devLogsDays.length > 0) {
-				logStore.updateDevLogDays(props.data.devLogsDays);
-				console.log(
-					'✅ Dashboard layout: Store updated with dev log days:',
-					props.data.devLogsDays.length
-				);
-			}
-
-			if (props.data.messageDays && props.data.messageDays.length > 0) {
-				logStore.updateMessageDays(props.data.messageDays);
-				console.log(
-					'✅ Dashboard layout: Store updated with message days:',
-					props.data.messageDays.length
-				);
-			}
-
-			// Hydrate current day's entries into the store if provided by loader
-			if (
-				Array.isArray((props.data as any).devLogsForDay) &&
-				(props.data as any).devLogsForDay.length
-			) {
-				logStore.updateDevLogs((props.data as any).devLogsForDay as any);
-				console.log('✅ Dashboard layout: Hydrated dev logs for selected day');
-			}
-			if (
-				Array.isArray((props.data as any).messagesForDay) &&
-				(props.data as any).messagesForDay.length
-			) {
-				logStore.updateMessages((props.data as any).messagesForDay as any);
-				console.log('✅ Dashboard layout: Hydrated messages for selected day');
-			}
-			// Mark initialization complete once hydrated
-			isInitializing = false;
+		if (props.data?.success && !daysDataLoaded) {
+			console.log('🔄 Dashboard layout: Initializing store with streaming promises');
+			loadDaysData();
 		}
 	});
+
+	// Load days data once and store it
+	async function loadDaysData() {
+		try {
+			if (props.data?.devLogsDaysPromise && props.data?.messageDaysPromise) {
+				const [devLogsDays, messageDays] = await Promise.all([
+					props.data.devLogsDaysPromise,
+					props.data.messageDaysPromise
+				]);
+
+				resolvedDevLogsDays = devLogsDays || [];
+				resolvedMessageDays = messageDays || [];
+				daysDataLoaded = true;
+				console.log('✅ Dashboard layout: Days data loaded and stored');
+			}
+		} catch (error) {
+			console.error('❌ Dashboard layout: Failed to load days data:', error);
+			daysDataLoaded = true; // Mark as loaded even on error
+		}
+	}
 
 	// Handle day selection
 	async function handleSelectDay(date: string) {
 		// Update local pending selection immediately for instant highlight
 		pendingSelectedDay = date;
-		// Update URL directly
-		const url = new URL(window.location.href);
-		url.searchParams.set('day', date);
-		await goto(url.pathname + '?' + url.searchParams.toString(), {
+
+		// Create new URL object with day parameter (immutable)
+		const currentUrl = new URL(window.location.href);
+		const newUrl = new URL(currentUrl);
+		newUrl.searchParams.set('day', date);
+
+		// Use replaceState for immediate URL update
+		window.history.replaceState({}, '', newUrl.toString());
+
+		// Also trigger navigation but don't wait for it
+		goto(newUrl.pathname + '?' + newUrl.searchParams.toString(), {
 			replaceState: false,
 			noScroll: true,
 			keepFocus: true
@@ -126,36 +89,38 @@
 		logStore.setSelectedLevel(null);
 		logStore.setSelectedChannel(null);
 		logStore.setSelectedRange(null);
-
-		// Fetch data for the selected day for the active tab
 	}
 </script>
 
-{#if showFullSpinner}
-	<!-- Full-page spinner (hide day buttons) on tab change or initial mount -->
-	<LoadingSpinner class="m-auto" label="Loading..." size={56} />
-{:else}
-	<!-- Day Buttons Section - Visible within a tab -->
-	<div
-		class="mb-4 flex overflow-auto rounded p-3"
-		style="background-color: var(--color-bg-secondary);"
-	>
-		<div class="flex overflow-auto">
+<!-- Day Buttons Section - Visible within a tab -->
+<div
+	class="mb-4 flex overflow-auto rounded p-3"
+	style="background-color: var(--color-bg-secondary);"
+>
+	<!-- Debug info -->
+	<div class="mb-2 text-xs text-gray-500">
+		Current tab: {currentTab} | Selected day: {selectedDay} | Has data: {Boolean(props.data)}
+	</div>
+
+	<div class="flex overflow-auto">
+		{#if !daysDataLoaded}
+			<!-- Loading spinner for day buttons -->
+			<div class="flex w-full items-center justify-center py-8">
+				<LoadingSpinner label="Loading day buttons..." size={32} />
+			</div>
+		{:else}
+			<!-- Day buttons are always visible once data is loaded -->
 			<DayButtons
 				{selectedDay}
-				days={currentTab === 'logs' ? logStore.devLogDays : logStore.messageDays}
-				loading={logStore.loadingDays}
-				error={logStore.errorDays}
+				days={currentTab === 'logs' ? resolvedDevLogsDays : resolvedMessageDays}
+				loading={false}
+				error={null}
 				onSelectDay={handleSelectDay}
 				type={currentTab === 'logs' ? 'devLogs' : 'messages'}
 			/>
-		</div>
+		{/if}
 	</div>
+</div>
 
-	<!-- Main Content Area (spinner only for day changes) -->
-	{#if showContentSpinner}
-		<LoadingSpinner class="m-auto" label="Loading..." size={48} />
-	{:else}
-		{@render props.children?.()}
-	{/if}
-{/if}
+<!-- Main Content Area -->
+{@render props.children?.()}

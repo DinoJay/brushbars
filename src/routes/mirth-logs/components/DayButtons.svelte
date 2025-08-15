@@ -96,7 +96,7 @@
 
 	<!-- Loading State -->
 	{#if props.loading}
-		<div class="flex justify-center py-6">
+		<div class="flex flex-col items-center justify-center space-y-3 py-6">
 			<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
 		</div>
 	{:else if effectiveDays.length > 0}
