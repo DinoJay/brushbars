@@ -79,8 +79,6 @@
 </script>
 
 <div class="flex flex-1 flex-col">
-
-
 	{#if !props.data?.devLogsPromise}
 		<!-- No data available -->
 		<div class="flex items-center justify-center py-8">
