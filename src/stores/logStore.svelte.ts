@@ -460,9 +460,46 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 		getFilteredFullDevLogEntries(selectedDay: string) {
 			// BUGFIX: use allDevLogs (not allMessages) for dev logs table filtering
 			return applyAllFilters(filterEntriesByDay(allDevLogs, selectedDay));
-		}
+		},
 
-		// Function to get filtered logs for a specific day with optional time range
+		// Latest available days getters
+		get latestDevLogDay() {
+			return latestDevLogDay;
+		},
+
+		get latestMessageDay() {
+			return latestMessageDay;
+		},
+
+		// Helper functions for day validation and navigation
+		getLatestDay(route: 'logs' | 'channels'): string | null {
+			return route === 'logs' ? latestDevLogDay : latestMessageDay;
+		},
+
+		getAvailableDays(route: 'logs' | 'channels'): DayData[] {
+			return route === 'logs' ? devLogDays : messageDays;
+		},
+
+		isDayValid(route: 'logs' | 'channels', day: string | null): boolean {
+			if (!day) return false;
+			const availableDays = this.getAvailableDays(route);
+			return availableDays.some((d) => d.date === day);
+		},
+
+		getValidDay(route: 'logs' | 'channels', currentDay: string | null): string | null {
+			if (!currentDay) {
+				// If no day selected, return the latest available day
+				return this.getLatestDay(route);
+			}
+
+			// If current day is valid, return it
+			if (this.isDayValid(route, currentDay)) {
+				return currentDay;
+			}
+
+			// If current day is invalid, return the latest available day
+			return this.getLatestDay(route);
+		}
 	};
 }
 

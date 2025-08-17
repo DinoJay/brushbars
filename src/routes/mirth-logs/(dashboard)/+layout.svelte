@@ -58,6 +58,14 @@
 			}
 
 			dayButtonsData = newData;
+
+			// Update logStore with the loaded day data
+			if (route === 'logs') {
+				logStore.updateDevLogDays(newData.devLogsDays || []);
+			} else if (route === 'channels') {
+				logStore.updateMessageDays(newData.messageDays || []);
+			}
+
 			console.log('✅ Dashboard layout: Day buttons data loaded for route:', route);
 		} catch (error) {
 			console.error('❌ Dashboard layout: Failed to load day buttons data:', error);
@@ -90,26 +98,25 @@
 		const route = currentTab;
 
 		if (route && dayButtonsData) {
-			const availableDays =
-				route === 'logs' ? dayButtonsData.devLogsDays : dayButtonsData.messageDays;
+			// Use logStore to validate day and get latest available day
+			const isDayValid = logStore.isDayValid(route, currentDay);
 
-			// // Check if day param is empty or not in available days
-			// const isDayValid = currentDay && availableDays.some((day) => day.date === currentDay);
-
-			// if (!isDayValid && availableDays.length > 0) {
-			// 	// Redirect to latest available day
-			// 	const latestDay = availableDays[availableDays.length - 1].date;
-			// 	const url = new URL($page.url);
-			// 	url.searchParams.set('day', latestDay);
-			// 	goto(url.toString(), {
-			// 		replaceState: true,
-			// 		noScroll: true,
-			// 		keepFocus: true,
-			// 		invalidate: false
-			// 	});
-			// 	console.log('🔄 Dashboard layout: Redirected to latest available day:', latestDay);
+			if (!isDayValid) {
+				const latestDay = logStore.getLatestDay(route);
+				if (latestDay) {
+					// Redirect to latest available day
+					const url = new URL($page.url);
+					url.searchParams.set('day', latestDay);
+					goto(url.toString(), {
+						replaceState: true,
+						noScroll: true,
+						keepFocus: true,
+						invalidate: false
+					});
+					console.log('🔄 Dashboard layout: Redirected to latest available day:', latestDay);
+				}
+			}
 		}
-		// }
 	});
 
 	// Load initial data on mount
@@ -146,12 +153,12 @@
 </script>
 
 {#if dayButtonsData}
-	<div
-		class="mb-4 flex overflow-auto rounded p-3"
-		style="background-color: var(--color-bg-secondary);"
-	>
-		<div class="flex overflow-auto">
-			{#if (currentTab === 'logs' && dayButtonsData.devLogsDays?.length > 0) || (currentTab === 'channels' && dayButtonsData.messageDays?.length > 0)}
+	{#if (currentTab === 'logs' && dayButtonsData.devLogsDays?.length > 0) || (currentTab === 'channels' && dayButtonsData.messageDays?.length > 0)}
+		<div
+			class="mb-4 flex overflow-auto rounded p-3"
+			style="background-color: var(--color-bg-secondary);"
+		>
+			<div class="flex overflow-auto">
 				<DayButtons
 					selectedDay={$page.url.searchParams.get('day')}
 					days={currentTab === 'logs' ? dayButtonsData.devLogsDays : dayButtonsData.messageDays}
@@ -160,9 +167,16 @@
 					onSelectDay={handleSelectDay}
 					type={currentTab === 'logs' ? 'devLogs' : 'messages'}
 				/>
-			{/if}
+			</div>
 		</div>
-	</div>
+		{#if (currentTab === 'logs' && (!dayButtonsData.devLogsDays || dayButtonsData.devLogsDays.length === 0)) || (currentTab === 'channels' && (!dayButtonsData.messageDays || dayButtonsData.messageDays.length === 0))}
+			<div class="flex w-full items-center justify-center py-8">
+				<p class="text-gray-500">
+					No {currentTab === 'logs' ? 'dev logs' : 'messages'} available
+				</p>
+			</div>
+		{/if}
+	{/if}
 {/if}
 
 <!-- Day Buttons Section - Show loading spinner until data is loaded -->
