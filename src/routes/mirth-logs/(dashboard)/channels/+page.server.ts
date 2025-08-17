@@ -1,5 +1,5 @@
 import type { ServerLoad } from '@sveltejs/kit';
-
+export const ssr = false;
 export const load: ServerLoad = async ({ url, fetch }) => {
 	const selectedDay = url.searchParams.get('day');
 
@@ -19,16 +19,15 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 			(async () => {
 				try {
 					console.log('🔄 Starting to fetch messages for day:', selectedDay);
-					
+
 					// Simulate streaming delay to show loading state
-					await new Promise(resolve => setTimeout(resolve, 100));
-					
+
 					const res = await fetch(`/mirth-logs/api/messages/${selectedDay}`);
 					if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
-					
+
 					const data = await res.json();
 					const messages = data?.success && Array.isArray(data.messages) ? data.messages : [];
-					
+
 					console.log('✅ Channels page: Streamed messages:', messages.length);
 					resolve(messages);
 				} catch (error) {
@@ -46,7 +45,7 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 		};
 	} catch (error) {
 		console.error('❌ Channels page: Failed to create streaming promise:', error);
- 
+
 		return {
 			success: false,
 			messagesPromise: Promise.resolve([]),

@@ -230,12 +230,9 @@
 					{height}
 					{margin}
 					onRangeChange={(r) => {
-						console.log('🖌️ ActivityTimeline received brush event:', r);
-
 						if (!r) {
 							// Clear visual range immediately and clear store
 							visualRange = null;
-							console.log('🗑️ Clearing brush selection');
 							onRangeChange?.(null);
 							return;
 						}
@@ -244,7 +241,6 @@
 						if (Array.isArray(r[0]) && Array.isArray(r[1])) {
 							const [, pixels] = r as [[Date, Date], [number, number]];
 							const [x0, x1] = pixels;
-							console.log('🎨 Brush visual feedback:', [x0, x1]);
 							// Visual feedback only
 							visualRange = [x0, x1];
 							return;
@@ -252,12 +248,10 @@
 
 						// Final selection: r = [startDate, endDate]
 						const [start, end] = r as [Date, Date];
-						console.log('✅ Final brush selection:', start, 'to', end);
 
 						// Degenerate selection clears
 						if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
 							visualRange = null;
-							console.log('⚠️ Invalid date range, clearing selection');
 							onRangeChange?.(null);
 							return;
 						}
@@ -268,11 +262,9 @@
 						const endX = (xScale as any)(end);
 						if (isFinite(startX) && isFinite(endX)) {
 							visualRange = [startX, endX];
-							console.log('🎨 Setting visual range to pixels:', [startX, endX]);
 						}
 
 						// Pass the date range to parent for table filtering
-						console.log('📊 Updating store with date range:', start, 'to', end);
 						onRangeChange?.([start, end]);
 					}}
 					{resetKey}

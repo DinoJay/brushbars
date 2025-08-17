@@ -57,61 +57,37 @@
 		return (entries || []) as TimelineEntry[];
 	});
 
-	// Loading state that shows immediately when day changes
-	let isLoadingDay = $state(false);
-	let currentDay = $state<string | null>(null);
-
-	// Track day changes and show loading immediately
-	$effect(() => {
-		const day = selectedDayFromUrl();
-		console.log('🔄 Effect running - current day:', day, 'stored day:', currentDay);
-
-		if (day && day !== currentDay) {
-			console.log('🔄 Day changed from', currentDay, 'to', day, '- showing loading state');
-			currentDay = day;
-			isLoadingDay = true;
-		}
+	// Loading state derived from promise status
+	const isLoading = $derived.by(() => {
+		return !props.data?.devLogsPromise || props.data.devLogsPromise instanceof Promise;
 	});
 
-	// Handle data updates when streaming promise resolves
+	// Update store when promise resolves
 	$effect(() => {
-		if (props.data?.success && props.data.devLogsPromise) {
-			console.log('🔄 Setting up promise handler for day:', currentDay);
+		if (props.data?.devLogsPromise) {
 			props.data.devLogsPromise
-				.then((devLogs: any[]) => {
-					console.log('✅ Promise resolved with', devLogs?.length, 'logs for day:', currentDay);
-					if (devLogs && devLogs.length > 0) {
+				.then((devLogs: any) => {
+					if (devLogs && Array.isArray(devLogs)) {
 						logStore.updateDevLogs(devLogs);
 					}
-					isLoadingDay = false;
-					console.log('✅ Loading state set to false');
 				})
 				.catch((error: any) => {
-					console.error('❌ Promise failed:', error);
-					isLoadingDay = false;
+					console.error('Failed to load dev logs:', error);
 				});
 		}
-	});
-
-	// Debug logging
-	$effect(() => {
-		console.log('🔄 Loading state changed:', isLoadingDay, 'for day:', currentDay);
 	});
 </script>
 
 <div class="flex flex-1 flex-col">
-	<!-- Debug info -->
-	<div class="mb-2 rounded bg-gray-100 p-2 text-xs text-gray-500">
-		Debug: isLoadingDay={isLoadingDay}, currentDay={currentDay}, selectedDay={selectedDayFromUrl()}
-	</div>
 
-	{#if isLoadingDay}
-		<!-- Loading spinner that shows immediately when day changes -->
+
+	{#if !props.data?.devLogsPromise}
+		<!-- No data available -->
 		<div class="flex items-center justify-center py-8">
-			<LoadingSpinner label="Loading dev logs for new day..." size={48} />
+			<p class="text-gray-500">No data available</p>
 		</div>
 	{:else}
-		{#await props.data?.devLogsPromise}
+		{#await props.data.devLogsPromise}
 			<!-- Loading spinner for dev logs -->
 			<div class="flex items-center justify-center py-8">
 				<LoadingSpinner label="Loading dev logs..." size={48} />
@@ -130,9 +106,9 @@
 				<!-- Timeline -->
 				<div class="mb-4">
 					<MirthActivityTimeline
-						entries={timelineDataForSelectedDay}
+						entries={timelineDataForSelectedDay || []}
 						onRangeChange={(range) => logStore.setSelectedRange(range)}
-						resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
+						resetOn={`{selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 					/>
 				</div>
 

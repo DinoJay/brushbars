@@ -98,10 +98,6 @@ export function calculateBarWidth(grouped, width, margin) {
 	// Apply minimum and maximum constraints (larger bars by default)
 	barWidth = Math.max(20, Math.min(40, barWidth));
 
-	console.log(
-		`📊 Bar width calculation: ${grouped.length} bars, ${availableWidth}px available, ${barWidth}px per bar`
-	);
-
 	return barWidth;
 }
 
@@ -190,9 +186,6 @@ export function groupCloseBars(grouped, timeThreshold = 5 * 60 * 1000) {
 		groupedBars.push(currentGroup[0]);
 	}
 
-	console.log(
-		`📊 Grouped ${grouped.length} bars into ${groupedBars.length} bars (threshold: ${timeThreshold / 1000}s)`
-	);
 	return groupedBars;
 }
 

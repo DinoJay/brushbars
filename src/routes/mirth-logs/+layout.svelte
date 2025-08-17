@@ -8,7 +8,7 @@
 	import { closeLogSocket, initLogSocket } from '$lib/websocketClient.js';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import DayButtons from './components/DayButtons.svelte';
+	export const ssr = false;
 
 	const props = $props<{ children?: any }>();
 
@@ -50,6 +50,45 @@
 		}
 	});
 
+	// Watch for route changes and set latest day from store
+	let lastPathname = $state<string>('');
+	$effect(() => {
+		const currentPathname = $page.url.pathname;
+		if (currentPathname !== lastPathname) {
+			lastPathname = currentPathname;
+			const route = currentTab;
+			if (route) {
+				console.log('🔄 Dashboard layout: Pathname changed, setting latest day for route:', route);
+
+				// Get latest day directly from store data
+				const latestDay = getLatestAvailableDayFromStore(route);
+				if (latestDay) {
+					const url = new URL($page.url);
+					url.searchParams.set('day', latestDay);
+					goto(url.toString(), {
+						replaceState: true,
+						noScroll: true,
+						keepFocus: true
+						// invalidate: false
+					});
+					console.log('🔄 Dashboard layout: Day set to latest available from store:', latestDay);
+				}
+			}
+		}
+	});
+
+	// Helper function to get latest day from store
+	function getLatestAvailableDayFromStore(route: string): string | null {
+		if (route === 'logs' && logStore.devLogDays?.length > 0) {
+			// Get the most recent day from store devLogDays
+			return logStore.devLogDays[logStore.devLogDays.length - 1]?.date || null;
+		} else if (route === 'channels' && logStore.messageDays?.length > 0) {
+			// Get the most recent day from store messageDays
+			return logStore.messageDays[logStore.messageDays.length - 1]?.date || null;
+		}
+		return null;
+	}
+
 	// Handle tab changes
 	async function handleTabChange(tab: string) {
 		const url = new URL(window.location.href);
@@ -59,7 +98,7 @@
 		const today = new Date().toISOString().split('T')[0];
 		url.searchParams.set('day', today);
 
-		await goto(url.toString());
+		goto(url.toString());
 	}
 </script>
 

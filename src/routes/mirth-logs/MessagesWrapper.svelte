@@ -117,11 +117,6 @@
 </script>
 
 <div class="flex flex-1 flex-col">
-	<!-- Debug info -->
-	<div class="mb-2 rounded bg-gray-100 p-2 text-xs text-gray-500">
-		Debug: isLoadingDay={isLoadingDay}, currentDay={currentDay}, selectedDay={selectedDayFromUrl()}
-	</div>
-
 	{#if isLoadingDay}
 		<!-- Loading spinner that shows immediately when day changes -->
 		<div class="flex items-center justify-center py-8">

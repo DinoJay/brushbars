@@ -1,5 +1,6 @@
 import type { ServerLoad } from '@sveltejs/kit';
 
+export const ssr = false;
 export const load: ServerLoad = async ({ url, fetch }) => {
 	const selectedDay = url.searchParams.get('day');
 
@@ -21,8 +22,6 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 					console.log('🔄 Starting to fetch dev logs for day:', selectedDay);
 
 					// Simulate streaming delay to show loading state
-					await new Promise((resolve) => setTimeout(resolve, 100));
-
 					const res = await fetch(`/mirth-logs/api/devLogs/${selectedDay}`);
 					if (!res.ok) throw new Error(`Failed to fetch dev logs: ${res.status}`);
 

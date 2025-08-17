@@ -4,6 +4,7 @@
 	import type { PageData } from './$types';
 
 	const props = $props<{ data: PageData }>();
+	export const ssr = false;
 </script>
 
-<MessagesWrapper data={props.data} />
+<MessagesWrapper {...props} />

@@ -52,9 +52,11 @@ export async function GET({ url }) {
 		const ensureDay = (/** @type {string} */ dayString) => {
 			if (!dayMap.has(dayString)) {
 				const date = new Date(dayString);
+				// Ensure date is always in YYYY-MM-DD format
+				const validatedDate = toIsoDate(date);
 				dayMap.set(dayString, {
-					date: dayString,
-					formattedDate: d3.timeFormat('%a, %b %d')(date),
+					date: validatedDate, // Always YYYY-MM-DD format
+					formattedDate: d3.timeFormat('%a, %b %d')(date), // Display text like "Mon, Aug 13"
 					stats: { total: 0, INFO: 0, ERROR: 0, WARN: 0, DEBUG: 0 },
 					messages: []
 				});

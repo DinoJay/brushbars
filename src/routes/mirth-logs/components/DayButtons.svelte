@@ -103,7 +103,7 @@
 		<!-- Days Grid -->
 		<div class="flex gap-3 overflow-x-auto px-2 pb-3">
 			{#each [...effectiveDays].reverse() as day}
-				{@const isSelected = isDaySelected(day.date)}
+				{@const isSelected = (props.selectedDay || '') === day.date}
 
 				<button
 					onclick={() => props.onSelectDay?.(day.date)}

@@ -480,8 +480,8 @@ export function groupLogsByDay(logs) {
 
 		if (!dayMap.has(dayString)) {
 			dayMap.set(dayString, {
-				date: dayString,
-				formattedDate: formatDate(dayString),
+				date: dayString, // Always YYYY-MM-DD format
+				formattedDate: formatDate(dayString), // Display text like "Aug 13"
 				logs: [],
 				stats: createStats()
 			});

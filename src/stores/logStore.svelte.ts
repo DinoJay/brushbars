@@ -57,6 +57,15 @@ export function createLogStore(initialEntries: LogEntry[] = []) {
 	let loadingDays = $state(false);
 	let errorDays = $state<string | null>(null);
 
+	// Latest available days tracking
+	let latestDevLogDay = $derived.by(() => {
+		return devLogDays.length > 0 ? devLogDays[devLogDays.length - 1]?.date : null;
+	});
+
+	let latestMessageDay = $derived.by(() => {
+		return messageDays.length > 0 ? messageDays[messageDays.length - 1]?.date : null;
+	});
+
 	// Decoupled messages for selected day (channels)
 	let messages = $state<LogEntry[]>([]);
 
