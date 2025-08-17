@@ -1,11 +1,12 @@
 <!-- runes -->
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { page, navigating } from '$app/stores';
+
+	import { goto, replaceState, invalidate } from '$app/navigation';
 	import { logStore } from '$stores/logStore.svelte';
 	import LoadingSpinner from '../components/LoadingSpinner.svelte';
 	import DayButtons from '../components/DayButtons.svelte';
-	import { onMount } from 'svelte';
+
 	import type { LayoutData } from './$types';
 	export const ssr = false;
 	const props = $props<{ data: LayoutData; children?: any }>();
@@ -110,8 +111,7 @@
 					goto(url.toString(), {
 						replaceState: true,
 						noScroll: true,
-						keepFocus: true,
-						invalidate: false
+						keepFocus: true
 					});
 					console.log('🔄 Dashboard layout: Redirected to latest available day:', latestDay);
 				}
@@ -127,28 +127,28 @@
 		}
 	});
 
-	// Handle day selection (does NOT reload day buttons data)
-	async function handleSelectDay(date: string) {
-		console.log('🔄 Dashboard layout: Selecting day:', date, '- Day buttons data will NOT reload');
+	// Handle day selection
+	function handleSelectDay(date: string) {
+		console.log('🔄 Dashboard layout: Selecting day:', date);
 
-		// Update state immediately for instant highlighting
-		console.log('⚡ Dashboard layout: State updated instantly:', date);
+		// Clear filters and brush immediately on day change (batched for performance)
+		queueMicrotask(() => {
+			logStore.setSelectedLevel(null);
+			logStore.setSelectedChannel(null);
+			logStore.setSelectedRange(null);
+		});
 
-		// Use goto for immediate navigation and data loading
+		// Use goto with replaceState to update URL and trigger proper navigation
 		const url = new URL($page.url);
 		url.searchParams.set('day', date);
-		goto(url.toString(), {
-			replaceState: true, // Replace URL entry
-			noScroll: true, // No scrolling
-			keepFocus: true, // Keep focus
-			invalidate: false // No data invalidation
-		});
-		console.log('⚡ Dashboard layout: Navigation triggered with goto');
 
-		// Clear filters and brush immediately on day change
-		logStore.setSelectedLevel(null);
-		logStore.setSelectedChannel(null);
-		logStore.setSelectedRange(null);
+		goto(url.toString(), {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+
+		console.log('✅ Dashboard layout: URL updated for day:', date);
 	}
 </script>
 
@@ -180,10 +180,10 @@
 {/if}
 
 <!-- Day Buttons Section - Show loading spinner until data is loaded -->
-{#if isLoadingDayButtons}
+{#if $navigating}
 	<!-- Single general loading spinner -->
 	<LoadingSpinner class="m-auto" label="Loading..." size={48} />
-{:else if dayButtonsData}
+{:else}
 	{@render props.children?.()}
 {/if}
 

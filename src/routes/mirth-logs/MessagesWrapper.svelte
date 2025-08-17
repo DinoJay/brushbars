@@ -36,21 +36,7 @@
 		}
 	});
 
-	async function handleSelectDay(date: string) {
-		// Update URL directly - selectedDay will automatically update via $derived
-		const url = new URL(window.location.href);
-		url.searchParams.set('day', date);
-		await goto(url.pathname + '?' + url.searchParams.toString(), {
-			replaceState: false,
-			noScroll: true,
-			keepFocus: true
-		});
 
-		// Clear filters and brush immediately on day change
-		logStore.setSelectedLevel(null);
-		logStore.setSelectedChannel(null);
-		logStore.setSelectedRange(null);
-	}
 
 	// Timeline should reflect the store's `messages` for the selected day
 	const timelineDataForSelectedDay = $derived.by(
