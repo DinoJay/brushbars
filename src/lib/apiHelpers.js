@@ -457,6 +457,22 @@ export function groupLogsByDay(logs) {
 		TRACE: 0
 	});
 
+	// Helper function to format date
+	const formatDate = (dateString) => {
+		const date = new Date(dateString);
+		const today = new Date();
+		const year = date.getFullYear();
+		const month = date.toLocaleDateString('en-US', { month: 'short' });
+		const day = date.getDate();
+
+		// Only show year if it's different from current year
+		if (year === today.getFullYear()) {
+			return `${month} ${day}`;
+		} else {
+			return `${month} ${day}, ${year}`;
+		}
+	};
+
 	for (const log of logs) {
 		const logDate = new Date(log.timestamp);
 		const dayKey = d3.timeDay.floor(logDate);
@@ -465,6 +481,7 @@ export function groupLogsByDay(logs) {
 		if (!dayMap.has(dayString)) {
 			dayMap.set(dayString, {
 				date: dayString,
+				formattedDate: formatDate(dayString),
 				logs: [],
 				stats: createStats()
 			});
