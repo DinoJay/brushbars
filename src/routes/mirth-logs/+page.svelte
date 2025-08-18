@@ -7,9 +7,14 @@
 	$effect(() => {
 		if (isRedirecting) return;
 		isRedirecting = true;
-		// Redirect to dashboard logs subroute with today's date
+		// Redirect to dashboard logs subroute with today's date, preserving host param if present
 		const today = new Date().toISOString().split('T')[0];
-		goto(`/mirth-logs/logs?day=${today}`);
+		const currentUrl = new URL(window.location.href);
+		const host = currentUrl.searchParams.get('host');
+		const target = new URL(`/mirth-logs/logs`, window.location.origin);
+		target.searchParams.set('day', today);
+		if (host) target.searchParams.set('host', host);
+		goto(target.toString());
 	});
 </script>
 

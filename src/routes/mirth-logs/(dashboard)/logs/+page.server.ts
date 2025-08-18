@@ -3,6 +3,7 @@ import type { ServerLoad } from '@sveltejs/kit';
 export const ssr = false;
 export const load: ServerLoad = async ({ url, fetch }) => {
 	const selectedDay = url.searchParams.get('day');
+	const host = url.searchParams.get('host');
 
 	if (!selectedDay) {
 		return {
@@ -21,8 +22,13 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 				try {
 					console.log('🔄 Starting to fetch dev logs for day:', selectedDay);
 
-					// Simulate streaming delay to show loading state
-					const res = await fetch(`/mirth-logs/api/devLogs/${selectedDay}`);
+					// Choose endpoint based on host
+					const endpoint =
+						host === 'brpharmia'
+							? `/mirth-logs/api/logs-brpharmia/${selectedDay}`
+							: `/mirth-logs/api/devLogs/${selectedDay}`;
+
+					const res = await fetch(endpoint);
 					if (!res.ok) throw new Error(`Failed to fetch dev logs: ${res.status}`);
 
 					const data = await res.json();
@@ -41,6 +47,7 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 			success: true,
 			devLogsPromise,
 			selectedDay,
+			host: host || null,
 			streaming: true
 		};
 	} catch (error) {

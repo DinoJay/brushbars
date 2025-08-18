@@ -11,7 +11,19 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 
 	const isDev = import.meta.env.DEV;
 	const wsProtocol = isDev ? 'ws' : location.protocol === 'https:' ? 'wss' : 'ws';
-	const wsHost = isDev ? 'localhost:3001' : 'brberdev:3001';
+
+	// Determine which websocket server to use based on URL param
+	let selectedHost = null;
+	try {
+		selectedHost = new URL(window.location.href).searchParams.get('host');
+	} catch {}
+
+	const wsHost = (() => {
+		if (selectedHost === 'brpharmia') {
+			return isDev ? 'localhost:3002' : 'brberdev:3002';
+		}
+		return isDev ? 'localhost:3001' : 'brberdev:3001';
+	})();
 
 	const socketUrl = `${wsProtocol}://${wsHost}/ws`;
 	console.log('🔌 Connecting to WebSocket at:', socketUrl);

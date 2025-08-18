@@ -45,8 +45,13 @@
 			let newData = { ...dayButtonsData } || { devLogsDays: [], messageDays: [] };
 
 			if (route === 'logs') {
-				// Load only devLogs data for logs tab
-				const response = await fetch('/mirth-logs/api/devLogs/days');
+				// Load only devLogs data for logs tab, choose host if specified
+				const host = $page.url.searchParams.get('host');
+				const endpoint =
+					host === 'brpharmia'
+						? '/mirth-logs/api/logs-brpharmia/days'
+						: '/mirth-logs/api/devLogs/days';
+				const response = await fetch(endpoint);
 				const data = await response.json();
 				newData.devLogsDays = data.days || [];
 				console.log('✅ Dashboard layout: DevLogs data loaded for logs tab');
@@ -141,6 +146,9 @@
 		// Use goto with replaceState to update URL and trigger proper navigation
 		const url = new URL($page.url);
 		url.searchParams.set('day', date);
+		// Preserve selected host (e.g., brpharmia)
+		const currentHost = $page.url.searchParams.get('host');
+		if (currentHost) url.searchParams.set('host', currentHost);
 
 		goto(url.toString(), {
 			replaceState: true,

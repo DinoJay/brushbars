@@ -42,6 +42,28 @@
 		return () => closeLogSocket();
 	});
 
+	// Reinitialize WebSocket when host param changes
+	let lastHost = $state<string | null>(null);
+	$effect(() => {
+		const currentHost = $page.url.searchParams.get('host');
+		if (currentHost !== lastHost) {
+			lastHost = currentHost;
+			closeLogSocket();
+			initLogSocket(
+				(parsedLogs: any[]) => {
+					logStore.updateLiveDevLogEntries(parsedLogs);
+				},
+				(parsedLogs: any[]) => {
+					const current = logStore.liveDevLogEntries;
+					logStore.updateLiveDevLogEntries([...current, ...parsedLogs]);
+				},
+				(parsedMessages: any[]) => {
+					logStore.applyMessagesUpdate({ messages: parsedMessages, source: 'ws' });
+				}
+			);
+		}
+	});
+
 	// Initialize theme store on component mount
 	$effect(() => {
 		if (browser) {
@@ -98,6 +120,10 @@
 		const today = new Date().toISOString().split('T')[0];
 		url.searchParams.set('day', today);
 
+		// Preserve selected host (e.g., brpharmia)
+		const currentHost = $page.url.searchParams.get('host');
+		if (currentHost) url.searchParams.set('host', currentHost);
+
 		goto(url.toString());
 	}
 </script>
@@ -119,39 +145,60 @@
 				<h1 class="text-lg font-semibold tracking-tight">Mirth Logs</h1>
 			</div>
 
-			<!-- Theme Toggle -->
-			<button
-				onclick={() => {
-					console.log('🎨 Theme toggle clicked!');
-					themeStore.toggle();
-					console.log('🎨 Current theme value:', $isDark);
-				}}
-				class="rounded-xl p-2.5 transition-transform duration-200 hover:scale-105"
-				style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border);"
-				title={$isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-			>
-				{#if $isDark}
-					<!-- Sun icon for dark mode -->
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-						/>
-					</svg>
-				{:else}
-					<!-- Moon icon for light mode -->
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-						/>
-					</svg>
-				{/if}
-			</button>
+			<!-- Right-side controls -->
+			<div class="flex items-center gap-3">
+				<!-- Theme Toggle -->
+				<button
+					onclick={() => {
+						console.log('🎨 Theme toggle clicked!');
+						themeStore.toggle();
+						console.log('🎨 Current theme value:', $isDark);
+					}}
+					class="rounded-xl p-2.5 transition-transform duration-200 hover:scale-105"
+					style="background-color: var(--color-bg-tertiary); color: var(--color-text-secondary); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border);"
+					title={$isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+				>
+					{#if $isDark}
+						<!-- Sun icon for dark mode -->
+						<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+							/>
+						</svg>
+					{:else}
+						<!-- Moon icon for light mode -->
+						<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+							/>
+						</svg>
+					{/if}
+				</button>
+
+				<!-- Host Selector -->
+				<label class="text-sm" style="color: var(--color-text-secondary);">Host</label>
+				<select
+					value={$page.url.searchParams.get('host') === 'brpharmia' ? 'brpharmia' : 'default'}
+					onchange={(e) => {
+						const value = (e.target as HTMLSelectElement).value;
+						const url = new URL($page.url);
+						if (value === 'brpharmia') url.searchParams.set('host', 'brpharmia');
+						else url.searchParams.delete('host');
+						goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+					}}
+					class="rounded-md border px-2 py-1 text-sm"
+					style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border-color: var(--color-border);"
+				>
+					<option value="default">Default</option>
+					<option value="brpharmia">Pharmia</option>
+				</select>
+			</div>
 		</div>
 	</header>
 
