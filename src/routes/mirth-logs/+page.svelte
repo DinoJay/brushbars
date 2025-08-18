@@ -3,7 +3,10 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
-	onMount(() => {
+	let isRedirecting = $state(false);
+	$effect(() => {
+		if (isRedirecting) return;
+		isRedirecting = true;
 		// Redirect to dashboard logs subroute with today's date
 		const today = new Date().toISOString().split('T')[0];
 		goto(`/mirth-logs/logs?day=${today}`);

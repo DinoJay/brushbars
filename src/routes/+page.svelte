@@ -5,7 +5,7 @@
 	let statusText = $state('Loading days...');
 
 	$effect(() => {
-		goto(`/mirth-logs/logs?day=$new Date().toISOString().split('T')[0]}`);
+		goto(`/mirth-logs/logs?day=${new Date().toISOString().split('T')[0]}`);
 	});
 </script>
 

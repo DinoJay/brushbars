@@ -56,8 +56,8 @@ export async function GET({ params }) {
 		const channelPromises = channels.map(async (/** @type {any} */ ch) => {
 			try {
 				const msgs = await getChannelMessages(ch.id, {
-					startDate: startDate.toISOString(),
-					endDate: endDate.toISOString(),
+					// startDate: startDate.toISOString(),
+					// endDate: endDate.toISOString(),
 					limit: 50000,
 					includeContent: true
 				});

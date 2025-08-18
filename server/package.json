@@ -6,7 +6,9 @@
 	"type": "module",
 	"scripts": {
 		"start": "node websocket-server.js",
-		"dev": "nodemon websocket-server.js"
+		"start:brpharmia": "node websocket-server-brpharmia.js",
+		"dev": "nodemon websocket-server.js",
+		"dev:brpharmia": "nodemon websocket-server-brpharmia.js"
 	},
 	"keywords": [
 		"websocket",

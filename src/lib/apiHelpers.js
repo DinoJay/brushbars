@@ -440,6 +440,52 @@ export function loadLogsFromFile() {
 	}
 }
 
+// Loads all logs from all files in a specified logs directory
+export function loadLogsFromDirectory(directoryPath) {
+	const startTime = Date.now();
+
+	try {
+		if (!directoryPath || typeof directoryPath !== 'string') {
+			console.warn('⚠️ Invalid directoryPath provided to loadLogsFromDirectory');
+			return [];
+		}
+
+		if (fs.existsSync(directoryPath)) {
+			const files = fs.readdirSync(directoryPath);
+			const logFiles = files.filter(
+				(file) =>
+					/^mirth\.log/i.test(file) ||
+					file.endsWith('.log') ||
+					(file.toLowerCase().includes('mirth') && file.toLowerCase().includes('log'))
+			);
+			if (logFiles.length > 0) {
+				let allLogText = '';
+				for (const file of logFiles) {
+					const filePath = path.join(directoryPath, file);
+					try {
+						const logText = fs.readFileSync(filePath, 'utf8');
+						allLogText += logText + '\n';
+					} catch (err) {
+						console.warn(`⚠️ Failed to read log file: ${filePath}`, err);
+					}
+				}
+				const logs = parseLogLines(allLogText);
+				const endTime = Date.now();
+				console.log(
+					`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${directoryPath}`
+				);
+				return logs;
+			}
+		}
+
+		console.warn(`⚠️ No log files found in provided directory: ${directoryPath}`);
+		return [];
+	} catch (error) {
+		console.error('❌ Error loading logs from provided directory:', error);
+		return [];
+	}
+}
+
 // Helper function to group logs by day
 export function groupLogsByDay(logs) {
 	const startTime = Date.now();

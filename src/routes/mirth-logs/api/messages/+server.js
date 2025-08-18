@@ -5,11 +5,6 @@ export async function GET({ url }) {
 	const searchParams = url.searchParams;
 	const channelId = searchParams.get('channelId');
 	const channelName = searchParams.get('channelName');
-	const startDate = searchParams.get('startDate');
-	const endDate = searchParams.get('endDate');
-	const limit = parseInt(searchParams.get('limit')) || 100;
-	const offset = parseInt(searchParams.get('offset')) || 0;
-	const includeContent = searchParams.get('includeContent') === 'true';
 
 	try {
 		// If no specific channel is requested, return all channels
