@@ -10,7 +10,7 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 	if (socket || typeof window === 'undefined') return;
 
 	const isDev = import.meta.env.DEV;
-	const wsProtocol = isDev ? 'ws' : location.protocol === 'https:' ? 'wss' : 'ws';
+	const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
 
 	// Determine which websocket server to use based on URL param
 	let selectedHost = null;
@@ -19,13 +19,13 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 	} catch {}
 
 	const wsHost = (() => {
-		if (selectedHost === 'brpharmia') {
+		if (selectedHost === 'duomed') {
 			return isDev ? 'localhost:3002' : 'brberdev:3002';
 		}
 		return isDev ? 'localhost:3001' : 'brberdev:3001';
 	})();
 
-	const socketUrl = `${wsProtocol}://${wsHost}/ws`;
+	const socketUrl = `${wsProtocol}://${wsHost}`;
 	console.log('🔌 Connecting to WebSocket at:', socketUrl);
 
 	socket = new WebSocket(socketUrl);
@@ -36,29 +36,29 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 
 	socket.onmessage = (e) => {
 		const data = JSON.parse(e.data);
-		console.log('data', data);
+		// console.log('data', data);
 
 		if (data.type === 'log-full') {
 			const parsed = data.logs;
-			console.log('parsed', parsed);
+			// console.log('parsed', parsed);
 			onLogFull(parsed);
 		}
 
 		if (data.type === 'log-update') {
 			const parsed = data.logs;
-			console.log('📡 WebSocket log-update received:', parsed.length, 'logs');
+			// console.log('📡 WebSocket log-update received:', parsed.length, 'logs');
 			if (parsed.length > 0) {
-				console.log('📊 Sample log:', parsed[0]);
-				console.log('🕐 Timestamp:', parsed[0].timestamp);
-				console.log('🏷️ Level:', parsed[0].level);
+				// console.log('📊 Sample log:', parsed[0]);
+				// console.log('🕐 Timestamp:', parsed[0].timestamp);
+				// console.log('🏷️ Level:', parsed[0].level);
 			}
 			onLogUpdate(parsed);
 		}
 
 		if (data.type === 'message-update') {
 			const parsed = data.messages;
-			console.log('📡 WebSocket message-update received:', parsed.length, 'messages');
-			console.log('📡 Full message data:', data);
+			// console.log('📡 WebSocket message-update received:', parsed.length, 'messages');
+			// console.log('📡 Full message data:', data);
 			if (parsed.length > 0) {
 				console.log('📊 Sample message:', parsed[0]);
 				console.log('🕐 Timestamp:', parsed[0].timestamp);
@@ -67,22 +67,22 @@ export function initLogSocket(onLogFull, onLogUpdate, onMessageUpdate) {
 			}
 			// Use separate callback for messages if provided
 			if (onMessageUpdate) {
-				console.log('📡 Calling onMessageUpdate with:', parsed.length, 'messages');
+				// console.log('📡 Calling onMessageUpdate with:', parsed.length, 'messages');
 				onMessageUpdate(parsed);
 			} else {
 				// Fallback to log update if no message callback provided
-				console.log('📡 No onMessageUpdate callback, falling back to onLogUpdate');
+				// console.log('📡 No onMessageUpdate callback, falling back to onLogUpdate');
 				onLogUpdate(parsed);
 			}
 		}
 	};
 
 	socket.onerror = (err) => {
-		console.error('❌ WebSocket error:', err);
+		console.warn('⚠️ WebSocket connection issue:', err, 'url:', socketUrl);
 	};
 
-	socket.onclose = () => {
-		console.warn('🔌 WebSocket closed');
+	socket.onclose = (ev) => {
+		console.warn('🔌 WebSocket closed', { code: ev.code, reason: ev.reason });
 		socket = null;
 	};
 }

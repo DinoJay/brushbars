@@ -36,8 +36,6 @@
 		}
 	});
 
-
-
 	// Timeline should reflect the store's `messages` for the selected day
 	const timelineDataForSelectedDay = $derived.by(
 		() => logStore.getTimelineMessageEntries(selectedDayFromUrl() || '') || []
@@ -83,9 +81,7 @@
 						'messages for day:',
 						currentDay
 					);
-					if (messages && messages.length > 0) {
-						logStore.updateMessages(messages);
-					}
+					logStore.updateMessages(messages || []);
 					isLoadingDay = false;
 					console.log('✅ Loading state set to false');
 				})

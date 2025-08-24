@@ -3,7 +3,8 @@ import type { ServerLoad } from '@sveltejs/kit';
 export const ssr = false;
 export const load: ServerLoad = async ({ url, fetch }) => {
 	const selectedDay = url.searchParams.get('day');
-	const host = url.searchParams.get('host');
+	const sourcesParam = url.searchParams.get('sources') || 'internal';
+	const sources = sourcesParam.split(',').filter(Boolean);
 
 	if (!selectedDay) {
 		return {
@@ -14,28 +15,46 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 	}
 
 	try {
-		console.log('🔄 Logs page: Creating streaming promise for dev logs day:', selectedDay);
+		console.log(
+			'🔄 Logs page: Creating streaming promise for dev logs day:',
+			selectedDay,
+			'sources:',
+			sources.join(',')
+		);
 
 		// Create a promise that will actually stream the data
 		const devLogsPromise = new Promise<unknown[]>((resolve, reject) => {
 			(async () => {
 				try {
-					console.log('🔄 Starting to fetch dev logs for day:', selectedDay);
+					console.log(
+						'🔄 Starting to fetch dev logs for day:',
+						selectedDay,
+						'sources:',
+						sources.join(',')
+					);
 
-					// Choose endpoint based on host
-					const endpoint =
-						host === 'brpharmia'
-							? `/mirth-logs/api/logs-brpharmia/${selectedDay}`
-							: `/mirth-logs/api/devLogs/${selectedDay}`;
+					async function fetchLogs(endpoint: string) {
+						try {
+							const res = await fetch(endpoint);
+							if (!res.ok) return [] as any[];
+							const data = await res.json().catch(() => null);
+							return (data && data.logs) || [];
+						} catch {
+							return [] as any[];
+						}
+					}
 
-					const res = await fetch(endpoint);
-					if (!res.ok) throw new Error(`Failed to fetch dev logs: ${res.status}`);
+					const batches: any[][] = [];
+					if (sources.includes('internal')) {
+						batches.push(await fetchLogs(`/mirth-logs/api/logs-internal/${selectedDay}`));
+					}
+					if (sources.includes('duomed')) {
+						batches.push(await fetchLogs(`/mirth-logs/api/logs-duomed/${selectedDay}`));
+					}
 
-					const data = await res.json();
-					const logs = data?.success && Array.isArray(data.logs) ? data.logs : [];
-
-					console.log('✅ Logs page: Streamed dev logs:', logs.length);
-					resolve(logs);
+					const merged = ([] as any[]).concat(...batches);
+					console.log('✅ Logs page: merged logs from sources:', merged.length);
+					resolve(merged);
 				} catch (error) {
 					console.error('❌ Logs page: Failed to stream dev logs:', error);
 					reject(error);
@@ -47,7 +66,6 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 			success: true,
 			devLogsPromise,
 			selectedDay,
-			host: host || null,
 			streaming: true
 		};
 	} catch (error) {

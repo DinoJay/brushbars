@@ -1,8 +1,7 @@
 <!-- runes -->
 <script lang="ts">
 	import { page, navigating } from '$app/stores';
-
-	import { goto, replaceState, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { logStore } from '$stores/logStore.svelte';
 	import LoadingSpinner from '../components/LoadingSpinner.svelte';
 	import DayButtons from '../components/DayButtons.svelte';
@@ -11,7 +10,6 @@
 	export const ssr = false;
 	const props = $props<{ data: LayoutData; children?: any }>();
 
-	// Get current tab from URL - more stable detection
 	const currentTab = $derived.by(() => {
 		const p = $page.url.pathname;
 		if (p.includes('/logs')) return 'logs';
@@ -19,180 +17,194 @@
 		return '';
 	});
 
-	// Track selected day with state that gets updated when URL changes
-
-	// Debug effect to track selectedDay changes
-
-	// Sync state with URL changes (for browser navigation, etc.)
-	// $effect(() => {
-	// 	const urlDay = $page.url.searchParams.get('day');
-	// 	if (urlDay && urlDay !== currentSelectedDay) {
-	// 		currentSelectedDay = urlDay;
-	// 		console.log('🔄 Dashboard layout: State synced with URL:', urlDay);
-	// 	}
-	// });
-
-	// Day buttons data - load only what's needed for current tab
 	let dayButtonsData = $state<{ devLogsDays: any[]; messageDays: any[] } | null>(null);
 	let isLoadingDayButtons = $state(false);
 
-	// Load day buttons data only for current tab
-	async function loadDayButtonsData(route: string) {
-		console.log('🔄 Dashboard layout: Loading day buttons data for route:', route);
-		isLoadingDayButtons = true;
+	function mergeDaysByDate(...lists: any[][]) {
+		const map = new Map<string, any>();
+		for (const list of lists) {
+			if (!Array.isArray(list)) continue;
+			for (const d of list) {
+				const prev = map.get(d.date);
+				if (!prev) {
+					map.set(d.date, { ...d, stats: { ...(d.stats || {}) } });
+				} else {
+					const keys = ['total', 'INFO', 'ERROR', 'WARN', 'DEBUG', 'WARNING', 'FATAL', 'TRACE'];
+					for (const k of keys) {
+						if (k === 'total') {
+							prev.total = (prev.total || 0) + (d.total || 0);
+						} else {
+							prev.stats[k] = (prev.stats?.[k] || 0) + (d.stats?.[k] || 0);
+						}
+					}
+					map.set(d.date, prev);
+				}
+			}
+		}
+		return Array.from(map.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
+	}
 
+	let loadCounter = 0;
+	async function loadDayButtonsData(route: string) {
+		isLoadingDayButtons = true;
+		const token = ++loadCounter;
 		try {
-			let newData = { ...dayButtonsData } || { devLogsDays: [], messageDays: [] };
+			const newData: { devLogsDays: any[]; messageDays: any[] } = {
+				devLogsDays: dayButtonsData?.devLogsDays ?? [],
+				messageDays: dayButtonsData?.messageDays ?? []
+			};
 
 			if (route === 'logs') {
-				// Load only devLogs data for logs tab, choose host if specified
-				const host = $page.url.searchParams.get('host');
-				const endpoint =
-					host === 'brpharmia'
-						? '/mirth-logs/api/logs-brpharmia/days'
-						: '/mirth-logs/api/devLogs/days';
-				const response = await fetch(endpoint);
-				const data = await response.json();
-				newData.devLogsDays = data.days || [];
-				console.log('✅ Dashboard layout: DevLogs data loaded for logs tab');
+				const sourcesParam = $page.url.searchParams.get('sources') || '';
+				const sources = sourcesParam.split(',').filter(Boolean);
+				if (sources.length === 0) {
+					newData.devLogsDays = [];
+					dayButtonsData = newData;
+					logStore.updateDevLogDays([]);
+					logStore.updateDevLogs([]);
+					logStore.updateLiveDevLogEntries([]);
+					return;
+				}
+				async function fetchDays(endpoint: string) {
+					try {
+						const resp = await fetch(endpoint);
+						if (!resp.ok) return [] as any[];
+						const d = await resp.json().catch(() => null);
+						return (d && d.days) || [];
+					} catch {
+						return [] as any[];
+					}
+				}
+				const endpoints: string[] = [];
+				if (sources.includes('internal')) endpoints.push('/mirth-logs/api/logs-internal/days');
+				if (sources.includes('duomed')) endpoints.push('/mirth-logs/api/logs-duomed/days');
+				const lists = await Promise.all(endpoints.map(fetchDays));
+				if (lists.length === 0) lists.push([]);
+				newData.devLogsDays = mergeDaysByDate(...lists);
 			} else if (route === 'channels') {
-				// Load only messages data for channels tab
-				const response = await fetch('/mirth-logs/api/messages/days');
-				const data = await response.json();
-				newData.messageDays = data.days || [];
-				console.log('✅ Dashboard layout: Messages data loaded for channels tab');
+				const sourcesParam = $page.url.searchParams.get('sources') || '';
+				const sources = sourcesParam.split(',').filter(Boolean);
+				if (sources.length === 0) {
+					newData.messageDays = [];
+					dayButtonsData = newData;
+					logStore.updateMessageDays([]);
+					logStore.updateMessages([]);
+					logStore.updateLiveMessages([]);
+					return;
+				}
+				async function fetchDays(endpoint: string) {
+					try {
+						const resp = await fetch(endpoint);
+						if (!resp.ok) return [] as any[];
+						const d = await resp.json().catch(() => null);
+						return (d && d.days) || [];
+					} catch {
+						return [] as any[];
+					}
+				}
+				const endpoints: string[] = [];
+				if (sources.includes('internal')) endpoints.push('/mirth-logs/api/messages-internal/days');
+				if (sources.includes('duomed')) endpoints.push('/mirth-logs/api/messages-duomed/days');
+				const lists = await Promise.all(endpoints.map(fetchDays));
+				if (lists.length === 0) lists.push([]);
+				newData.messageDays = mergeDaysByDate(...lists);
 			}
 
+			if (token !== loadCounter) return;
 			dayButtonsData = newData;
-
-			// Update logStore with the loaded day data
 			if (route === 'logs') {
 				logStore.updateDevLogDays(newData.devLogsDays || []);
 			} else if (route === 'channels') {
 				logStore.updateMessageDays(newData.messageDays || []);
 			}
-
-			console.log('✅ Dashboard layout: Day buttons data loaded for route:', route);
 		} catch (error) {
 			console.error('❌ Dashboard layout: Failed to load day buttons data:', error);
-			// Keep existing data for other tab if available
 			if (!dayButtonsData) {
 				dayButtonsData = { devLogsDays: [], messageDays: [] };
 			}
 		} finally {
-			isLoadingDayButtons = false;
+			if (token === loadCounter) isLoadingDayButtons = false;
 		}
 	}
 
-	// Watch for route changes and load data
-	let lastPathname = $state<string>('');
+	let lastSources = $state<string>('');
 	$effect(() => {
-		const currentPathname = $page.url.pathname;
-		if (currentPathname !== lastPathname) {
-			lastPathname = currentPathname;
+		const sources = $page.url.searchParams.get('sources') || '';
+		if (sources !== lastSources) {
+			lastSources = sources;
 			const route = currentTab;
-			if (route) {
-				console.log('🔄 Dashboard layout: Pathname changed, loading data for route:', route);
-				loadDayButtonsData(route);
-			}
+			if (route) loadDayButtonsData(route);
 		}
 	});
 
-	// Watch for day parameter changes and redirect to latest if needed
+	let lastRoute = $state<string>('');
+	$effect(() => {
+		const route = currentTab;
+		if (route && route !== lastRoute) {
+			lastRoute = route;
+			loadDayButtonsData(route);
+		}
+	});
+
 	$effect(() => {
 		const currentDay = $page.url.searchParams.get('day');
 		const route = currentTab;
-
 		if (route && dayButtonsData) {
-			// Use logStore to validate day and get latest available day
 			const isDayValid = logStore.isDayValid(route, currentDay);
-
 			if (!isDayValid) {
 				const latestDay = logStore.getLatestDay(route);
 				if (latestDay) {
-					// Redirect to latest available day
 					const url = new URL($page.url);
 					url.searchParams.set('day', latestDay);
-					goto(url.toString(), {
-						replaceState: true,
-						noScroll: true,
-						keepFocus: true
-					});
-					console.log('🔄 Dashboard layout: Redirected to latest available day:', latestDay);
+					goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
 				}
 			}
 		}
 	});
 
-	// Load initial data on mount
-	$effect(() => {
-		if (currentTab && !dayButtonsData) {
-			console.log('🔄 Dashboard layout: Initial data load for route:', currentTab);
-			loadDayButtonsData(currentTab);
-		}
-	});
-
-	// Handle day selection
 	function handleSelectDay(date: string) {
-		console.log('🔄 Dashboard layout: Selecting day:', date);
-
-		// Clear filters and brush immediately on day change (batched for performance)
 		queueMicrotask(() => {
 			logStore.setSelectedLevel(null);
 			logStore.setSelectedChannel(null);
 			logStore.setSelectedRange(null);
 		});
-
-		// Use goto with replaceState to update URL and trigger proper navigation
 		const url = new URL($page.url);
 		url.searchParams.set('day', date);
-		// Preserve selected host (e.g., brpharmia)
 		const currentHost = $page.url.searchParams.get('host');
 		if (currentHost) url.searchParams.set('host', currentHost);
-
-		goto(url.toString(), {
-			replaceState: true,
-			noScroll: true,
-			keepFocus: true
-		});
-
-		console.log('✅ Dashboard layout: URL updated for day:', date);
+		goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
 	}
 </script>
 
-{#if dayButtonsData}
-	{#if (currentTab === 'logs' && dayButtonsData.devLogsDays?.length > 0) || (currentTab === 'channels' && dayButtonsData.messageDays?.length > 0)}
-		<div
-			class="mb-4 flex overflow-auto rounded p-3"
-			style="background-color: var(--color-bg-secondary);"
-		>
-			<div class="flex overflow-auto">
-				<DayButtons
-					selectedDay={$page.url.searchParams.get('day')}
-					days={currentTab === 'logs' ? dayButtonsData.devLogsDays : dayButtonsData.messageDays}
-					loading={false}
-					error={null}
-					onSelectDay={handleSelectDay}
-					type={currentTab === 'logs' ? 'devLogs' : 'messages'}
-				/>
-			</div>
-		</div>
-		{#if (currentTab === 'logs' && (!dayButtonsData.devLogsDays || dayButtonsData.devLogsDays.length === 0)) || (currentTab === 'channels' && (!dayButtonsData.messageDays || dayButtonsData.messageDays.length === 0))}
-			<div class="flex w-full items-center justify-center py-8">
-				<p class="text-gray-500">
-					No {currentTab === 'logs' ? 'dev logs' : 'messages'} available
-				</p>
-			</div>
+{#if isLoadingDayButtons || dayButtonsData}
+	<div
+		class="mb-4 flex flex-1 overflow-x-auto overflow-y-hidden rounded p-3"
+		style="background-color: var(--color-bg-secondary); width: 100%; min-height: 240px;"
+	>
+		{#if isLoadingDayButtons}
+			<LoadingSpinner class="m-auto" label="Loading days..." size={24} />
+		{:else}
+			<DayButtons
+				selectedDay={$page.url.searchParams.get('day')}
+				days={currentTab === 'logs'
+					? (dayButtonsData?.devLogsDays ?? [])
+					: (dayButtonsData?.messageDays ?? [])}
+				loading={isLoadingDayButtons}
+				error={null}
+				onSelectDay={handleSelectDay}
+				type={currentTab === 'logs' ? 'devLogs' : 'messages'}
+			/>
 		{/if}
+	</div>
+	{#if !isLoadingDayButtons && dayButtonsData && ((currentTab === 'logs' && (!dayButtonsData.devLogsDays || dayButtonsData.devLogsDays.length === 0)) || (currentTab === 'channels' && (!dayButtonsData.messageDays || dayButtonsData.messageDays.length === 0)))}
+		<div class="flex w-full items-center justify-center py-8">
+			<p class="text-gray-500">No {currentTab === 'logs' ? 'dev logs' : 'messages'} available</p>
+		</div>
 	{/if}
 {/if}
 
-<!-- Day Buttons Section - Show loading spinner until data is loaded -->
 {#if $navigating}
-	<!-- Single general loading spinner -->
 	<LoadingSpinner class="m-auto" label="Loading..." size={48} />
 {:else}
 	{@render props.children?.()}
 {/if}
-
-<!-- Main Content Area -->

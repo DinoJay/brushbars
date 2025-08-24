@@ -109,7 +109,12 @@ export const exampleChannels = [
 ];
 
 // Generate realistic message data for each channel over the last 30 days
+/**
+ * @param {string} channelId
+ * @param {number} [days=30]
+ */
 export function generateChannelMessages(channelId, days = 30) {
+	/** @type {any[]} */
 	const messages = [];
 	const now = new Date();
 	const channel = exampleChannels.find((c) => c.id === channelId);
@@ -117,6 +122,7 @@ export function generateChannelMessages(channelId, days = 30) {
 	if (!channel) return messages;
 
 	// Different message patterns based on channel type
+	/** @type {Record<string, { successRate: number; avgPerDay: number; errorTypes: string[]; contentTypes: string[] }>} */
 	const patterns = {
 		ADT_QRY19: {
 			successRate: 0.95,
@@ -171,12 +177,11 @@ export function generateChannelMessages(channelId, days = 30) {
 	const pattern = patterns[channel.name] || patterns['ADT_QRY19'];
 	let messageId = 1;
 
-	const MAX_PER_DAY = 1200;
+	const MAX_PER_DAY = 1000;
 
 	for (let day = 0; day < days; day++) {
 		const date = new Date(now);
 		date.setDate(date.getDate() - day);
-		const dateStr = date.toISOString().split('T')[0];
 
 		// Generate messages for this day with realistic distribution
 		const baseCount = pattern.avgPerDay;
@@ -282,12 +287,19 @@ export function generateChannelMessages(channelId, days = 30) {
 		}
 	}
 
-	return messages.sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate));
+	return messages.sort(
+		(a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime()
+	);
 }
 
 // Generate daily statistics for each channel
+/**
+ * @param {string} channelId
+ * @param {number} [days=30]
+ */
 export function generateChannelStats(channelId, days = 30) {
 	const messages = generateChannelMessages(channelId, days);
+	/** @type {any[]} */
 	const stats = [];
 	const now = new Date();
 
@@ -296,13 +308,13 @@ export function generateChannelStats(channelId, days = 30) {
 		date.setDate(date.getDate() - day);
 		const dateStr = date.toISOString().split('T')[0];
 
-		const dayMessages = messages.filter((m) => m.receivedDate.startsWith(dateStr)).slice(0, 1200); // enforce max 1200 per day in stats as well
+		const dayMessages = messages.filter((m) => m.receivedDate.startsWith(dateStr)).slice(0, 1000);
 
 		const total = dayMessages.length;
 		const processed = dayMessages.filter((m) => m.processed).length;
 		const failed = total - processed;
-		const pending = Math.floor(Math.random() * 10); // Random pending messages
-		const queued = Math.floor(Math.random() * 5); // Random queued messages
+		const pending = Math.floor(Math.random() * 10);
+		const queued = Math.floor(Math.random() * 5);
 
 		stats.push({
 			date: dateStr,
@@ -311,7 +323,7 @@ export function generateChannelStats(channelId, days = 30) {
 			failed,
 			pending,
 			queued,
-			successRate: total > 0 ? ((processed / total) * 100).toFixed(2) : 0
+			successRate: total > 0 ? ((processed / total) * 100).toFixed(2) : '0'
 		});
 	}
 
@@ -322,15 +334,15 @@ export function generateChannelStats(channelId, days = 30) {
 export function generateAllChannelData() {
 	const allData = {
 		channels: exampleChannels,
-		channelMessages: {},
-		channelStats: {},
+		/** @type {Record<string, any[]>} */ channelMessages: {},
+		/** @type {Record<string, any[]>} */ channelStats: {},
 		summary: {
 			totalChannels: exampleChannels.length,
 			enabledChannels: exampleChannels.filter((c) => c.enabled).length,
 			totalMessages: 0,
 			totalProcessed: 0,
 			totalFailed: 0,
-			averageSuccessRate: 0
+			/** @type {number} */ averageSuccessRate: 0
 		}
 	};
 
@@ -354,7 +366,7 @@ export function generateAllChannelData() {
 	allData.summary.totalProcessed = totalProcessed;
 	allData.summary.totalFailed = totalFailed;
 	allData.summary.averageSuccessRate =
-		totalMessages > 0 ? ((totalProcessed / totalMessages) * 100).toFixed(2) : 0;
+		totalMessages > 0 ? (totalProcessed / totalMessages) * 100 : 0;
 
 	return allData;
 }

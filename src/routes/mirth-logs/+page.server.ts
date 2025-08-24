@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 
 		if (tab === 'channels') {
 			// Fetch messages for the specified day
-			const res = await fetch(`/mirth-logs/api/messages/${day}`);
+			const res = await fetch(`/mirth-logs/api/messages-internal/${day}`);
 			if (res.ok) {
 				const data = await res.json();
 				if (data.success && Array.isArray(data.messages)) {
@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ url, fetch }) => {
 			}
 		} else {
 			// Fetch dev logs for the specified day
-			const res = await fetch(`/mirth-logs/api/devLogs/${day}`);
+			const res = await fetch(`/mirth-logs/api/logs-internal/${day}`);
 			if (res.ok) {
 				const data = await res.json();
 				if (data.success && Array.isArray(data.logs)) {

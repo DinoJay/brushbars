@@ -19,7 +19,6 @@
 		if (pathname.includes('/channels')) return 'channels';
 		return 'logs';
 	});
-	const selectedDay = $derived.by(() => $page.url.searchParams.get('day'));
 
 	// Initialize WebSocket when component mounts
 	onMount(() => {
@@ -43,7 +42,8 @@
 	});
 
 	// Reinitialize WebSocket when host param changes
-	let lastHost = $state<string | null>(null);
+	// Initialize to current host to avoid immediate close/reopen on first mount
+	let lastHost = $state<string | null>($page.url.searchParams.get('host'));
 	$effect(() => {
 		const currentHost = $page.url.searchParams.get('host');
 		if (currentHost !== lastHost) {
@@ -120,7 +120,7 @@
 		const today = new Date().toISOString().split('T')[0];
 		url.searchParams.set('day', today);
 
-		// Preserve selected host (e.g., brpharmia)
+		// Preserve selected host (e.g., duomed)
 		const currentHost = $page.url.searchParams.get('host');
 		if (currentHost) url.searchParams.set('host', currentHost);
 
@@ -182,22 +182,54 @@
 				</button>
 
 				<!-- Host Selector -->
-				<label class="text-sm" style="color: var(--color-text-secondary);">Host</label>
-				<select
-					value={$page.url.searchParams.get('host') === 'brpharmia' ? 'brpharmia' : 'default'}
-					onchange={(e) => {
-						const value = (e.target as HTMLSelectElement).value;
-						const url = new URL($page.url);
-						if (value === 'brpharmia') url.searchParams.set('host', 'brpharmia');
-						else url.searchParams.delete('host');
-						goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
-					}}
-					class="rounded-md border px-2 py-1 text-sm"
-					style="background-color: var(--color-bg-tertiary); color: var(--color-text-primary); border-color: var(--color-border);"
-				>
-					<option value="default">Default</option>
-					<option value="brpharmia">Pharmia</option>
-				</select>
+				<label class="text-sm" style="color: var(--color-text-secondary);">Sources</label>
+				<div class="flex items-center gap-2">
+					{#key $page.url.searchParams.get('sources')}
+						{@const currentSources = ($page.url.searchParams.get('sources') || '')
+							.split(',')
+							.filter(Boolean)}
+						<label
+							class="flex items-center gap-1 text-sm"
+							style="color: var(--color-text-primary);"
+						>
+							<input
+								type="checkbox"
+								checked={currentSources.includes('internal')}
+								onchange={(e) => {
+									const url = new URL($page.url);
+									let set = new Set(
+										(url.searchParams.get('sources') || '').split(',').filter(Boolean)
+									);
+									if ((e.target as HTMLInputElement).checked) set.add('internal');
+									else set.delete('internal');
+									if (set.size === 0) url.searchParams.delete('sources');
+									else url.searchParams.set('sources', Array.from(set).join(','));
+									goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+								}}
+							/> Internal
+						</label>
+						<label
+							class="flex items-center gap-1 text-sm"
+							style="color: var(--color-text-primary);"
+						>
+							<input
+								type="checkbox"
+								checked={currentSources.includes('duomed')}
+								onchange={(e) => {
+									const url = new URL($page.url);
+									let set = new Set(
+										(url.searchParams.get('sources') || '').split(',').filter(Boolean)
+									);
+									if ((e.target as HTMLInputElement).checked) set.add('duomed');
+									else set.delete('duomed');
+									if (set.size === 0) url.searchParams.delete('sources');
+									else url.searchParams.set('sources', Array.from(set).join(','));
+									goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+								}}
+							/> Duomed
+						</label>
+					{/key}
+				</div>
 			</div>
 		</div>
 	</header>
@@ -230,7 +262,7 @@
 	</div>
 
 	<!-- Main Content -->
-	<main class="mx-auto flex max-w-7xl flex-1 flex-col px-4 py-3">
+	<main class="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-3">
 		{@render props.children?.()}
 	</main>
 </div>

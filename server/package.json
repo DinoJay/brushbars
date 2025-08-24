@@ -6,9 +6,9 @@
 	"type": "module",
 	"scripts": {
 		"start": "node websocket-server.js",
-		"start:brpharmia": "node websocket-server-brpharmia.js",
+		"start:duomed": "node websocket-server-duomed.js",
 		"dev": "nodemon websocket-server.js",
-		"dev:brpharmia": "nodemon websocket-server-brpharmia.js"
+		"dev:duomed": "nodemon websocket-server-duomed.js"
 	},
 	"keywords": [
 		"websocket",

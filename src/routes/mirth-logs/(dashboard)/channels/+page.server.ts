@@ -2,6 +2,8 @@ import type { ServerLoad } from '@sveltejs/kit';
 export const ssr = false;
 export const load: ServerLoad = async ({ url, fetch }) => {
 	const selectedDay = url.searchParams.get('day');
+	const sourcesParam = url.searchParams.get('sources') || '';
+	const sources = sourcesParam.split(',').filter(Boolean);
 
 	if (!selectedDay) {
 		return {
@@ -18,18 +20,39 @@ export const load: ServerLoad = async ({ url, fetch }) => {
 		const messagesPromise = new Promise<unknown[]>((resolve, reject) => {
 			(async () => {
 				try {
-					console.log('🔄 Starting to fetch messages for day:', selectedDay);
+					console.log(
+						'🔄 Starting to fetch messages for day:',
+						selectedDay,
+						'sources:',
+						sources.join(',')
+					);
 
-					// Simulate streaming delay to show loading state
+					async function fetchMsgs(endpoint: string) {
+						try {
+							const res = await fetch(endpoint);
+							if (!res.ok) return [] as any[];
+							const data = await res.json().catch(() => null);
+							return (data && data.messages) || [];
+						} catch {
+							return [] as any[];
+						}
+					}
 
-					const res = await fetch(`/mirth-logs/api/messages/${selectedDay}`);
-					if (!res.ok) throw new Error(`Failed to fetch messages: ${res.status}`);
+					const batches: any[][] = [];
+					if (sources.length === 0) {
+						resolve([]);
+						return;
+					}
+					if (sources.includes('internal')) {
+						batches.push(await fetchMsgs(`/mirth-logs/api/messages-internal/${selectedDay}`));
+					}
+					if (sources.includes('duomed')) {
+						batches.push(await fetchMsgs(`/mirth-logs/api/messages-duomed/${selectedDay}`));
+					}
 
-					const data = await res.json();
-					const messages = data?.success && Array.isArray(data.messages) ? data.messages : [];
-
-					console.log('✅ Channels page: Streamed messages:', messages.length);
-					resolve(messages);
+					const merged = ([] as any[]).concat(...batches);
+					console.log('✅ Channels page: merged messages from sources:', merged.length);
+					resolve(merged);
 				} catch (error) {
 					console.error('❌ Channels page: Failed to stream messages:', error);
 					reject(error);

@@ -5,9 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"dev:athome": "ATHOME=true vite dev",
-		"dev:athome:ws": "ATHOME=true npm --prefix server run dev",
-		"dev:athome:full": "npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev:athome\" \"npm run dev:athome:ws\"",
+		"dev:athome:full": "npx concurrently -k -n WEB,WS,DUO -c green,cyan,magenta \"ATHOME=true vite dev\" \"ATHOME=true node server/websocket-server-internal.js\" \"ATHOME=true node server/websocket-server-duomed.js\"",
 		"dev:full": "ATHOME=true npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev\" \"npm run dev:ws\"",
 		"dev:mirth": "dotenv -e .env npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev\" \"npm run dev:ws\"",
 		"build": "vite build",
