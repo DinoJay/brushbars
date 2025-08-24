@@ -6,6 +6,7 @@
 	// Keep reactivity by using a single props object (Svelte 5 runes)
 	const props = $props<{
 		entries: TimelineEntry[];
+		loading?: boolean;
 		onFiltersChange?: (level: LogLevel | null, channel: string | null) => void;
 		onFiltered?: (filtered: TimelineEntry[]) => void;
 	}>();
@@ -120,94 +121,110 @@
 	class="mb-4 rounded-lg border p-4 shadow-sm"
 	style="background-color: var(--color-bg-secondary); border-color: var(--color-border);"
 >
-	<div class="mb-3 flex items-center justify-between">
-		<div class="flex items-center space-x-4">
-			<h3 class="text-sm font-medium" style="color: var(--color-text-primary);">Filters</h3>
-			<span class="text-xs" style="color: var(--color-text-secondary);"
-				>Total: {totalCount.toLocaleString()}</span
-			>
+	{#if props.loading}
+		<div
+			class="h-5 w-28 animate-pulse rounded"
+			style="background-color: var(--color-border);"
+		></div>
+		<div class="mt-3 flex gap-2">
+			{#each Array(5) as _}
+				<div
+					class="h-6 w-16 animate-pulse rounded"
+					style="background-color: var(--color-border);"
+				></div>
+			{/each}
 		</div>
-		{#if selectedLevel || selectedChannel}
-			<button
-				onclick={clearFilters}
-				class="text-xs transition-colors"
-				style="color: var(--color-accent);"
-			>
-				Clear all
-			</button>
-		{/if}
-	</div>
-
-	<div class="flex flex-wrap gap-3">
-		<!-- Level Filter -->
-		<div class="flex items-center space-x-2">
-			<label class="text-xs font-medium" style="color: var(--color-text-secondary);">Level:</label>
-			<div class="flex space-x-1">
-				<button
-					onclick={() => setLevel(null)}
-					class="rounded px-2 py-1 text-xs font-medium transition-colors"
-					style="
-						{!selectedLevel
-						? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
-						: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);'}
-					"
+	{:else}
+		<div class="mb-3 flex items-center justify-between">
+			<div class="flex items-center space-x-4">
+				<h3 class="text-sm font-medium" style="color: var(--color-text-primary);">Filters</h3>
+				<span class="text-xs" style="color: var(--color-text-secondary);"
+					>Total: {totalCount.toLocaleString()}</span
 				>
-					All ({totalCount.toLocaleString()})
-				</button>
-				{#each availableLevels as level}
-					<button
-						onclick={() => setLevel(level as any)}
-						class="rounded px-2 py-1 text-xs font-medium transition-colors"
-						style="
-							{selectedLevel === level
-							? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
-							: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);'}
-						"
-					>
-						{level} ({levelCounts[level]?.toLocaleString() || 0})
-					</button>
-				{/each}
 			</div>
+			{#if selectedLevel || selectedChannel}
+				<button
+					onclick={clearFilters}
+					class="text-xs transition-colors"
+					style="color: var(--color-accent);"
+				>
+					Clear all
+				</button>
+			{/if}
 		</div>
 
-		<!-- Channel Filter -->
-		{#if availableChannels.length > 0}
+		<div class="flex flex-wrap gap-3">
+			<!-- Level Filter -->
 			<div class="flex items-center space-x-2">
-				<label class="text-xs font-medium" style="color: var(--color-text-secondary);"
-					>Channel:</label
+				<label class="text-xs font-medium" style="color: var(--color-text-secondary);">Level:</label
 				>
 				<div class="flex space-x-1">
 					<button
-						onclick={() => setChannel(null)}
+						onclick={() => setLevel(null)}
 						class="rounded px-2 py-1 text-xs font-medium transition-colors"
 						style="
-							{!selectedChannel
+							{!selectedLevel
 							? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
 							: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);'}
 						"
 					>
-						All
+						All ({totalCount.toLocaleString()})
 					</button>
-					{#each availableChannels.slice(0, 10) as channel}
+					{#each availableLevels as level}
 						<button
-							onclick={() => setChannel(channel)}
+							onclick={() => setLevel(level as any)}
 							class="rounded px-2 py-1 text-xs font-medium transition-colors"
 							style="
-								{selectedChannel === channel
+								{selectedLevel === level
 								? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
-								: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary);'}
+								: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary)'}
 							"
 						>
-							{channel} ({channelCounts[channel]?.toLocaleString() || 0})
+							{level} ({levelCounts[level]?.toLocaleString() || 0})
 						</button>
 					{/each}
-					{#if availableChannels.length > 10}
-						<span class="px-2 py-1 text-xs" style="color: var(--color-text-secondary);">
-							+{availableChannels.length - 10} more
-						</span>
-					{/if}
 				</div>
 			</div>
-		{/if}
-	</div>
+
+			<!-- Channel Filter -->
+			{#if availableChannels.length > 0}
+				<div class="flex items-center space-x-2">
+					<label class="text-xs font-medium" style="color: var(--color-text-secondary)"
+						>Channel:</label
+					>
+					<div class="flex space-x-1">
+						<button
+							onclick={() => setChannel(null)}
+							class="rounded px-2 py-1 text-xs font-medium transition-colors"
+							style="
+								{!selectedChannel
+								? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
+								: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary)'}
+							"
+						>
+							All
+						</button>
+						{#each availableChannels.slice(0, 10) as channel}
+							<button
+								onclick={() => setChannel(channel)}
+								class="rounded px-2 py-1 text-xs font-medium transition-colors"
+								style="
+									{selectedChannel === channel
+									? 'background-color: var(--color-accent-light); color: var(--color-accent-dark);'
+									: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary)'}
+								"
+							>
+								{channel} ({channelCounts[channel]?.toLocaleString() || 0})
+							</button>
+						{/each}
+						{#if availableChannels.length > 10}
+							<span class="px-2 py-1 text-xs" style="color: var(--color-text-secondary);">
+								+{availableChannels.length - 10} more
+							</span>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>

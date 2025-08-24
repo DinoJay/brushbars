@@ -3,11 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { WebSocketServer } from 'ws';
 import { parseLogLines } from '../src/lib/apiHelpers.js';
+import { EXAMPLE_MAX_PER_DAY } from '../src/lib/exampleData/mirthChannelsData.js';
 
 const PORT = 3002;
 
 // Duomed logs UNC or example when ATHOME
-let LOG_DIR = '\\duomed\\c$\\Program Files\\Mirth Connect\\logs';
+let LOG_DIR = '\\duomed\\c$\\ Program Files\\Mirth Connect\\logs';
 const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 if (IS_ATHOME) {
 	LOG_DIR = path.join(process.cwd(), 'server', 'exampleData');
@@ -96,7 +97,7 @@ async function sendHistoricalLogs(ws) {
 		ws.send(
 			JSON.stringify({
 				type: 'log-full',
-				logs: parsedLogs.slice(0, 1000),
+				logs: parsedLogs.slice(0, EXAMPLE_MAX_PER_DAY),
 				stats: { filesRead, totalSize }
 			})
 		);

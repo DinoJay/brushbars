@@ -1,5 +1,6 @@
 <!-- runes -->
 <script lang="ts">
+	import TimelineSkeleton from './TimelineSkeleton.svelte';
 	import * as d3 from 'd3';
 	import ActivityTimeline from './ActivityTimeline.svelte';
 	import type { TimelineEntry } from '$lib/types';
@@ -8,12 +9,14 @@
 		entries,
 		onRangeChange = null,
 		groupUnit = 'hour',
-		resetOn = undefined as string | number | null | undefined
+		resetOn = undefined as string | number | null | undefined,
+		loading = false
 	} = $props<{
 		entries: TimelineEntry[];
 		onRangeChange?: (r: [Date, Date] | null) => void;
 		groupUnit?: 'hour' | 'day' | 'month';
 		resetOn?: string | number | null;
+		loading?: boolean;
 	}>();
 
 	const effectiveEntries = $derived(entries);
@@ -72,11 +75,15 @@
 	}
 </script>
 
-<ActivityTimeline
-	data={grouped}
-	{groupUnit}
-	onRangeChange={handleRangeChange}
-	{resetOn}
-	timeThreshold={timeThresholdMs}
-	{bucketMinutes}
-/>
+{#if loading}
+	<TimelineSkeleton />
+{:else}
+	<ActivityTimeline
+		data={grouped}
+		{groupUnit}
+		onRangeChange={handleRangeChange}
+		{resetOn}
+		timeThreshold={timeThresholdMs}
+		{bucketMinutes}
+	/>
+{/if}

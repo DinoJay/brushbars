@@ -1,14 +1,16 @@
 <!-- runes -->
 <script lang="ts">
-	import { page, navigating } from '$app/stores';
+	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { logStore } from '$stores/logStore.svelte';
-	import LoadingSpinner from '../components/LoadingSpinner.svelte';
 	import DayButtons from '../components/DayButtons.svelte';
 
 	import type { LayoutData } from './$types';
 	export const ssr = false;
-	const props = $props<{ data: LayoutData; children?: any }>();
+	const props = $props<{
+		data: LayoutData;
+		children?: any;
+	}>();
 
 	const currentTab = $derived.by(() => {
 		const p = $page.url.pathname;
@@ -19,6 +21,10 @@
 
 	let dayButtonsData = $state<{ devLogsDays: any[]; messageDays: any[] } | null>(null);
 	let isLoadingDayButtons = $state(false);
+	let dayButtonsKey = $state('');
+	const currentKey = $derived.by(
+		() => `${$page.url.searchParams.get('sources') || ''}|${currentTab}`
+	);
 
 	function mergeDaysByDate(...lists: any[][]) {
 		const map = new Map<string, any>();
@@ -54,12 +60,14 @@
 				messageDays: dayButtonsData?.messageDays ?? []
 			};
 
+			const sourcesParam = $page.url.searchParams.get('sources') || '';
+			const sources = sourcesParam.split(',').filter(Boolean);
+
 			if (route === 'logs') {
-				const sourcesParam = $page.url.searchParams.get('sources') || '';
-				const sources = sourcesParam.split(',').filter(Boolean);
 				if (sources.length === 0) {
 					newData.devLogsDays = [];
 					dayButtonsData = newData;
+					dayButtonsKey = `${sourcesParam}|${route}`;
 					logStore.updateDevLogDays([]);
 					logStore.updateDevLogs([]);
 					logStore.updateLiveDevLogEntries([]);
@@ -82,11 +90,10 @@
 				if (lists.length === 0) lists.push([]);
 				newData.devLogsDays = mergeDaysByDate(...lists);
 			} else if (route === 'channels') {
-				const sourcesParam = $page.url.searchParams.get('sources') || '';
-				const sources = sourcesParam.split(',').filter(Boolean);
 				if (sources.length === 0) {
 					newData.messageDays = [];
 					dayButtonsData = newData;
+					dayButtonsKey = `${sourcesParam}|${route}`;
 					logStore.updateMessageDays([]);
 					logStore.updateMessages([]);
 					logStore.updateLiveMessages([]);
@@ -112,6 +119,7 @@
 
 			if (token !== loadCounter) return;
 			dayButtonsData = newData;
+			dayButtonsKey = `${sourcesParam}|${route}`;
 			if (route === 'logs') {
 				logStore.updateDevLogDays(newData.devLogsDays || []);
 			} else if (route === 'channels') {
@@ -176,35 +184,26 @@
 	}
 </script>
 
-{#if isLoadingDayButtons || dayButtonsData}
-	<div
-		class="mb-4 flex flex-1 overflow-x-auto overflow-y-hidden rounded p-3"
-		style="background-color: var(--color-bg-secondary); width: 100%; min-height: 240px;"
-	>
-		{#if isLoadingDayButtons}
-			<LoadingSpinner class="m-auto" label="Loading days..." size={24} />
-		{:else}
-			<DayButtons
-				selectedDay={$page.url.searchParams.get('day')}
-				days={currentTab === 'logs'
-					? (dayButtonsData?.devLogsDays ?? [])
-					: (dayButtonsData?.messageDays ?? [])}
-				loading={isLoadingDayButtons}
-				error={null}
-				onSelectDay={handleSelectDay}
-				type={currentTab === 'logs' ? 'devLogs' : 'messages'}
-			/>
-		{/if}
-	</div>
-	{#if !isLoadingDayButtons && dayButtonsData && ((currentTab === 'logs' && (!dayButtonsData.devLogsDays || dayButtonsData.devLogsDays.length === 0)) || (currentTab === 'channels' && (!dayButtonsData.messageDays || dayButtonsData.messageDays.length === 0)))}
-		<div class="flex w-full items-center justify-center py-8">
-			<p class="text-gray-500">No {currentTab === 'logs' ? 'dev logs' : 'messages'} available</p>
-		</div>
-	{/if}
-{/if}
+<!-- Day buttons area always rendered; DayButtons handles its own loading skeletons -->
+<div
+	class="mb-4 flex overflow-x-auto overflow-y-hidden rounded p-3"
+	style="background-color: var(--color-bg-secondary); width: 100%; min-height: 240px;"
+>
+	<DayButtons
+		selectedDay={$page.url.searchParams.get('day')}
+		days={currentTab === 'logs'
+			? (dayButtonsData?.devLogsDays ?? [])
+			: (dayButtonsData?.messageDays ?? [])}
+		loading={isLoadingDayButtons}
+		error={null}
+		onSelectDay={handleSelectDay}
+		type={currentTab === 'logs' ? 'devLogs' : 'messages'}
+	/>
+</div>
 
-{#if $navigating}
-	<LoadingSpinner class="m-auto" label="Loading..." size={48} />
-{:else}
+{#if !isLoadingDayButtons && dayButtonsKey === currentKey}
 	{@render props.children?.()}
+{:else}
+	<!-- Hold back child content until day buttons for the current sources finish loading -->
+	<div></div>
 {/if}

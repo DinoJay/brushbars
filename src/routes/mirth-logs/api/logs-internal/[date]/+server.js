@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { loadLogsFromFile } from '$lib/apiHelpers.js';
+import { EXAMPLE_MAX_PER_DAY } from '$lib/exampleData/mirthChannelsData.js';
 
 function safeGetDateString(timestamp) {
 	try {
@@ -20,7 +21,9 @@ export async function GET({ params }) {
 
 	try {
 		const logs = loadLogsFromFile();
-		const dayLogs = logs.filter((log) => safeGetDateString(log.timestamp) === date).slice(0, 1000);
+		const dayLogs = logs
+			.filter((log) => safeGetDateString(log.timestamp) === date)
+			.slice(0, EXAMPLE_MAX_PER_DAY);
 		const endTime = Date.now();
 		return json({
 			success: true,

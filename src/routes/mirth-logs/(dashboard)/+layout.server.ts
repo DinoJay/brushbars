@@ -1,5 +1,16 @@
 import type { LayoutServerLoad } from './$types';
 
+async function fetchDays(fetchFn: typeof fetch, endpoint: string): Promise<any[]> {
+	try {
+		const resp = await fetchFn(endpoint);
+		if (!resp.ok) return [];
+		const d = await resp.json().catch(() => null);
+		return (d && d.days) || [];
+	} catch {
+		return [];
+	}
+}
+
 function mergeDaysByDate(...lists: any[][]) {
 	const map = new Map<string, any>();
 	for (const list of lists) {
@@ -24,37 +35,28 @@ function mergeDaysByDate(...lists: any[][]) {
 export const load: LayoutServerLoad = async ({ url, fetch }) => {
 	const sourcesParam = url.searchParams.get('sources') || '';
 	const sources = sourcesParam.split(',').filter(Boolean);
+	const isLogs = url.pathname.includes('/logs');
+
+	let devLogsDays: any[] = [];
+	let messageDays: any[] = [];
 
 	if (sources.length === 0) {
-		return {
-			dayButtonsData: { devLogsDays: [], messageDays: [] }
-		};
+		return { dayButtonsData: { devLogsDays: [], messageDays: [] } };
 	}
 
-	async function fetchDays(endpoint: string) {
-		try {
-			const resp = await fetch(endpoint);
-			if (!resp.ok) return [] as any[];
-			const d = await resp.json().catch(() => null);
-			return (d && (d.days || d.logs || d.messages || [])) || [];
-		} catch {
-			return [] as any[];
-		}
+	if (isLogs) {
+		const endpoints: string[] = [];
+		if (sources.includes('internal')) endpoints.push('/mirth-logs/api/logs-internal/days');
+		if (sources.includes('duomed')) endpoints.push('/mirth-logs/api/logs-duomed/days');
+		const lists = await Promise.all(endpoints.map((e) => fetchDays(fetch, e)));
+		devLogsDays = mergeDaysByDate(...lists);
+	} else {
+		const endpoints: string[] = [];
+		if (sources.includes('internal')) endpoints.push('/mirth-logs/api/messages-internal/days');
+		if (sources.includes('duomed')) endpoints.push('/mirth-logs/api/messages-duomed/days');
+		const lists = await Promise.all(endpoints.map((e) => fetchDays(fetch, e)));
+		messageDays = mergeDaysByDate(...lists);
 	}
 
-	const logEndpoints: string[] = [];
-	if (sources.includes('internal')) logEndpoints.push('/mirth-logs/api/logs-internal/days');
-	if (sources.includes('duomed')) logEndpoints.push('/mirth-logs/api/logs-duomed/days');
-	const logLists = await Promise.all(logEndpoints.map(fetchDays));
-	const devLogsDays = mergeDaysByDate(...logLists);
-
-	const msgEndpoints: string[] = [];
-	if (sources.includes('internal')) msgEndpoints.push('/mirth-logs/api/messages-internal/days');
-	if (sources.includes('duomed')) msgEndpoints.push('/mirth-logs/api/messages-duomed/days');
-	const msgLists = await Promise.all(msgEndpoints.map(fetchDays));
-	const messageDays = mergeDaysByDate(...msgLists);
-
-	return {
-		dayButtonsData: { devLogsDays, messageDays }
-	};
+	return { dayButtonsData: { devLogsDays, messageDays } };
 };

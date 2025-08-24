@@ -137,7 +137,7 @@
 				const expandedRow = document.querySelector(`[data-log-id="${logId}"]`);
 				if (expandedRow && tableContainer) {
 					// Find the original table row (the one above the expanded row)
-					const originalRow = expandedRow.previousElementSibling;
+					const originalRow = expandedRow.previousElementSibling as HTMLElement | null;
 					if (originalRow) {
 						// Calculate position to show the original row at the top of the visible area
 						const containerRect = tableContainer.getBoundingClientRect();
@@ -345,7 +345,10 @@
 				class="h-full overflow-x-auto overflow-y-auto"
 			>
 				<table class="min-w-full divide-y" style="border-color: var(--color-border);">
-					<thead>
+					<thead
+						class="sticky top-0 z-20"
+						style="position: sticky; top: 0; z-index: 20; background-color: var(--color-bg-tertiary);"
+					>
 						<tr>
 							<th class="w-12 px-3 py-1.5" style="background-color: var(--color-bg-tertiary);"></th>
 							<th

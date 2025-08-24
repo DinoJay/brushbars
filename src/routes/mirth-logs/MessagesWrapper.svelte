@@ -1,7 +1,7 @@
 <!-- runes -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page, navigating } from '$app/stores';
 	import DayButtons from '$components/DayButtons.svelte';
 	import LogFilters from '$components/LogFilters.svelte';
 	import MirthActivityTimeline from '$components/timeline/MirthActivityTimeline.svelte';
@@ -56,6 +56,7 @@
 	// Loading state that shows immediately when day changes
 	let isLoadingDay = $state(false);
 	let currentDay = $state<string | null>(null);
+	const isRouteNavigating = $derived.by(() => !!$navigating);
 
 	// Track day changes and show loading immediately
 	$effect(() => {
@@ -100,21 +101,52 @@
 
 <div class="flex flex-1 flex-col">
 	{#if isLoadingDay}
-		<!-- Loading spinner that shows immediately when day changes -->
-		<div class="flex items-center justify-center py-8">
-			<LoadingSpinner label="Loading messages for new day..." size={48} />
+		<!-- Skeleton placeholders while switching day -->
+		<div class="flex flex-col">
+			<LogFilters entries={[]} loading={true} />
+			<div class="mb-4">
+				<MirthActivityTimeline entries={[]} loading={true} />
+			</div>
+			<div class="rounded border" style="border-color: var(--color-border);">
+				<div
+					class="h-10 animate-pulse border-b"
+					style="background-color: var(--color-bg-secondary); border-color: var(--color-border);"
+				></div>
+				{#each Array(4) as _}
+					<div
+						class="h-10 animate-pulse"
+						style="background-color: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border);"
+					></div>
+				{/each}
+			</div>
 		</div>
 	{:else}
 		{#await props.data?.messagesPromise}
-			<!-- Loading spinner for messages -->
-			<div class="flex items-center justify-center py-8">
-				<LoadingSpinner label="Loading messages..." size={48} />
+			<!-- Skeleton placeholders while fetching messages -->
+			<div class="flex flex-col">
+				<LogFilters entries={[]} loading={true} />
+				<div class="mb-4">
+					<MirthActivityTimeline entries={[]} loading={true} />
+				</div>
+				<div class="rounded border" style="border-color: var(--color-border);">
+					<div
+						class="h-10 animate-pulse border-b"
+						style="background-color: var(--color-bg-secondary); border-color: var(--color-border);"
+					></div>
+					{#each Array(4) as _}
+						<div
+							class="h-10 animate-pulse"
+							style="background-color: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border);"
+						></div>
+					{/each}
+				</div>
 			</div>
 		{:then messages}
 			{#if messages && messages.length > 0}
 				<!-- Show filters and content -->
 				<LogFilters
 					entries={filterEntriesForSelectedDay}
+					loading={isRouteNavigating}
 					onFiltersChange={(l, c) => {
 						logStore.setSelectedLevel(l as any);
 						logStore.setSelectedChannel(c);
@@ -125,6 +157,7 @@
 				<div class="mb-4">
 					<MirthActivityTimeline
 						entries={timelineDataForSelectedDay}
+						loading={isRouteNavigating}
 						onRangeChange={(range) => logStore.setSelectedRange(range)}
 						resetOn={`${selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 					/>

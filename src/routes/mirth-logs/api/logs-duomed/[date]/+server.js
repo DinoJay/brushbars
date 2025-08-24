@@ -3,6 +3,7 @@ import { loadLogsFromDirectory } from '$lib/apiHelpers.js';
 import fs from 'fs';
 import path from 'path';
 
+/** @param {any} timestamp */
 function safeGetDateString(timestamp) {
 	try {
 		const date = new Date(timestamp);
@@ -22,7 +23,7 @@ export async function GET({ params }) {
 
 	try {
 		// UNC path for duomed logs
-		const DUOMED_LOGS_DIR = '\\duomed\\c$\\Program Files\\Mirth Connect\\logs';
+		const DUOMED_LOGS_DIR = '\\duomed\\c$\\ Program Files\\Mirth Connect\\logs';
 		const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 
 		let logs = loadLogsFromDirectory(DUOMED_LOGS_DIR);
@@ -39,7 +40,9 @@ export async function GET({ params }) {
 						.join('\n');
 					logs = parseLogLines(combined);
 				}
-			} catch {}
+			} catch (e) {
+				console.warn('⚠️ Failed to read example duomed logs', /** @type {any} */ (e)?.message);
+			}
 		}
 
 		const dayLogs = (logs || [])
@@ -70,7 +73,11 @@ export async function GET({ params }) {
 	} catch (error) {
 		console.error('❌ Error reading duomed logs:', error);
 		return json(
-			{ success: false, error: 'Failed to read logs from duomed', details: error.message },
+			{
+				success: false,
+				error: 'Failed to read logs from duomed',
+				details: /** @type {any} */ (error).message
+			},
 			{ status: 500 }
 		);
 	}

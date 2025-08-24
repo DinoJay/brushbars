@@ -1,7 +1,7 @@
 <!-- runes -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page, navigating } from '$app/stores';
 	import DayButtons from '$components/DayButtons.svelte';
 	import LogFilters from '$components/LogFilters.svelte';
 	import MirthActivityTimeline from '$components/timeline/MirthActivityTimeline.svelte';
@@ -57,6 +57,9 @@
 		return (entries || []) as TimelineEntry[];
 	});
 
+	// Route-level navigating indicator
+	const isRouteNavigating = $derived.by(() => !!$navigating);
+
 	// Loading state derived from promise status
 	const isLoading = $derived.by(() => {
 		return !props.data?.devLogsPromise || props.data.devLogsPromise instanceof Promise;
@@ -86,9 +89,23 @@
 		</div>
 	{:else}
 		{#await props.data.devLogsPromise}
-			<!-- Loading spinner for dev logs -->
-			<div class="flex items-center justify-center py-8">
-				<LoadingSpinner label="Loading dev logs..." size={48} />
+			<!-- Use component-integrated skeletons -->
+			<LogFilters entries={[]} loading={true} />
+			<div class="mb-4">
+				<MirthActivityTimeline entries={[]} loading={true} />
+			</div>
+			<!-- Optional: keep table skeleton minimal -->
+			<div class="rounded border" style="border-color: var(--color-border);">
+				<div
+					class="h-10 animate-pulse border-b"
+					style="background-color: var(--color-bg-secondary); border-color: var(--color-border);"
+				></div>
+				{#each Array(4) as _}
+					<div
+						class="h-10 animate-pulse"
+						style="background-color: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border);"
+					></div>
+				{/each}
 			</div>
 		{:then devLogs}
 			{#if devLogs && devLogs.length > 0}
@@ -104,7 +121,8 @@
 				<!-- Timeline -->
 				<div class="mb-4">
 					<MirthActivityTimeline
-						entries={timelineDataForSelectedDay || []}
+						entries={timelineDataForSelectedDay as TimelineEntry[]}
+						loading={isRouteNavigating}
 						onRangeChange={(range) => logStore.setSelectedRange(range)}
 						resetOn={`{selectedDayFromUrl() || ''}|${logStore.selectedChannel || ''}`}
 					/>

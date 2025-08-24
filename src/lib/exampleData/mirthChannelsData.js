@@ -1,6 +1,8 @@
 // Comprehensive Mirth Connect Channels and Messages Example Data
 // Realistic healthcare integration data with multiple channels and daily message statistics
 
+export const EXAMPLE_MAX_PER_DAY = 1000;
+
 export const exampleChannels = [
 	{
 		id: 'a5a398c3-6fd8-4866-bc93-2924e3ac5f0d',
@@ -133,7 +135,7 @@ export function generateChannelMessages(channelId, days = 30) {
 		ORU_R01: {
 			successRate: 0.98,
 			avgPerDay: 2500,
-			errorTypes: ['INVALID_RESULT', 'MISSING_REQUIRED_FIELD', 'ENCODING_ERROR'],
+			errorTypes: ['INVALID_RESULT', 'MISSING_REQUIRED FIELD', 'ENCODING_ERROR'],
 			contentTypes: ['ORU^R01', 'OBR', 'OBX']
 		},
 		SIU_S12: {
@@ -169,7 +171,7 @@ export function generateChannelMessages(channelId, days = 30) {
 		ADT_A04: {
 			successRate: 0.95,
 			avgPerDay: 900,
-			errorTypes: ['DUPLICATE_REGISTRATION', 'INVALID_DEMOGRAPHICS', 'MISSING_REQUIRED_FIELDS'],
+			errorTypes: ['DUPLICATE_REGISTRATION', 'INVALID DEMOGRAPHICS', 'MISSING_REQUIRED_FIELDS'],
 			contentTypes: ['ADT^A04', 'PID', 'PV1']
 		}
 	};
@@ -177,7 +179,7 @@ export function generateChannelMessages(channelId, days = 30) {
 	const pattern = patterns[channel.name] || patterns['ADT_QRY19'];
 	let messageId = 1;
 
-	const MAX_PER_DAY = 1000;
+	const MAX_PER_DAY = EXAMPLE_MAX_PER_DAY;
 
 	for (let day = 0; day < days; day++) {
 		const date = new Date(now);
@@ -272,7 +274,10 @@ export function generateChannelMessages(channelId, days = 30) {
 						? `Response error: ${pattern.errorTypes[Math.floor(Math.random() * pattern.errorTypes.length)]}`
 						: null,
 				metaDataMap: success
-					? `{"source": "HIS", "priority": "normal", "batchId": "B${Math.random().toString(36).substr(2, 6).toUpperCase()}"}`
+					? `{"source": "HIS", "priority": "normal", "batchId": "B${Math.random()
+							.toString(36)
+							.substr(2, 6)
+							.toUpperCase()}"}`
 					: null,
 
 				// Additional fields
@@ -308,7 +313,9 @@ export function generateChannelStats(channelId, days = 30) {
 		date.setDate(date.getDate() - day);
 		const dateStr = date.toISOString().split('T')[0];
 
-		const dayMessages = messages.filter((m) => m.receivedDate.startsWith(dateStr)).slice(0, 1000);
+		const dayMessages = messages
+			.filter((m) => m.receivedDate.startsWith(dateStr))
+			.slice(0, EXAMPLE_MAX_PER_DAY);
 
 		const total = dayMessages.length;
 		const processed = dayMessages.filter((m) => m.processed).length;

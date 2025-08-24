@@ -1,5 +1,9 @@
 import { json } from '@sveltejs/kit';
-import { exampleChannels, generateChannelMessages } from '$lib/exampleData/mirthChannelsData.js';
+import {
+	exampleChannels,
+	generateChannelMessages,
+	EXAMPLE_MAX_PER_DAY
+} from '$lib/exampleData/mirthChannelsData.js';
 
 export async function GET({ params }) {
 	const { date } = params;
@@ -12,7 +16,7 @@ export async function GET({ params }) {
 	const all = exampleChannels.flatMap((c) => generateChannelMessages(c.id, 30));
 	const messages = all
 		.filter((m) => (m.receivedDate || '').startsWith(date))
-		.slice(0, 1000)
+		.slice(0, EXAMPLE_MAX_PER_DAY)
 		.map((m) => ({
 			...m,
 			timestamp: m.receivedDate,

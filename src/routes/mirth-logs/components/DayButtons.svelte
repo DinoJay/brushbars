@@ -1,5 +1,7 @@
 <!-- runes -->
 <script lang="ts">
+	import * as d3 from 'd3';
+
 	interface DayData {
 		date: string;
 		formattedDate: string;
@@ -96,8 +98,22 @@
 
 	<!-- Loading State -->
 	{#if props.loading}
-		<div class="flex flex-col items-center justify-center space-y-3 py-6">
-			<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
+		<!-- Skeleton placeholders to reserve width/height and avoid CLS -->
+		<div class="flex gap-3 overflow-x-auto px-2 pb-3">
+			{#each Array(8) as _, i}
+				<div
+					class="w-44 flex-shrink-0 animate-pulse rounded-2xl p-4"
+					style="background-color: var(--color-bg-secondary); border: 2px solid var(--color-border); box-shadow: var(--shadow-sm); height: 214px;"
+				>
+					<div class="mb-3 h-4 w-28 rounded" style="background-color: var(--color-border);"></div>
+					<div class="mb-2 h-3 w-20 rounded" style="background-color: var(--color-border);"></div>
+					<div class="flex flex-col gap-2">
+						<div class="h-3 w-24 rounded" style="background-color: var(--color-border);"></div>
+						<div class="h-3 w-16 rounded" style="background-color: var(--color-border);"></div>
+						<div class="h-3 w-20 rounded" style="background-color: var(--color-border);"></div>
+					</div>
+				</div>
+			{/each}
 		</div>
 	{:else if effectiveDays.length > 0}
 		<!-- Days Grid -->
@@ -123,7 +139,7 @@
 									? 'var(--color-accent-dark)'
 									: 'var(--color-text-primary)'};"
 							>
-								{day.formattedDate || day.date}
+								{d3.timeFormat('%b %e')(new Date(day.date))}
 							</h3>
 							{#if isToday(day.date)}
 								<div
@@ -153,7 +169,7 @@
 
 					<!-- Log Level Stats -->
 					<div class="flex flex-col gap-2">
-						<!-- Always show INFO, WARN, ERROR even if 0 -->
+						<!-- Only show INFO, WARN, ERROR (even if 0) -->
 						<div
 							class="flex items-center justify-between rounded-lg px-3 py-1.5"
 							style="
@@ -231,37 +247,6 @@
 								{(day.stats.ERROR || 0).toLocaleString()}
 							</span>
 						</div>
-
-						<!-- Show other levels only if they exist and have counts > 0 -->
-						{#each Object.entries(day.stats) as [level, count]}
-							{#if level !== 'total' && level !== 'INFO' && level !== 'WARN' && level !== 'ERROR' && (count as number) > 0}
-								<div
-									class="flex items-center justify-between rounded px-2 py-1.5"
-									style="
-                                        {isSelected
-										? 'background-color: var(--color-accent-light);'
-										: 'background-color: var(--color-bg-tertiary);'}
-                                    "
-								>
-									<span
-										class="text-xs font-medium"
-										style="color: {isSelected
-											? 'var(--color-accent-dark)'
-											: 'var(--color-text-secondary)'};">{level}</span
-									>
-									<span
-										class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold"
-										style="
-                                            {isSelected
-											? 'background-color: var(--color-accent); color: white;'
-											: 'background-color: var(--color-bg-secondary); color: var(--color-text-primary); border: 1px solid var(--color-border);'}
-                                        "
-									>
-										{(count as number).toLocaleString()}
-									</span>
-								</div>
-							{/if}
-						{/each}
 					</div>
 				</button>
 			{/each}
