@@ -21,6 +21,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"chokidar": "^3.5.3",
+		"mirth-dashboard": "file:..",
 		"ws": "^8.14.2"
 	},
 	"devDependencies": {

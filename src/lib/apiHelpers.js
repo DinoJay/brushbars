@@ -1,9 +1,10 @@
+// @ts-nocheck
 import fs from 'fs';
 import path from 'path';
 import * as d3 from 'd3';
 import https from 'https';
 import http from 'http';
-import { stringify } from 'querystring';
+import { XMLParser } from 'fast-xml-parser';
 
 // Import example data for fallback
 import {
@@ -370,8 +371,11 @@ function parseMessage(message, level) {
 export function loadLogsFromFile() {
 	const startTime = Date.now();
 
-	// Define the Mirth logs directory - always use production logs
-	const MIRTH_LOGS_DIR = 'C:\\Program Files\\Mirth Connect\\logs';
+	// Preferred log directories when not in ATHOME: UNC first, then local fallback
+	const MIRTH_LOGS_DIRS = [
+		'\\\\brberdev\\\\c$\\\\Program Files\\\\Mirth Connect\\\\logs',
+		'C:\\Program Files\\Mirth Connect\\logs'
+	];
 
 	try {
 		// If at home, force example logs from repo and skip real dir
@@ -404,9 +408,19 @@ export function loadLogsFromFile() {
 			return generateExampleLogs();
 		}
 
-		// Not at home: prefer real logs; do not fallback to example
-		if (fs.existsSync(MIRTH_LOGS_DIR)) {
-			const files = fs.readdirSync(MIRTH_LOGS_DIR);
+		// Not at home: try UNC first, then local fallback
+		let activeDir = null;
+		for (const candidate of MIRTH_LOGS_DIRS) {
+			try {
+				if (fs.existsSync(candidate)) {
+					activeDir = candidate;
+					break;
+				}
+			} catch {}
+		}
+
+		if (activeDir) {
+			const files = fs.readdirSync(activeDir);
 			const logFiles = files.filter(
 				(file) =>
 					/^mirth\.log/i.test(file) ||
@@ -416,7 +430,7 @@ export function loadLogsFromFile() {
 			if (logFiles.length > 0) {
 				let allLogText = '';
 				for (const file of logFiles) {
-					const filePath = path.join(MIRTH_LOGS_DIR, file);
+					const filePath = path.join(activeDir, file);
 					try {
 						const logText = fs.readFileSync(filePath, 'utf8');
 						allLogText += logText + '\n';
@@ -427,7 +441,7 @@ export function loadLogsFromFile() {
 				const logs = parseLogLines(allLogText);
 				const endTime = Date.now();
 				console.log(
-					`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${MIRTH_LOGS_DIR}`
+					`📊 Loaded ${logs.length} logs in ${endTime - startTime}ms from ${logFiles.length} files in ${activeDir}`
 				);
 				return logs;
 			}
@@ -653,67 +667,65 @@ export async function getMirthChannels() {
 		if (typeof response === 'string') {
 			console.log('🔍 Response is XML string, first 200 chars:', response.substring(0, 200));
 
-			// Check if it's an error response (look for actual error structure)
+			// Error signature detection
 			if (
 				response.includes('<error>') ||
 				(response.includes('Request failed') && response.includes('<servlet>'))
 			) {
-				console.log('⚠️ Server error response detected, using example data');
-				return exampleChannels;
+				throw new Error('Mirth API returned an error response');
 			}
 
-			// Parse XML using D3
-			const xmlDoc = parseXmlWithD3(response);
-			if (!xmlDoc) {
-				console.log('⚠️ Failed to parse XML response, using example data');
-				return exampleChannels;
-			}
+			// Parse XML using fast-xml-parser
+			const xmlObj = parseXmlWithFastParser(response);
+			if (xmlObj) {
+				// Normalize possible shapes: {channels:{channel:[...]}} or {list:{channel:[...]}} or array
+				let list = [];
+				if (Array.isArray(xmlObj)) list = xmlObj;
+				else if (xmlObj.channels?.channel)
+					list = Array.isArray(xmlObj.channels.channel)
+						? xmlObj.channels.channel
+						: [xmlObj.channels.channel];
+				else if (xmlObj.list?.channel)
+					list = Array.isArray(xmlObj.list.channel) ? xmlObj.list.channel : [xmlObj.list.channel];
+				else if (xmlObj.channel)
+					list = Array.isArray(xmlObj.channel) ? xmlObj.channel : [xmlObj.channel];
 
-			// Find all channel elements
-			const channelElements = xmlDoc.querySelectorAll('channel');
-			if (channelElements && channelElements.length > 0) {
-				console.log(`✅ Found ${channelElements.length} channels in XML response`);
-
-				// Parse each channel element
-				return Array.from(channelElements).map((channelElement, index) => {
-					const id = getXmlText(channelElement, 'id', `channel-${index}`);
-					const name = getXmlText(channelElement, 'name', `Channel ${index + 1}`);
-					const description = getXmlText(channelElement, 'description', '');
-					const enabled = getXmlBoolean(channelElement, 'enabled', true);
-
-					return {
-						id,
-						name,
-						description,
-						enabled,
+				if (list.length > 0) {
+					console.log(`✅ Parsed ${list.length} channels from XML`);
+					return list.map((c, index) => ({
+						id: c.id || `channel-${index}`,
+						name: c.name || `Channel ${index + 1}`,
+						description: c.description || '',
+						enabled: String(c.enabled) !== 'false',
 						lastModified: new Date().toISOString()
-					};
+					}));
+				}
+			}
+
+			// Regex fallback
+			const channelBlocks = response.match(/<channel[\s\S]*?<\/channel>/g) || [];
+			if (channelBlocks.length > 0) {
+				console.log(`✅ Parsed ${channelBlocks.length} channels via regex fallback`);
+				return channelBlocks.map((block, index) => {
+					const id = (block.match(/<id>([^<]+)<\/id>/) || [])[1] || `channel-${index}`;
+					const name = (block.match(/<name>([^<]+)<\/name>/) || [])[1] || `Channel ${index + 1}`;
+					const enabledText = (block.match(/<enabled>([^<]+)<\/enabled>/) || [])[1] || 'true';
+					const enabled = enabledText === 'true';
+					const description =
+						(block.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '';
+					return { id, name, description, enabled, lastModified: new Date().toISOString() };
 				});
-			} else {
-				console.log('⚠️ No channel tags found in XML response, using example data');
-				return exampleChannels;
 			}
+
+			throw new Error('No channel tags found in Mirth API XML response');
 		} else {
-			// Handle JSON response
-			console.log('🔍 Response keys:', Object.keys(response));
-			console.log('🔍 Response:', JSON.stringify(response, null, 2).substring(0, 500));
-
-			// Handle different response structures
+			// JSON response
 			let channels = [];
-			if (Array.isArray(response)) {
-				channels = response;
-			} else if (response.list && Array.isArray(response.list)) {
-				channels = response.list;
-			} else if (response.channels && Array.isArray(response.channels)) {
-				channels = response.channels;
-			} else if (response.data && Array.isArray(response.data)) {
-				channels = response.data;
-			} else {
-				console.log('⚠️ Unexpected response structure, using example data');
-				return exampleChannels;
-			}
-
-			console.log(`✅ Successfully fetched ${channels.length} channels using /api/channels`);
+			if (Array.isArray(response)) channels = response;
+			else if (response.list && Array.isArray(response.list)) channels = response.list;
+			else if (response.channels && Array.isArray(response.channels)) channels = response.channels;
+			else if (response.data && Array.isArray(response.data)) channels = response.data;
+			else throw new Error('Unexpected channels response structure from Mirth API');
 
 			return channels.map((channel) => ({
 				id: channel.id,
@@ -725,9 +737,8 @@ export async function getMirthChannels() {
 		}
 	} catch (error) {
 		console.error('❌ Failed to fetch Mirth channels:', error);
-		// When not in ATHOME mode, fail with error instead of falling back to examples
 		throw new Error(
-			`Failed to connect to Mirth Connect server at ${MIRTH_CONFIG.useHttps ? 'HTTPS' : 'HTTP'}://${MIRTH_CONFIG.hostname}:${MIRTH_CONFIG.port}. Check your server configuration and network connectivity. Original error: ${error.message}`
+			`Failed to connect to Mirth Connect server at ${MIRTH_CONFIG.useHttps ? 'HTTPS' : 'HTTP'}://${MIRTH_CONFIG.hostname}:${MIRTH_CONFIG.port}. ${error.message}`
 		);
 	}
 }
@@ -752,21 +763,12 @@ function formatDateForMirth(date) {
 	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offsetSign}${String(offsetHours).padStart(2, '0')}${String(offsetMinutes).padStart(2, '0')}`;
 }
 
-// Helper function to parse XML using D3
-function parseXmlWithD3(xmlString) {
+function parseXmlWithFastParser(xmlString) {
 	try {
-		// Use D3's XML parser for Node.js environment
-		const xmlDoc = d3.xmlParse(xmlString);
-
-		// Check for parsing errors
-		if (!xmlDoc || xmlDoc.querySelector('parsererror')) {
-			console.warn('⚠️ XML parsing error detected');
-			return null;
-		}
-
-		return xmlDoc;
+		const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
+		return parser.parse(xmlString);
 	} catch (error) {
-		console.warn('⚠️ Failed to parse XML with D3:', error);
+		console.warn('⚠️ Failed to parse XML with fast-xml-parser:', error);
 		return null;
 	}
 }
@@ -811,7 +813,7 @@ export async function getChannelMessages(channelId, options = {}) {
 		}
 
 		// Try to get real data first
-		let endpoint = `/api/channels/${channelId}/messages?limit=${limit}&offset=${offset}`;
+		let endpoint = `/api/channels/${channelId}/messages?limit=${limit}&offset=${offset}&searchDate=RECEIVED`;
 
 		// Format dates for Mirth Connect API
 		if (startDate) {
@@ -853,174 +855,145 @@ export async function getChannelMessages(channelId, options = {}) {
 				return [];
 			}
 		} else if (typeof response === 'string') {
-			// XML response - try to parse
-			console.log('⚠️ Received XML response, attempting to parse...');
-			console.log('🔍 XML response starts with:', response.substring(0, 200));
-			console.log('🔍 XML response ends with:', response.substring(response.length - 200));
-
-			// Check if it's an error response
+			// XML response - parse with fast-xml-parser
 			if (response.includes('<error>') || response.includes('Request failed')) {
-				console.log('⚠️ Server error response detected');
-				return [];
+				throw new Error('Mirth API returned an error response');
 			}
 
-			// Try to extract message information from XML
-			console.log('🔍 Looking for message tags in XML response...');
-			const messageMatches = response.match(/<message[^>]*>[\s\S]*?<\/message>/g);
-			console.log('🔍 Message regex matches:', messageMatches ? messageMatches.length : 0);
-			if (messageMatches) {
-				console.log(`✅ Found ${messageMatches.length} messages in XML response`);
-
-				// Parse each message XML block
-				messages = messageMatches.map((messageXml, index) => {
-					// Extract message ID
-					const idMatch = messageXml.match(/<id>([^<]+)<\/id>/);
-					const id = idMatch ? idMatch[1] : `msg-${index}`;
-
-					// Extract server ID
-					const serverIdMatch = messageXml.match(/<serverId>([^<]+)<\/serverId>/);
-					const serverId = serverIdMatch ? serverIdMatch[1] : null;
-
-					// Extract received date from Mirth's nested XML structure
-					const timeMatch = messageXml.match(/<time>([^<]+)<\/time>/);
-					const receivedDate = timeMatch
-						? new Date(parseInt(timeMatch[1])).toISOString() // Convert Unix timestamp to ISO
-						: new Date().toISOString();
-
-					// Extract status
-					const statusMatch = messageXml.match(/<status>([^<]+)<\/status>/);
-					const status = statusMatch ? statusMatch[1] : 'UNKNOWN';
-
-					// Extract processed status
-					const processedMatch = messageXml.match(/<processed>([^<]+)<\/processed>/);
-					const processed = processedMatch ? processedMatch[1] === 'true' : false;
-
-					// Extract connector message details
-					const connectorMessageMatch = messageXml.match(
-						/<connectorMessage>([\s\S]*?)<\/connectorMessage>/
-					);
-					let connectorName = 'Unknown';
-					let connectorType = 'Unknown';
-					let errorCode = null;
-					let sendAttempts = 0;
-					let chainId = 0;
-					let orderId = 0;
-
-					if (connectorMessageMatch) {
-						const connectorXml = connectorMessageMatch[1];
-
-						// Extract connector name
-						const connectorNameMatch = connectorXml.match(
-							/<connectorName>([^<]*)<\/connectorName>/
-						);
-						connectorName = connectorNameMatch ? connectorNameMatch[1] : 'Unknown';
-
-						// Extract error code
-						const errorCodeMatch = connectorXml.match(/<errorCode>([^<]+)<\/errorCode>/);
-						errorCode = errorCodeMatch ? errorCodeMatch[1] : null;
-
-						// Extract send attempts
-						const sendAttemptsMatch = connectorXml.match(/<sendAttempts>([^<]+)<\/sendAttempts>/);
-						sendAttempts = sendAttemptsMatch ? parseInt(sendAttemptsMatch[1]) : 0;
-
-						// Extract chain ID
-						const chainIdMatch = connectorXml.match(/<chainId>([^<]+)<\/chainId>/);
-						chainId = chainIdMatch ? parseInt(chainIdMatch[1]) : 0;
-
-						// Extract order ID
-						const orderIdMatch = connectorXml.match(/<orderId>([^<]+)<\/orderId>/);
-						orderId = orderIdMatch ? parseInt(orderIdMatch[1]) : 0;
-					}
-
-					// Extract content maps
-					const sourceMapMatch = messageXml.match(
-						/<sourceMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const rawContent = sourceMapMatch ? sourceMapMatch[1].trim() : null;
-
-					const transformedMapMatch = messageXml.match(
-						/<connectorMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const transformedContent = transformedMapMatch ? transformedMapMatch[1].trim() : null;
-
-					const encodedMapMatch = messageXml.match(
-						/<channelMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const encodedContent = encodedMapMatch ? encodedMapMatch[1].trim() : null;
-
-					const responseMapMatch = messageXml.match(
-						/<responseMapContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const responseContent = responseMapMatch ? responseMapMatch[1].trim() : null;
-
-					// Extract error content
-					const processingErrorMatch = messageXml.match(
-						/<processingErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const processingErrorContent = processingErrorMatch
-						? processingErrorMatch[1].trim()
-						: null;
-
-					const postProcessorErrorMatch = messageXml.match(
-						/<postProcessorErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const postProcessorErrorContent = postProcessorErrorMatch
-						? postProcessorErrorMatch[1].trim()
-						: null;
-
-					const responseErrorMatch = messageXml.match(
-						/<responseErrorContent>[\s\S]*?<content[^>]*>([\s\S]*?)<\/content>/
-					);
-					const responseErrorContent = responseErrorMatch ? responseErrorMatch[1].trim() : null;
-
-					// Extract metadata
-					const metaDataMatch = messageXml.match(/<metaDataMap>([\s\S]*?)<\/metaDataMap>/);
-					const metaDataMap = metaDataMatch ? metaDataMatch[1].trim() : null;
-
-					return {
-						id,
-						channelId,
-						channelName: 'Unknown Channel',
-						receivedDate,
-						processed,
-						status,
-
-						// Basic Message Information
-						serverId,
-
-						// Connector Information
-						connectorName,
-						connectorType,
-						errorCode,
-						sendAttempts,
-						chainId,
-						orderId,
-
-						// Message Content
-						content: rawContent,
-						raw: rawContent,
-						transformed: transformedContent,
-						encoded: encodedContent,
-						response: responseContent,
-						responseTransformed: null, // Not directly available in XML
-						responseEncoded: null, // Not directly available in XML
-
-						// Processing Details
-						processingErrorContent,
-						postProcessorErrorContent,
-						responseErrorContent,
-						metaDataMap,
-
-						// Additional fields
-						error: processingErrorContent || responseErrorContent,
-						correlationId: null, // Not directly available in XML
-						sequenceId: null // Not directly available in XML
-					};
+			// DEBUG: show a few receivedDate/time nodes as present in raw XML
+			try {
+				const blocks = response.match(/<message[\s\S]*?<\/message>/g) || [];
+				const samples = blocks.slice(0, 5).map((block, i) => {
+					const receivedNode =
+						(block.match(/<receivedDate>[\s\S]*?<\/receivedDate>/) || [])[0] || null;
+					const anyTime = (block.match(/<time>([^<]+)<\/time>/) || [])[1] || null;
+					return { idx: i, receivedDateNode: receivedNode, timeValue: anyTime };
 				});
-			} else {
-				console.log('⚠️ No message tags found in XML response');
+				// if (samples.length > 0) console.log('🔎 XML date/timestamp samples:', samples);
+			} catch {}
+
+			const xmlObj = parseXmlWithFastParser(response);
+			if (!xmlObj) {
+				throw new Error('Failed to parse XML response from Mirth API');
+			}
+
+			// Per server format: always { list: { message: [...] }}
+			if (!xmlObj?.list?.message) {
 				return [];
 			}
+			const list = Array.isArray(xmlObj.list.message) ? xmlObj.list.message : [xmlObj.list.message];
+
+			messages = list.map((m, index) => {
+				const toBool = (v) => (typeof v === 'string' ? v === 'true' : Boolean(v));
+				const toInt = (v, d = 0) => {
+					if (v === undefined || v === null || v === '') return d;
+					const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+					return Number.isFinite(n) ? n : d;
+				};
+
+				// ID and server
+				const id = m.id || m.messageId || m._id || `msg-${index}`;
+				const serverId = m.serverId || null;
+
+				// Dates: prefer epoch millis under receivedDate.time
+				// Use RECEIVED date only (matches <receivedDate><time>...</time>)
+				let epoch =
+					m?.receivedDate?.time ??
+					m?.receivedDate?.Time ??
+					m?.connectorMessages?.entry?.value?.receivedDate?.time ??
+					null;
+				if (typeof epoch === 'string' && /^\d+$/.test(epoch)) epoch = parseInt(epoch, 10);
+				let receivedDate;
+				const normalizeEpoch = (v) => {
+					if (v === null || v === undefined || v === '') return null;
+					let n = typeof v === 'number' ? v : parseInt(String(v), 10);
+					if (!Number.isFinite(n)) return null;
+					// Heuristics: 10 digits=seconds, 13=ms, 16=micros
+					const len = String(Math.floor(Math.abs(n))).length;
+					if (len <= 10) return n * 1000;
+					if (len >= 16) return Math.floor(n / 1000);
+					return n; // assume ms
+				};
+				const epochMs = normalizeEpoch(epoch);
+				if (epochMs !== null) {
+					receivedDate = new Date(epochMs).toISOString();
+				} else {
+					receivedDate = '';
+				}
+
+				// Status/processed
+				const status = m.status || 'UNKNOWN';
+				const processed = toBool(m.processed);
+
+				// Connector details (best-effort across shapes)
+				let connectorName = m.connectorName || 'Unknown';
+				let connectorType = m.connectorType || 'Unknown';
+				let errorCode = m.errorCode || null;
+				let sendAttempts = toInt(m.sendAttempts, 0);
+				let chainId = toInt(m.chainId, 0);
+				let orderId = toInt(m.orderId, 0);
+
+				const entries = m?.connectorMessages?.entry
+					? Array.isArray(m.connectorMessages.entry)
+						? m.connectorMessages.entry
+						: [m.connectorMessages.entry]
+					: [];
+				if (entries.length > 0) {
+					const first = entries[0];
+					// In many Mirth exports, the object value lives alongside a 'string' key
+					const valueKey = Object.keys(first).find((k) => k !== 'string');
+					const cm = valueKey ? first[valueKey] : null;
+					if (cm) {
+						connectorName = cm.connectorName || connectorName;
+						connectorType = cm.connectorType || connectorType;
+						errorCode = cm.errorCode || errorCode;
+						sendAttempts = toInt(cm.sendAttempts, sendAttempts);
+						chainId = toInt(cm.chainId, chainId);
+						orderId = toInt(cm.orderId, orderId);
+					}
+				}
+
+				// Content maps
+				const rawContent = m?.sourceMapContent?.content ?? null;
+				const transformedContent = m?.connectorMapContent?.content ?? null;
+				const encodedContent = m?.channelMapContent?.content ?? null;
+				const responseContent = m?.responseMapContent?.content ?? null;
+				const processingErrorContent = m?.processingErrorContent?.content ?? null;
+				const postProcessorErrorContent = m?.postProcessorErrorContent?.content ?? null;
+				const responseErrorContent = m?.responseErrorContent?.content ?? null;
+				const metaDataMap = m?.metaDataMap ?? null;
+
+				return {
+					id,
+					channelId,
+					channelName: m.channelName || 'Unknown Channel',
+					receivedDate,
+					receivedDateMs: epochMs ?? null,
+					processed,
+					status,
+					serverId,
+					connectorName,
+					connectorType,
+					errorCode,
+					sendAttempts,
+					chainId,
+					orderId,
+					content: rawContent,
+					raw: rawContent,
+					transformed: transformedContent,
+					encoded: encodedContent,
+					response: responseContent,
+					responseTransformed: null,
+					responseEncoded: null,
+					processingErrorContent,
+					postProcessorErrorContent,
+					responseErrorContent,
+					metaDataMap,
+					error: processingErrorContent || responseErrorContent,
+					correlationId: null,
+					sequenceId: null
+				};
+			});
 		} else {
 			console.warn('⚠️ Unexpected response type:', typeof response);
 			return [];

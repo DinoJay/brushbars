@@ -8,12 +8,24 @@ import { EXAMPLE_MAX_PER_DAY } from '../src/lib/exampleData/mirthChannelsData.js
 const PORT = 3001;
 
 // Internal Mirth logs directory
-let LOG_DIR = 'C:/ Program Files/Mirth Connect/logs/';
+let LOG_DIR = 'C:/Program Files/Mirth Connect/logs/';
 
 const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 if (IS_ATHOME) {
 	LOG_DIR = path.join(process.cwd(), 'server', 'exampleData');
 	console.log('🏠 ATHOME mode: using exampleData at', LOG_DIR);
+} else {
+	const UNC_DIR = '\\\\brberdev\\\\c$\\\\Program Files\\\\Mirth Connect\\\\logs';
+	try {
+		if (fs.existsSync(UNC_DIR)) {
+			LOG_DIR = UNC_DIR;
+			console.log('📁 Using UNC path for internal logs:', LOG_DIR);
+		} else {
+			console.log('📁 UNC path not accessible, using local path:', LOG_DIR);
+		}
+	} catch {
+		console.log('📁 UNC path check failed, using local path:', LOG_DIR);
+	}
 }
 
 const LOG_FILE = path.join(LOG_DIR, 'mirth.log');
@@ -145,4 +157,3 @@ chokidar
 	.on('change', sendNewLines);
 
 console.log('🚀 WebSocket server ready (internal)');
-export * from './websocket-server-brpharmia.js';

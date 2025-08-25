@@ -8,7 +8,7 @@ import { EXAMPLE_MAX_PER_DAY } from '../src/lib/exampleData/mirthChannelsData.js
 const PORT = 3002;
 
 // Duomed logs UNC or example when ATHOME
-let LOG_DIR = '\\duomed\\c$\\ Program Files\\Mirth Connect\\logs';
+let LOG_DIR = '\\duomed\\c$\\Program Files\\Mirth Connect\\logs';
 const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 if (IS_ATHOME) {
 	LOG_DIR = path.join(process.cwd(), 'server', 'exampleData');
@@ -135,12 +135,20 @@ wss.on('connection', (ws) => {
 	sendHistoricalLogs(ws);
 });
 
-chokidar
-	.watch(LOG_FILE, {
-		usePolling: true,
-		interval: 2000,
-		awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 100 }
-	})
-	.on('change', sendNewLines);
-
-console.log('🚀 WebSocket server ready (duomed)');
+try {
+	const watcher = chokidar
+		.watch(LOG_FILE, {
+			usePolling: true,
+			interval: 2000,
+			awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 100 },
+			ignorePermissionErrors: true
+		})
+		.on('change', sendNewLines)
+		.on('error', (err) => {
+			console.error('⚠️ chokidar error (duomed):', err);
+		});
+	console.log('🚀 WebSocket server ready (duomed)');
+} catch (err) {
+	console.error('⚠️ Failed to start chokidar watcher (duomed):', err);
+	console.log('ℹ️ Server continues running; duomed file watching is disabled.');
+}

@@ -22,8 +22,8 @@ export async function GET({ params }) {
 	}
 
 	try {
-		// UNC path for duomed logs
-		const DUOMED_LOGS_DIR = '\\duomed\\c$\\ Program Files\\Mirth Connect\\logs';
+		// UNC path for duomed logs (host-specific)
+		const DUOMED_LOGS_DIR = '\\duomed\\c$\\Program Files\\Mirth Connect\\logs';
 		const IS_ATHOME = process.env.ATHOME === 'true' || process.env.athome === 'true';
 
 		let logs = loadLogsFromDirectory(DUOMED_LOGS_DIR);

@@ -9,6 +9,16 @@
 		loading?: boolean;
 		onFiltersChange?: (level: LogLevel | null, channel: string | null) => void;
 		onFiltered?: (filtered: TimelineEntry[]) => void;
+		dayStats?: {
+			total: number;
+			INFO: number;
+			ERROR: number;
+			WARN: number;
+			DEBUG: number;
+			WARNING?: number;
+			FATAL?: number;
+			TRACE?: number;
+		} | null;
 	}>();
 
 	const effectiveEntries = $derived(props.entries || []);
@@ -51,9 +61,14 @@
 	// Available levels and channels (from selected day data only)
 	let availableLevels = $derived.by(() => {
 		const levels = new Set<string>();
-		effectiveEntries.forEach((entry: any) => {
-			if (entry.level) levels.add(entry.level);
-		});
+		// Prefer keys from dayStats if provided to keep UI consistent
+		if (props.dayStats) {
+			['INFO', 'WARN', 'ERROR', 'DEBUG'].forEach((lvl) => levels.add(lvl));
+		} else {
+			effectiveEntries.forEach((entry: any) => {
+				if (entry.level) levels.add(entry.level);
+			});
+		}
 		return Array.from(levels).sort();
 	});
 
@@ -67,8 +82,16 @@
 		return Object.keys(counts).sort();
 	});
 
-	// Count entries for each level (from selected day data only)
+	// Count entries for each level
 	let levelCounts = $derived.by(() => {
+		if (props.dayStats) {
+			return {
+				INFO: props.dayStats.INFO || 0,
+				ERROR: props.dayStats.ERROR || 0,
+				WARN: props.dayStats.WARN || 0,
+				DEBUG: props.dayStats.DEBUG || 0
+			} as Record<string, number>;
+		}
 		const counts: Record<string, number> = {};
 		effectiveEntries.forEach((entry: any) => {
 			counts[entry.level] = (counts[entry.level] || 0) + 1;
@@ -76,7 +99,7 @@
 		return counts;
 	});
 
-	// Count entries for each channel (from selected day data only)
+	// Count entries for each channel
 	let channelCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
 		effectiveEntries.forEach((entry: any) => {
@@ -87,10 +110,10 @@
 		return counts;
 	});
 
-	// Total count for display (from selected day data only)
+	// Total count for display
 	let totalCount = $derived.by(() => {
-		const count = effectiveEntries.length;
-		return count;
+		if (props.dayStats && typeof props.dayStats.total === 'number') return props.dayStats.total;
+		return effectiveEntries.length;
 	});
 
 	function setLevel(level: LogLevel | null) {
@@ -180,7 +203,7 @@
 								: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary)'}
 							"
 						>
-							{level} ({levelCounts[level]?.toLocaleString() || 0})
+							{level} ({(levelCounts as any)[level]?.toLocaleString() || 0})
 						</button>
 					{/each}
 				</div>
@@ -214,7 +237,7 @@
 									: 'background-color: var(--color-bg-tertiary); color: var(--color-text-secondary)'}
 								"
 							>
-								{channel} ({channelCounts[channel]?.toLocaleString() || 0})
+								{channel} ({(channelCounts as any)[channel]?.toLocaleString() || 0})
 							</button>
 						{/each}
 						{#if availableChannels.length > 10}

@@ -5,9 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"dev:athome:full": "npx concurrently -k -n WEB,WS,DUO -c green,cyan,magenta \"ATHOME=true vite dev\" \"ATHOME=true node server/websocket-server-internal.js\" \"ATHOME=true node server/websocket-server-duomed.js\"",
-		"dev:full": "ATHOME=true npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev\" \"npm run dev:ws\"",
-		"dev:mirth": "dotenv -e .env npx concurrently -k -n WEB,WS -c green,cyan \"npm run dev\" \"npm run dev:ws\"",
+		"dev:athome:full": "npx concurrently -k -n WEB,WS,DUO -c green,cyan,magenta \"cross-env ATHOME=true vite dev\" \"cross-env ATHOME=true node server/websocket-server-internal.js\" \"cross-env ATHOME=true node server/websocket-server-duomed.js\"",
+		"dev:atwork:full": "npx concurrently -k -n WEB,WS,DUO -c green,cyan,magenta \"vite dev\" \"node server/websocket-server-internal.js\" \"node server/websocket-server-duomed.js\"",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -22,7 +21,7 @@
 		"start:ws": "npm --prefix server start",
 		"start:prod": "concurrently -k -n WEB,WS -c green,cyan \"npm run start:web\" \"npm run start:ws\"",
 		"prod": "npm run build && npm run install:ws && npm run start:prod",
-		"prod:athome": "ATHOME=true npm run build && ATHOME=true npm run start:web"
+		"prod:athome": "cross-env ATHOME=true npm run build && cross-env ATHOME=true npm run start:web"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -31,6 +30,7 @@
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.0.0",
+		"@types/node": "^24.3.0",
 		"concurrently": "^8.2.2",
 		"cross-env": "^10.0.0",
 		"dotenv-cli": "^10.0.0",
@@ -51,6 +51,7 @@
 	"dependencies": {
 		"@sveltejs/adapter-node": "^5.2.13",
 		"d3": "^7.9.0",
+		"fast-xml-parser": "^4.5.0",
 		"tailwind-merge": "^3.3.1"
 	}
 }
